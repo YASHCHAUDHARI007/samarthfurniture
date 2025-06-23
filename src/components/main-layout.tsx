@@ -113,14 +113,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     asChild
                     isActive={isActive("/customer-orders")}
                     tooltip={{
-                      children: "Customer Orders",
+                      children: "Customized Orders",
                       side: "right",
                       align: "center",
                     }}
                   >
                     <Link href="/customer-orders">
                       <User />
-                      <span>Customer Orders</span>
+                      <span>Customized Orders</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

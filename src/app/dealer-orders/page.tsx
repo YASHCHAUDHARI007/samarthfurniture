@@ -34,7 +34,7 @@ type Order = {
   customer: string;
   item: string;
   status: OrderStatus;
-  type: "Customer" | "Dealer";
+  type: "Customized" | "Dealer";
   details: string;
   dimensions?: {
     height?: string;

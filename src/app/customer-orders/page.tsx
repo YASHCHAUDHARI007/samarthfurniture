@@ -26,7 +26,7 @@ type Order = {
   customer: string;
   item: string;
   status: OrderStatus;
-  type: "Customer" | "Dealer";
+  type: "Customized" | "Dealer";
   details: string;
   dimensions?: {
     height?: string;
@@ -81,7 +81,7 @@ export default function CustomerOrderPage() {
       customer: customerName,
       item: `Custom: ${orderDetails.substring(0, 30)}...`,
       status: "Pending",
-      type: "Customer",
+      type: "Customized",
       details: orderDetails,
       dimensions: {
         height: height || undefined,
@@ -105,8 +105,8 @@ export default function CustomerOrderPage() {
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
 
     toast({
-      title: "Order Submitted!",
-      description: "The customer's order has been sent to the factory.",
+      title: "Customized Order Submitted!",
+      description: "The customized order has been sent to the factory.",
       variant: "default",
     });
     setPhotoDataUrl(undefined);
@@ -115,18 +115,18 @@ export default function CustomerOrderPage() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <h2 className="text-3xl font-bold tracking-tight">New Customer Order</h2>
+      <h2 className="text-3xl font-bold tracking-tight">New Customized Order</h2>
       <p className="text-muted-foreground">
-        Create a new order for a customer. This information will be sent to the
+        Create a new customized order for a customer. This information will be sent to the
         factory.
       </p>
       <Separator />
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle>Customer & Order Details</CardTitle>
+            <CardTitle>Customized Order Details</CardTitle>
             <CardDescription>
-              Enter the customer's information and order specifications.
+              Enter the customer's information and customized order specifications.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -231,7 +231,7 @@ export default function CustomerOrderPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit">Submit Customer Order</Button>
+            <Button type="submit">Submit Customized Order</Button>
           </CardFooter>
         </Card>
       </form>

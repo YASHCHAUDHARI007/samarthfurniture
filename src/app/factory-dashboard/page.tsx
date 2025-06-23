@@ -49,7 +49,7 @@ type Order = {
   customer: string;
   item: string;
   status: OrderStatus;
-  type: "Customer" | "Dealer";
+  type: "Customized" | "Dealer";
   details: string;
   dimensions?: {
     height?: string;
@@ -79,7 +79,7 @@ const initialOrders: Order[] = [
     customer: "Olivia Martin",
     item: "Custom Oak Bookshelf",
     status: "Working",
-    type: "Customer",
+    type: "Customized",
     details:
       "A custom-built bookshelf made from solid oak, with a dark walnut stain. Dimensions are non-standard to fit a specific alcove. Features 5 shelves, with the top two having a smaller depth.",
     dimensions: { height: "84", width: "40", depth: "12" },
@@ -375,7 +375,7 @@ export default function FactoryDashboardPage() {
               <DialogTitle>Order Details: {selectedOrder.id}</DialogTitle>
               <DialogDescription>
                 Full specification for{" "}
-                {selectedOrder.type === "Customer"
+                {selectedOrder.type === "Customized"
                   ? "a custom order."
                   : "a bulk dealer order."}
               </DialogDescription>
