@@ -221,7 +221,7 @@ export default function FactoryDashboardPage() {
         </p>
 
         <Tabs defaultValue="production">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 max-w-md">
             <TabsTrigger value="production">
               <Factory className="mr-2 h-4 w-4" />
               Production Orders
@@ -245,8 +245,8 @@ export default function FactoryDashboardPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Order ID</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Item Summary</TableHead>
+                        <TableHead className="hidden md:table-cell">Customer</TableHead>
+                        <TableHead className="hidden md:table-cell">Item Summary</TableHead>
                         <TableHead>Current Status</TableHead>
                         <TableHead className="w-[180px]">
                           Change Status
@@ -260,8 +260,8 @@ export default function FactoryDashboardPage() {
                           <TableCell className="font-medium">
                             {order.id}
                           </TableCell>
-                          <TableCell>{order.customer}</TableCell>
-                          <TableCell>{order.item}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.customer}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.item}</TableCell>
                           <TableCell>
                             <Badge
                               variant={getStatusBadgeVariant(order.status)}
@@ -328,8 +328,8 @@ export default function FactoryDashboardPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Order ID</TableHead>
-                                    <TableHead>Customer</TableHead>
-                                    <TableHead>Item Summary</TableHead>
+                                    <TableHead className="hidden md:table-cell">Customer</TableHead>
+                                    <TableHead className="hidden md:table-cell">Item Summary</TableHead>
                                     <TableHead>Final Status</TableHead>
                                     <TableHead className="w-[140px]">Actions</TableHead>
                                 </TableRow>
@@ -338,8 +338,8 @@ export default function FactoryDashboardPage() {
                                 {filteredDeliveredOrders.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell className="font-medium">{order.id}</TableCell>
-                                        <TableCell>{order.customer}</TableCell>
-                                        <TableCell>{order.item}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{order.customer}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{order.item}</TableCell>
                                         <TableCell>
                                             <Badge variant={getStatusBadgeVariant(order.status)}>
                                                 {order.status}
@@ -469,7 +469,7 @@ export default function FactoryDashboardPage() {
                        <Image
                           src={selectedOrder.photoDataUrl}
                           alt="Order Design Photo"
-                          layout="fill"
+                          fill
                           objectFit="contain"
                        />
                     </div>

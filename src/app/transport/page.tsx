@@ -74,7 +74,7 @@ const DeliveryReceipt = ({ order }: { order: Order }) => (
         <p className="text-sm">Order ID: {order.id}</p>
       </div>
       <Separator />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <h4 className="font-semibold">Customer Details</h4>
           <p>{order.customerInfo?.name || order.customer}</p>
@@ -280,21 +280,21 @@ export default function TransportPage() {
           </DialogHeader>
           <form onSubmit={handleDispatchSubmit}>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="driverName" className="text-right">Driver Name</Label>
-                <Input id="driverName" name="driverName" className="col-span-3" required />
+              <div className="space-y-2">
+                <Label htmlFor="driverName">Driver Name</Label>
+                <Input id="driverName" name="driverName" required />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="driverContact" className="text-right">Driver Contact</Label>
-                <Input id="driverContact" name="driverContact" className="col-span-3" required />
+              <div className="space-y-2">
+                <Label htmlFor="driverContact">Driver Contact</Label>
+                <Input id="driverContact" name="driverContact" required />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="vehicleNumber" className="text-right">Vehicle Number</Label>
-                <Input id="vehicleNumber" name="vehicleNumber" className="col-span-3" required />
+              <div className="space-y-2">
+                <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                <Input id="vehicleNumber" name="vehicleNumber" required />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="vehicleModel" className="text-right">Vehicle Model</Label>
-                <Input id="vehicleModel" name="vehicleModel" className="col-span-3" required />
+              <div className="space-y-2">
+                <Label htmlFor="vehicleModel">Vehicle Model</Label>
+                <Input id="vehicleModel" name="vehicleModel" required />
               </div>
             </div>
             <DialogFooter>
