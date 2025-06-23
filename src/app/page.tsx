@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -39,7 +40,7 @@ type Order = {
   details: string;
   createdBy?: string;
 };
-const ORDERS_STORAGE_KEY = "furnishflow_orders";
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
 const chartData = [
   { month: "January", sales: 18623 },
@@ -58,14 +59,22 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function Dashboard() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    const role = localStorage.getItem("userRole");
     const username = localStorage.getItem("loggedInUser");
+    if (!username) {
+      router.push("/login");
+      return;
+    }
+    
+    setIsAuthenticated(true);
+    const role = localStorage.getItem("userRole");
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
     
@@ -76,7 +85,7 @@ export default function Dashboard() {
     
     setOrders(filteredOrders);
     setIsLoading(false);
-  }, []);
+  }, [router]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -113,6 +122,9 @@ export default function Dashboard() {
     return acc + quantities.reduce((sum, q) => sum + q, 0);
   }, 0);
 
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

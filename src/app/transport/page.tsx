@@ -67,7 +67,7 @@ type Order = {
   };
 };
 
-const ORDERS_STORAGE_KEY = "furnishflow_orders";
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
 const DeliveryReceipt = ({ order }: { order: Order }) => (
     <div className="border p-4 rounded-lg space-y-4">
