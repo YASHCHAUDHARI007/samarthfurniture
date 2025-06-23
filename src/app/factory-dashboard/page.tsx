@@ -277,30 +277,35 @@ export default function FactoryDashboardPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-              <Separator />
-              <div className="space-y-2">
-                <h4 className="font-semibold">Customer Information</h4>
-                <p>
-                  <strong>Name:</strong> {selectedOrder.customerInfo.name}
-                </p>
-                {selectedOrder.customerInfo.email && (
-                  <p>
-                    <strong>Email:</strong> {selectedOrder.customerInfo.email}
-                  </p>
-                )}
-                {selectedOrder.customerInfo.address && (
-                  <p>
-                    <strong>Address:</strong>{" "}
-                    {selectedOrder.customerInfo.address}
-                  </p>
-                )}
-                {selectedOrder.customerInfo.dealerId && (
-                  <p>
-                    <strong>Dealer ID:</strong>{" "}
-                    {selectedOrder.customerInfo.dealerId}
-                  </p>
-                )}
-              </div>
+              {selectedOrder.customerInfo && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Customer Information</h4>
+                    <p>
+                      <strong>Name:</strong> {selectedOrder.customerInfo.name}
+                    </p>
+                    {selectedOrder.customerInfo.email && (
+                      <p>
+                        <strong>Email:</strong>{" "}
+                        {selectedOrder.customerInfo.email}
+                      </p>
+                    )}
+                    {selectedOrder.customerInfo.address && (
+                      <p>
+                        <strong>Address:</strong>{" "}
+                        {selectedOrder.customerInfo.address}
+                      </p>
+                    )}
+                    {selectedOrder.customerInfo.dealerId && (
+                      <p>
+                        <strong>Dealer ID:</strong>{" "}
+                        {selectedOrder.customerInfo.dealerId}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="space-y-2">
                 <h4 className="font-semibold">Order Specification</h4>
