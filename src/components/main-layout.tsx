@@ -15,12 +15,19 @@ import {
   Armchair,
   Building,
   LayoutDashboard,
+  LogOut,
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -82,17 +89,33 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <div className="flex items-center gap-3 p-2 rounded-md transition-colors m-2 bg-sidebar-accent/20">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src="https://placehold.co/100x100.png" alt="@owner" data-ai-hint="person" />
-              <AvatarFallback>OW</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col truncate">
-              <span className="text-sm font-medium text-sidebar-foreground truncate">App Owner</span>
-              <span className="text-xs text-sidebar-foreground/70 truncate">
-                owner@furnishflow.com
-              </span>
+          <div className="flex items-center justify-between gap-3 p-2 rounded-md transition-colors m-2 bg-sidebar-accent/20">
+            <div className="flex items-center gap-3 truncate">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src="https://placehold.co/100x100.png" alt="@owner" data-ai-hint="person" />
+                <AvatarFallback>OW</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col truncate">
+                <span className="text-sm font-medium text-sidebar-foreground truncate">App Owner</span>
+                <span className="text-xs text-sidebar-foreground/70 truncate">
+                  owner@furnishflow.com
+                </span>
+              </div>
             </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0" asChild>
+                      <Link href="/login">
+                          <LogOut className="h-4 w-4" />
+                      </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Logout</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </SidebarFooter>
       </Sidebar>

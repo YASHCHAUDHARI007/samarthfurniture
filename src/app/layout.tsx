@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { MainLayout } from "@/components/main-layout";
+import { AppLayout } from "@/components/app-layout";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default function RootLayout({
         ></link>
       </head>
       <body className="font-body antialiased">
-        <MainLayout>{children}</MainLayout>
+        <AppLayout>{children}</AppLayout>
         <Toaster />
       </body>
     </html>
