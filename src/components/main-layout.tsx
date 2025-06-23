@@ -11,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Armchair,
@@ -36,6 +37,196 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
+
+function Menu({ userRole }: { userRole: string | null }) {
+  const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const isActive = (path: string) => pathname === path;
+
+  return (
+    <SidebarMenu>
+      {(userRole === "owner" || userRole === "coordinator") && (
+        <>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/")}
+              tooltip={{
+                children: "Dashboard",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/">
+                <LayoutDashboard />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/customer-orders")}
+              tooltip={{
+                children: "Customized Orders",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/customer-orders">
+                <User />
+                <span>Customized Orders</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/dealer-orders")}
+              tooltip={{
+                children: "Dealer Orders",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/dealer-orders">
+                <Building />
+                <span>Dealer Orders</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </>
+      )}
+
+      {userRole === "factory" && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive("/factory-dashboard")}
+            tooltip={{
+              children: "Factory Dashboard",
+              side: "right",
+              align: "center",
+            }}
+            onClick={handleLinkClick}
+          >
+            <Link href="/factory-dashboard">
+              <Factory />
+              <span>Factory Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+
+      {(userRole === "owner" || userRole === "factory") && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive("/transport")}
+            tooltip={{
+              children: "Transport",
+              side: "right",
+              align: "center",
+            }}
+            onClick={handleLinkClick}
+          >
+            <Link href="/transport">
+              <Truck />
+              <span>Transport</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive("/stock-turnover")}
+          tooltip={{
+            children: "Stock Levels",
+            side: "right",
+            align: "center",
+          }}
+          onClick={handleLinkClick}
+        >
+          <Link href="/stock-turnover">
+            <Warehouse />
+            <span>Stock Levels</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      {(userRole === "owner" || userRole === "factory") && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive("/raw-materials")}
+            tooltip={{
+              children: "Raw Materials",
+              side: "right",
+              align: "center",
+            }}
+            onClick={handleLinkClick}
+          >
+            <Link href="/raw-materials">
+              <Wrench />
+              <span>Raw Materials</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+
+      {userRole === "owner" && (
+        <>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/daily-report")}
+              tooltip={{
+                children: "Daily Report",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/daily-report">
+                <ClipboardList />
+                <span>Daily Report</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/manage-users")}
+              tooltip={{
+                children: "Manage Users",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/manage-users">
+                <Users />
+                <span>Manage Users</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </>
+      )}
+    </SidebarMenu>
+  );
+}
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -64,8 +255,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  const isActive = (path: string) => pathname === path;
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -89,171 +278,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
-            {(userRole === "owner" || userRole === "coordinator") && (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/")}
-                    tooltip={{
-                      children: "Dashboard",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/">
-                      <LayoutDashboard />
-                      <span>Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/customer-orders")}
-                    tooltip={{
-                      children: "Customized Orders",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/customer-orders">
-                      <User />
-                      <span>Customized Orders</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/dealer-orders")}
-                    tooltip={{
-                      children: "Dealer Orders",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/dealer-orders">
-                      <Building />
-                      <span>Dealer Orders</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
-            )}
-
-            {userRole === "factory" && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/factory-dashboard")}
-                  tooltip={{
-                    children: "Factory Dashboard",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/factory-dashboard">
-                    <Factory />
-                    <span>Factory Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-            
-            {(userRole === "owner" || userRole === "factory") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/transport")}
-                  tooltip={{
-                    children: "Transport",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/transport">
-                    <Truck />
-                    <span>Transport</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/stock-turnover")}
-                tooltip={{
-                  children: "Stock Levels",
-                  side: "right",
-                  align: "center",
-                }}
-              >
-                <Link href="/stock-turnover">
-                  <Warehouse />
-                  <span>Stock Levels</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            {(userRole === "owner" || userRole === "factory") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/raw-materials")}
-                  tooltip={{
-                    children: "Raw Materials",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/raw-materials">
-                    <Wrench />
-                    <span>Raw Materials</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-
-            {userRole === "owner" && (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/daily-report")}
-                    tooltip={{
-                      children: "Daily Report",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/daily-report">
-                      <ClipboardList />
-                      <span>Daily Report</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/manage-users")}
-                    tooltip={{
-                      children: "Manage Users",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/manage-users">
-                      <Users />
-                      <span>Manage Users</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
-            )}
-          </SidebarMenu>
+          <Menu userRole={userRole} />
         </SidebarContent>
         <SidebarFooter>
           <div className="m-2 flex items-center justify-between gap-3 rounded-md bg-sidebar-accent/20 p-2 transition-colors">
