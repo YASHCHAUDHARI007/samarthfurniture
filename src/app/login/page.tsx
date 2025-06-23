@@ -1,7 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import { Armchair } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,21 +15,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+const allowedUsers = [
+  { email: "owner@furnishflow.com", password: "password123" },
+  { email: "coordinator@furnishflow.com", password: "password456" },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // In a real app, you'd have authentication logic here.
-    toast({
-      title: "Login Successful",
-      description: "Redirecting to the dashboard...",
-    });
-    // Redirect to dashboard after a short delay
-    setTimeout(() => {
-      router.push("/");
-    }, 1000);
+    
+    const user = allowedUsers.find(
+      (u) => u.email === email && u.password === password
+    );
+
+    if (user) {
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to the dashboard...",
+      });
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid email or password. Please try again.",
+      });
+    }
   };
 
   return (
@@ -41,7 +59,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Login to FurnishFlow</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Enter your credentials to access your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -53,30 +71,24 @@ export default function LoginPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-              <Input id="password" type="password" required />
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <Button type="submit" className="w-full">
               Login
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="#" className="underline">
-              Sign up
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>
