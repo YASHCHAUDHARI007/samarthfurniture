@@ -34,11 +34,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Factory, ShieldAlert } from "lucide-react";
+import { Factory, ShieldAlert, History, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 
 type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
 
@@ -55,7 +57,7 @@ type Order = {
     depth?: string;
   };
   photoDataUrl?: string;
-  customerInfo: {
+  customerInfo?: {
     name: string;
     email?: string;
     address?: string;
@@ -102,6 +104,7 @@ export default function FactoryDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -111,13 +114,16 @@ export default function FactoryDashboardPage() {
       setIsFactoryWorker(false);
     }
 
-    const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
+    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const savedOrders = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+
+    if (savedOrders.length === 0) {
+        setOrders(initialOrders);
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
     } else {
-      setOrders(initialOrders);
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
+        setOrders(savedOrders);
     }
+
 
     setIsLoading(false);
   }, []);
@@ -178,6 +184,20 @@ export default function FactoryDashboardPage() {
       </div>
     );
   }
+  
+  const activeOrders = orders.filter(
+    (order) => order.status === "Pending" || order.status === "Working"
+  );
+  
+  const completedOrders = orders.filter(
+    (order) => order.status === "Completed" || order.status === "Delivered"
+  );
+
+  const filteredCompletedOrders = completedOrders.filter(order => 
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.item.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <>
@@ -192,71 +212,152 @@ export default function FactoryDashboardPage() {
           View and update the status of current production orders.
         </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Production Orders</CardTitle>
-            <CardDescription>
-              A list of all orders currently in the system.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Item Summary</TableHead>
-                    <TableHead>Current Status</TableHead>
-                    <TableHead className="w-[180px]">Change Status</TableHead>
-                    <TableHead className="w-[140px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>{order.customer}</TableCell>
-                      <TableCell>{order.item}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={order.status}
-                          onValueChange={(newStatus: OrderStatus) =>
-                            handleStatusChange(order.id, newStatus)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Set status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Working">Working</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Delivered">Delivered</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedOrder(order)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="production">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="production">
+              <Factory className="mr-2 h-4 w-4" />
+              Production Orders
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <History className="mr-2 h-4 w-4" />
+              Order History
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="production">
+            <Card>
+              <CardHeader>
+                <CardTitle>Production Orders</CardTitle>
+                <CardDescription>
+                  A list of all orders currently in production.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Item Summary</TableHead>
+                        <TableHead>Current Status</TableHead>
+                        <TableHead className="w-[180px]">
+                          Change Status
+                        </TableHead>
+                        <TableHead className="w-[140px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">
+                            {order.id}
+                          </TableCell>
+                          <TableCell>{order.customer}</TableCell>
+                          <TableCell>{order.item}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={getStatusBadgeVariant(order.status)}
+                            >
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={order.status}
+                              onValueChange={(newStatus: OrderStatus) =>
+                                handleStatusChange(order.id, newStatus)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Set status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Working">Working</SelectItem>
+                                <SelectItem value="Completed">
+                                  Completed
+                                </SelectItem>
+                                <SelectItem value="Delivered">
+                                  Delivered
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedOrder(order)}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="history">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Completed Order History</CardTitle>
+                    <CardDescription>A searchable archive of all completed and delivered orders.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center py-4">
+                        <div className="relative w-full max-w-sm">
+                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                         <Input
+                           placeholder="Search by ID, customer, item..."
+                           value={searchTerm}
+                           onChange={(e) => setSearchTerm(e.target.value)}
+                           className="pl-9"
+                         />
+                        </div>
+                    </div>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Order ID</TableHead>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Item Summary</TableHead>
+                                    <TableHead>Final Status</TableHead>
+                                    <TableHead className="w-[140px]">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredCompletedOrders.map((order) => (
+                                    <TableRow key={order.id}>
+                                        <TableCell className="font-medium">{order.id}</TableCell>
+                                        <TableCell>{order.customer}</TableCell>
+                                        <TableCell>{order.item}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={getStatusBadgeVariant(order.status)}>
+                                                {order.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSelectedOrder(order)}
+                                            >
+                                            View Details
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {selectedOrder && (
@@ -314,7 +415,7 @@ export default function FactoryDashboardPage() {
 
               {selectedOrder.dimensions &&
                 (selectedOrder.dimensions.height ||
-                  selectedOrder.dimensions.width ||
+                  selected.dimensions.width ||
                   selectedOrder.dimensions.depth) && (
                   <>
                     <Separator />
@@ -367,3 +468,5 @@ export default function FactoryDashboardPage() {
     </>
   );
 }
+
+    
