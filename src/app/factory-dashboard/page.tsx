@@ -87,7 +87,7 @@ const initialOrders: Order[] = [
     id: "ORD-003",
     customer: "FineNests Inc.",
     item: "Bulk Order: 50x Dining Chairs",
-    status: "Completed",
+    status: "Delivered",
     type: "Dealer",
     details: "50x Upholstered Dining Chair (CHR-DIN-UPH-BGE)",
     customerInfo: {
@@ -189,11 +189,11 @@ export default function FactoryDashboardPage() {
     (order) => order.status === "Pending" || order.status === "Working"
   );
   
-  const completedOrders = orders.filter(
-    (order) => order.status === "Completed" || order.status === "Delivered"
+  const deliveredOrders = orders.filter(
+    (order) => order.status === "Delivered"
   );
 
-  const filteredCompletedOrders = completedOrders.filter(order => 
+  const filteredDeliveredOrders = deliveredOrders.filter(order => 
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.item.toLowerCase().includes(searchTerm.toLowerCase())
@@ -303,8 +303,8 @@ export default function FactoryDashboardPage() {
           <TabsContent value="history">
             <Card>
                 <CardHeader>
-                    <CardTitle>Completed Order History</CardTitle>
-                    <CardDescription>A searchable archive of all completed and delivered orders.</CardDescription>
+                    <CardTitle>Delivered Order History</CardTitle>
+                    <CardDescription>A searchable archive of all delivered orders.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center py-4">
@@ -330,7 +330,7 @@ export default function FactoryDashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredCompletedOrders.map((order) => (
+                                {filteredDeliveredOrders.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell className="font-medium">{order.id}</TableCell>
                                         <TableCell>{order.customer}</TableCell>
@@ -415,7 +415,7 @@ export default function FactoryDashboardPage() {
 
               {selectedOrder.dimensions &&
                 (selectedOrder.dimensions.height ||
-                  selected.dimensions.width ||
+                  selectedOrder.dimensions.width ||
                   selectedOrder.dimensions.depth) && (
                   <>
                     <Separator />
@@ -468,5 +468,3 @@ export default function FactoryDashboardPage() {
     </>
   );
 }
-
-    
