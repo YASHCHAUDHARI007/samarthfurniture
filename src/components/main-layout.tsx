@@ -166,25 +166,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive("/raw-materials")}
-                  tooltip={{
-                    children: "Raw Materials",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/raw-materials">
-                    <Wrench />
-                    <span>Raw Materials</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-
-            {(userRole === "owner" || userRole === "factory") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
                   isActive={isActive("/transport")}
                   tooltip={{
                     children: "Transport",
@@ -216,6 +197,25 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            
+            {(userRole === "owner" || userRole === "factory") && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/raw-materials")}
+                  tooltip={{
+                    children: "Raw Materials",
+                    side: "right",
+                    align: "center",
+                  }}
+                >
+                  <Link href="/raw-materials">
+                    <Wrench />
+                    <span>Raw Materials</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
 
             {userRole === "owner" && (
               <>
