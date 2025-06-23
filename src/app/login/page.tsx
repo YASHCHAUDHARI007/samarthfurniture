@@ -36,6 +36,9 @@ export default function LoginPage() {
     );
 
     if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('loggedInUser', user.email);
+      }
       toast({
         title: "Login Successful",
         description: "Redirecting to the dashboard...",
