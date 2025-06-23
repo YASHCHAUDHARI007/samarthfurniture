@@ -73,7 +73,7 @@ type Order = {
   };
 };
 
-const ORDERS_STORAGE_KEY = "furnishflow_orders";
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
 const initialOrders: Order[] = [
   {

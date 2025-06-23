@@ -26,7 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-const ORDERS_STORAGE_KEY = "furnishflow_orders";
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
 
 type Order = {

@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const ORDERS_STORAGE_KEY = "furnishflow_orders";
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
 
 type Order = {

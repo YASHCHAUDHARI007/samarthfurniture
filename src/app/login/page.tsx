@@ -87,7 +87,7 @@ export default function LoginPage() {
           <div className="inline-block rounded-lg bg-primary/20 p-3 text-primary">
             <Armchair className="h-8 w-8" />
           </div>
-          <CardTitle className="text-2xl">Login to FurnishFlow</CardTitle>
+          <CardTitle className="text-2xl">Login to Samarth Furniture</CardTitle>
           <CardDescription>
             Enter your credentials to access your account.
           </CardDescription>
