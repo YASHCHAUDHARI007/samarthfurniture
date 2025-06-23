@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+// To add more users, add a new object to this array.
+// For example: { email: "newuser@furnishflow.com", password: "newpassword" }
 const allowedUsers = [
   { email: "owner@furnishflow.com", password: "password123" },
   { email: "coordinator@furnishflow.com", password: "password456" },
