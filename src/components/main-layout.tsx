@@ -21,6 +21,7 @@ import {
   User,
   Users,
   Warehouse,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -160,6 +161,25 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   <Link href="/factory-dashboard">
                     <Factory />
                     <span>Factory Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            
+            {(userRole === "owner" || userRole === "factory") && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/raw-materials")}
+                  tooltip={{
+                    children: "Raw Materials",
+                    side: "right",
+                    align: "center",
+                  }}
+                >
+                  <Link href="/raw-materials">
+                    <Wrench />
+                    <span>Raw Materials</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
