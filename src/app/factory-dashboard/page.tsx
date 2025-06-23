@@ -63,6 +63,12 @@ type Order = {
     address?: string;
     dealerId?: string;
   };
+  transportDetails?: {
+    driverName: string;
+    driverContact: string;
+    vehicleNumber: string;
+    vehicleModel: string;
+  };
 };
 
 const ORDERS_STORAGE_KEY = "furnishflow_orders";
@@ -276,9 +282,6 @@ export default function FactoryDashboardPage() {
                                 <SelectItem value="Working">Working</SelectItem>
                                 <SelectItem value="Completed">
                                   Completed
-                                </SelectItem>
-                                <SelectItem value="Delivered">
-                                  Delivered
                                 </SelectItem>
                               </SelectContent>
                             </Select>

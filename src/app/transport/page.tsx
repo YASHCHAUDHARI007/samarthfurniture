@@ -7,9 +7,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,8 +21,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Truck, ShieldAlert } from "lucide-react";
+import { Truck, ShieldAlert, Printer } from "lucide-react";
 
 type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
 
@@ -45,9 +56,54 @@ type Order = {
     address?: string;
     dealerId?: string;
   };
+  transportDetails?: {
+    driverName: string;
+    driverContact: string;
+    vehicleNumber: string;
+    vehicleModel: string;
+  };
 };
 
 const ORDERS_STORAGE_KEY = "furnishflow_orders";
+
+const DeliveryReceipt = ({ order }: { order: Order }) => (
+    <div className="border p-4 rounded-lg space-y-4">
+      <div className="text-center">
+        <h3 className="font-bold text-lg">Delivery Receipt</h3>
+        <p className="text-sm">Order ID: {order.id}</p>
+      </div>
+      <Separator />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <h4 className="font-semibold">Customer Details</h4>
+          <p>{order.customerInfo?.name || order.customer}</p>
+          <p className="text-sm">{order.customerInfo?.address || "N/A"}</p>
+        </div>
+        <div>
+          <h4 className="font-semibold">Driver & Vehicle</h4>
+          <p>Driver: {order.transportDetails?.driverName}</p>
+          <p className="text-sm">Contact: {order.transportDetails?.driverContact}</p>
+          <p className="text-sm">Vehicle: {order.transportDetails?.vehicleModel} ({order.transportDetails?.vehicleNumber})</p>
+        </div>
+      </div>
+       <div className="space-y-2">
+        <h4 className="font-semibold">Order Items</h4>
+        <p className="whitespace-pre-wrap text-xs">{order.details}</p>
+      </div>
+      <div className="pt-8">
+        <div className="grid grid-cols-2 gap-8">
+          <div>
+            <Separator className="bg-foreground" />
+            <p className="text-center text-sm pt-2">Customer Signature</p>
+          </div>
+          <div>
+            <Separator className="bg-foreground" />
+            <p className="text-center text-sm pt-2">Driver Signature</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
 export default function TransportPage() {
   const router = useRouter();
@@ -55,6 +111,8 @@ export default function TransportPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -67,16 +125,41 @@ export default function TransportPage() {
     setIsLoading(false);
   }, []);
 
-  const handleMarkAsDelivered = (orderId: string) => {
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: "Delivered" } : order
-    );
+  const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    const transportDetails = {
+      driverName: formData.get("driverName") as string,
+      driverContact: formData.get("driverContact") as string,
+      vehicleNumber: formData.get("vehicleNumber") as string,
+      vehicleModel: formData.get("vehicleModel") as string,
+    };
+
+    let updatedOrder: Order | undefined;
+    const updatedOrders = orders.map((order) => {
+      if (order.id === selectedOrder.id) {
+        updatedOrder = { ...order, status: "Delivered", transportDetails };
+        return updatedOrder;
+      }
+      return order;
+    });
+
     setOrders(updatedOrders);
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
+    
     toast({
-      title: "Order Shipped!",
-      description: `Order ${orderId} has been marked as Delivered and will now appear in the factory history.`,
+      title: "Order Dispatched!",
+      description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
     });
+
+    setReceiptOrder(updatedOrder || null);
+    setSelectedOrder(null);
+  };
+  
+  const handlePrint = () => {
+    window.print();
   };
 
   if (isLoading) {
@@ -108,79 +191,139 @@ export default function TransportPage() {
   );
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center gap-2">
-        <Truck className="h-7 w-7" />
-        <h2 className="text-3xl font-bold tracking-tight">
-          Transport & Shipping
-        </h2>
-      </div>
-      <p className="text-muted-foreground">
-        Manage and track orders that are ready for delivery.
-      </p>
-      <Separator />
+    <>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center gap-2">
+          <Truck className="h-7 w-7" />
+          <h2 className="text-3xl font-bold tracking-tight">
+            Transport & Shipping
+          </h2>
+        </div>
+        <p className="text-muted-foreground">
+          Manage and track orders that are ready for delivery.
+        </p>
+        <Separator />
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Ready for Shipping</CardTitle>
-          <CardDescription>
-            The following orders have been marked as 'Completed' and are
-            awaiting transport.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Shipping Address</TableHead>
-                  {userRole === "factory" && (
-                    <TableHead className="w-[200px] text-right">
-                      Action
-                    </TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordersForTransport.length > 0 ? (
-                  ordersForTransport.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>
-                        {order.customerInfo?.name || order.customer}
-                      </TableCell>
-                      <TableCell>
-                        {order.customerInfo?.address || "N/A"}
-                      </TableCell>
-                      {userRole === "factory" && (
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => handleMarkAsDelivered(order.id)}
-                          >
-                            Mark as Delivered
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))
-                ) : (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Ready for Shipping</CardTitle>
+            <CardDescription>
+              The following orders have been marked as 'Completed' and are
+              awaiting transport.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={userRole === "factory" ? 4 : 3}
-                      className="h-24 text-center"
-                    >
-                      No orders are currently awaiting transport.
-                    </TableCell>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Shipping Address</TableHead>
+                    {userRole === "factory" && (
+                      <TableHead className="w-[200px] text-right">
+                        Action
+                      </TableHead>
+                    )}
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                </TableHeader>
+                <TableBody>
+                  {ordersForTransport.length > 0 ? (
+                    ordersForTransport.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.id}</TableCell>
+                        <TableCell>
+                          {order.customerInfo?.name || order.customer}
+                        </TableCell>
+                        <TableCell>
+                          {order.customerInfo?.address || "N/A"}
+                        </TableCell>
+                        {userRole === "factory" && (
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={() => setSelectedOrder(order)}
+                            >
+                              Dispatch Order
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={userRole === "factory" ? 4 : 3}
+                        className="h-24 text-center"
+                      >
+                        No orders are currently awaiting transport.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={!!selectedOrder} onOpenChange={(isOpen) => !isOpen && setSelectedOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dispatch Order: {selectedOrder?.id}</DialogTitle>
+            <DialogDescription>
+              Enter driver and vehicle details to mark this order as delivered.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDispatchSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driverName" className="text-right">Driver Name</Label>
+                <Input id="driverName" name="driverName" className="col-span-3" required />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driverContact" className="text-right">Driver Contact</Label>
+                <Input id="driverContact" name="driverContact" className="col-span-3" required />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="vehicleNumber" className="text-right">Vehicle Number</Label>
+                <Input id="vehicleNumber" name="vehicleNumber" className="col-span-3" required />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="vehicleModel" className="text-right">Vehicle Model</Label>
+                <Input id="vehicleModel" name="vehicleModel" className="col-span-3" required />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Mark as Delivered & Get Receipt</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!receiptOrder} onOpenChange={(isOpen) => !isOpen && setReceiptOrder(null)}>
+        <DialogContent className="sm:max-w-4xl">
+            <DialogHeader>
+                <DialogTitle>Print Delivery Receipts</DialogTitle>
+                <DialogDescription>
+                    Print two copies of the receipt: one for the customer and one for the driver.
+                </DialogDescription>
+            </DialogHeader>
+            <div id="printable-area" className="space-y-6 py-4">
+                {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
+                <Separator/>
+                {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
+            </div>
+            <DialogFooter className="no-print">
+                 <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                </DialogClose>
+                <Button onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" /> Print Receipts
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

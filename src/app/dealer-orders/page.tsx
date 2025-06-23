@@ -48,6 +48,12 @@ type Order = {
     address?: string;
     dealerId?: string;
   };
+  transportDetails?: {
+    driverName: string;
+    driverContact: string;
+    vehicleNumber: string;
+    vehicleModel: string;
+  };
 };
 
 const productCatalog = [
