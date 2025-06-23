@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -15,7 +14,6 @@ import {
 import {
   Armchair,
   Building,
-  Factory,
   LayoutDashboard,
   User,
 } from "lucide-react";
@@ -78,18 +76,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <Link href="/dealer-orders">
                   <Building />
                   <span>Dealer Orders</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/factory")}
-                tooltip={{ children: "Factory", side: "right", align:"center"}}
-              >
-                <Link href="/factory">
-                  <Factory />
-                  <span>Factory Dashboard</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
