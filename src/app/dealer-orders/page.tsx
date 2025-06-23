@@ -34,6 +34,20 @@ type Order = {
   customer: string;
   item: string;
   status: OrderStatus;
+  type: "Customer" | "Dealer";
+  details: string;
+  dimensions?: {
+    height?: string;
+    width?: string;
+    depth?: string;
+  };
+  photoDataUrl?: string;
+  customerInfo: {
+    name: string;
+    email?: string;
+    address?: string;
+    dealerId?: string;
+  };
 };
 
 const productCatalog = [
@@ -42,28 +56,28 @@ const productCatalog = [
     name: "Modular 'L' Sofa",
     sku: "SOF-MOD-L-GRY",
     image: "https://placehold.co/100x100.png",
-    aiHint: "sofa couch"
+    aiHint: "sofa couch",
   },
   {
     id: "prod_002",
     name: "Minimalist Oak Desk",
     sku: "DSK-OAK-MIN-150",
     image: "https://placehold.co/100x100.png",
-    aiHint: "desk office"
+    aiHint: "desk office",
   },
   {
     id: "prod_003",
     name: "Floating Wall Shelf",
     sku: "SHL-WAL-FLT-WHT",
     image: "https://placehold.co/100x100.png",
-    aiHint: "shelf wall"
+    aiHint: "shelf wall",
   },
   {
     id: "prod_004",
     name: "Upholstered Dining Chair",
     sku: "CHR-DIN-UPH-BGE",
     image: "https://placehold.co/100x100.png",
-    aiHint: "chair dining"
+    aiHint: "chair dining",
   },
 ];
 
@@ -76,7 +90,10 @@ export default function DealerOrderPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
 
-  const handleCheckboxChange = (productId: string, checked: boolean | "indeterminate") => {
+  const handleCheckboxChange = (
+    productId: string,
+    checked: boolean | "indeterminate"
+  ) => {
     if (checked) {
       setOrderItems([...orderItems, { id: productId, quantity: 1 }]);
     } else {
@@ -85,12 +102,14 @@ export default function DealerOrderPage() {
   };
 
   const handleQuantityChange = (productId: string, quantity: number) => {
-    const itemExists = orderItems.some(item => item.id === productId);
+    const itemExists = orderItems.some((item) => item.id === productId);
     if (!itemExists) return;
 
     setOrderItems(
       orderItems.map((item) =>
-        item.id === productId ? { ...item, quantity: Math.max(0, quantity) } : item
+        item.id === productId
+          ? { ...item, quantity: Math.max(0, quantity) }
+          : item
       )
     );
   };
@@ -99,6 +118,7 @@ export default function DealerOrderPage() {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const dealerName = formData.get("dealerName") as string;
+    const dealerId = formData.get("dealerId") as string;
 
     if (orderItems.length === 0) {
       toast({
@@ -110,34 +130,45 @@ export default function DealerOrderPage() {
     }
 
     const orderDescription = orderItems
-      .filter(item => item.quantity > 0)
-      .map(item => {
-        const product = productCatalog.find(p => p.id === item.id);
-        return `${item.quantity}x ${product?.name}`;
-      }).join(', ');
+      .filter((item) => item.quantity > 0)
+      .map((item) => {
+        const product = productCatalog.find((p) => p.id === item.id);
+        return `${item.quantity}x ${product?.name} (SKU: ${product?.sku})`;
+      })
+      .join("\n");
 
     if (!orderDescription) {
-       toast({
+      toast({
         variant: "destructive",
         title: "No Quantities Specified",
         description: "Please specify a quantity for the selected items.",
       });
       return;
     }
-    
+
+    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+
     const newOrder: Order = {
       id: `ORD-D${Date.now().toString().slice(-4)}`,
       customer: dealerName,
-      item: `Bulk Order: ${orderDescription}`,
+      item: `Bulk Order: ${summary}`,
       status: "Pending",
+      type: "Dealer",
+      details: orderDescription,
+      customerInfo: {
+        name: dealerName,
+        dealerId: dealerId,
+      },
     };
 
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    const savedOrders: Order[] = savedOrdersRaw
+      ? JSON.parse(savedOrdersRaw)
+      : [];
     const updatedOrders = [...savedOrders, newOrder];
 
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
-    
+
     toast({
       title: "Dealer Order Placed!",
       description: "The bulk order has been sent to the factory.",
@@ -145,7 +176,7 @@ export default function DealerOrderPage() {
     setOrderItems([]);
     (e.target as HTMLFormElement).reset();
   };
-  
+
   const isProductSelected = (productId: string) => {
     return orderItems.some((item) => item.id === productId);
   };
@@ -169,14 +200,24 @@ export default function DealerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="dealerName">Dealer Name</Label>
-                <Input id="dealerName" name="dealerName" placeholder="e.g. Modern Furnishings Co." required />
+                <Input
+                  id="dealerName"
+                  name="dealerName"
+                  placeholder="e.g. Modern Furnishings Co."
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dealerId">Dealer ID</Label>
-                <Input id="dealerId" name="dealerId" placeholder="e.g. DEALER-12345" required />
+                <Input
+                  id="dealerId"
+                  name="dealerId"
+                  placeholder="e.g. DEALER-12345"
+                  required
+                />
               </div>
             </div>
-            
+
             <Separator />
 
             <CardTitle className="pt-4">Product Catalog</CardTitle>
@@ -199,14 +240,23 @@ export default function DealerOrderPage() {
                       <TableCell>
                         <Checkbox
                           id={`select-${product.id}`}
-                          onCheckedChange={(checked) => handleCheckboxChange(product.id, checked)}
+                          onCheckedChange={(checked) =>
+                            handleCheckboxChange(product.id, checked)
+                          }
                           checked={isProductSelected(product.id)}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                           <Image src={product.image} alt={product.name} width={40} height={40} className="rounded-md" data-ai-hint={product.aiHint}/>
-                           <span>{product.name}</span>
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            width={40}
+                            height={40}
+                            className="rounded-md"
+                            data-ai-hint={product.aiHint}
+                          />
+                          <span>{product.name}</span>
                         </div>
                       </TableCell>
                       <TableCell>{product.sku}</TableCell>
@@ -216,7 +266,12 @@ export default function DealerOrderPage() {
                           min="0"
                           defaultValue={1}
                           disabled={!isProductSelected(product.id)}
-                          onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) =>
+                            handleQuantityChange(
+                              product.id,
+                              parseInt(e.target.value, 10) || 0
+                            )
+                          }
                           className="w-24"
                         />
                       </TableCell>

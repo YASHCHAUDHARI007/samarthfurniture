@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -25,26 +26,74 @@ type Order = {
   customer: string;
   item: string;
   status: OrderStatus;
+  type: "Customer" | "Dealer";
+  details: string;
+  dimensions?: {
+    height?: string;
+    width?: string;
+    depth?: string;
+  };
+  photoDataUrl?: string;
+  customerInfo: {
+    name: string;
+    email?: string;
+    address?: string;
+    dealerId?: string;
+  };
 };
 
 export default function CustomerOrderPage() {
   const { toast } = useToast();
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setPhotoDataUrl(undefined);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoDataUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const customerName = formData.get("name") as string;
+    const customerEmail = formData.get("email") as string;
+    const shippingAddress = formData.get("address") as string;
     const orderDetails = formData.get("details") as string;
+    const height = formData.get("height") as string;
+    const width = formData.get("width") as string;
+    const depth = formData.get("depth") as string;
 
     const newOrder: Order = {
       id: `ORD-${Date.now().toString().slice(-4)}`,
       customer: customerName,
-      item: orderDetails,
+      item: `Custom: ${orderDetails.substring(0, 30)}...`,
       status: "Pending",
+      type: "Customer",
+      details: orderDetails,
+      dimensions: {
+        height: height || undefined,
+        width: width || undefined,
+        depth: depth || undefined,
+      },
+      photoDataUrl: photoDataUrl,
+      customerInfo: {
+        name: customerName,
+        email: customerEmail,
+        address: shippingAddress,
+      },
     };
 
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    const savedOrders: Order[] = savedOrdersRaw
+      ? JSON.parse(savedOrdersRaw)
+      : [];
     const updatedOrders = [...savedOrders, newOrder];
 
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
@@ -54,6 +103,7 @@ export default function CustomerOrderPage() {
       description: "The customer's order has been sent to the factory.",
       variant: "default",
     });
+    setPhotoDataUrl(undefined);
     (e.target as HTMLFormElement).reset();
   };
 
@@ -77,7 +127,12 @@ export default function CustomerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Customer Name</Label>
-                <Input id="name" name="name" placeholder="e.g. Jane Doe" required />
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="e.g. Jane Doe"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Customer Email</Label>
@@ -116,13 +171,19 @@ export default function CustomerOrderPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Upload className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-lg font-medium">Visit Photos</h3>
+                  <h3 className="text-lg font-medium">Design Photo</h3>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="photos">Upload Photos</Label>
-                  <Input id="photos" type="file" multiple />
+                  <Label htmlFor="photos">Upload Photo</Label>
+                  <Input
+                    id="photos"
+                    name="photos"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Upload photos from the customer visit.
+                    Upload a design sketch or inspiration photo.
                   </p>
                 </div>
               </div>
@@ -134,15 +195,30 @@ export default function CustomerOrderPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-2">
                     <Label htmlFor="height">Height (in)</Label>
-                    <Input id="height" type="number" placeholder="72" />
+                    <Input
+                      id="height"
+                      name="height"
+                      type="number"
+                      placeholder="72"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="width">Width (in)</Label>
-                    <Input id="width" type="number" placeholder="36" />
+                    <Input
+                      id="width"
+                      name="width"
+                      type="number"
+                      placeholder="36"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="depth">Depth (in)</Label>
-                    <Input id="depth" type="number" placeholder="24" />
+                    <Input
+                      id="depth"
+                      name="depth"
+                      type="number"
+                      placeholder="24"
+                    />
                   </div>
                 </div>
               </div>
