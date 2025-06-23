@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -49,14 +50,8 @@ export default function RawMaterialsPage() {
   const [newItemUnit, setNewItemUnit] = useState("");
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser) {
-      if (loggedInUser.includes("factory")) {
-        setUserRole("factory");
-      } else if (loggedInUser.includes("owner")) {
-        setUserRole("owner");
-      }
-    }
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
   }, []);
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {

@@ -57,8 +57,8 @@ export default function FactoryDashboardPage() {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser?.includes("factory")) {
+    const role = localStorage.getItem("userRole");
+    if (role === 'factory') {
       setIsFactoryWorker(true);
     } else {
       setIsFactoryWorker(false);

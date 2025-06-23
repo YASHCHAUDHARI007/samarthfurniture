@@ -16,16 +16,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+type UserRole = "owner" | "coordinator" | "factory";
+
 // To add more users, add a new object to this array.
-// For example: { email: "newuser@furnishflow.com", password: "newpassword" }
+// For example: { email: "newuser@furnishflow.com", password: "newpassword", role: "coordinator" }
 // User Roles:
 // - owner: Can access all pages including user management.
 // - coordinator: Can access main dashboard and order pages.
 // - factory: Can only access the factory dashboard.
 const allowedUsers = [
-  { email: "owner@furnishflow.com", password: "password123" },
-  { email: "coordinator@furnishflow.com", password: "password456" },
-  { email: "factory@furnishflow.com", password: "password789" },
+  { email: "owner@furnishflow.com", password: "password123", role: "owner" as UserRole },
+  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" as UserRole },
+  { email: "factory@furnishflow.com", password: "password789", role: "factory" as UserRole },
 ];
 
 export default function LoginPage() {
@@ -44,13 +46,14 @@ export default function LoginPage() {
     if (user) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('loggedInUser', user.email);
+        localStorage.setItem('userRole', user.role);
       }
       toast({
         title: "Login Successful",
         description: "Redirecting to your dashboard...",
       });
       setTimeout(() => {
-        if (user.email.includes("factory")) {
+        if (user.role === "factory") {
             router.push("/factory-dashboard");
         } else {
             router.push("/");

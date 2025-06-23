@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -54,8 +55,8 @@ export default function DailyReportPage() {
   const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser === "owner@furnishflow.com") {
+    const role = localStorage.getItem("userRole");
+    if (role === "owner") {
       setIsOwner(true);
     } else {
       setIsOwner(false);

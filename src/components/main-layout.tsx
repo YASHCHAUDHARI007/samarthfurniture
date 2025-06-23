@@ -46,18 +46,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const userEmail = localStorage.getItem("loggedInUser");
+      const role = localStorage.getItem("userRole");
       setLoggedInUser(userEmail);
+      setUserRole(role);
       if (userEmail) {
         setUserAvatar(userEmail.substring(0, 2).toUpperCase());
-        if (userEmail.includes("owner")) {
-          setUserRole("owner");
-        } else if (userEmail.includes("coordinator")) {
-          setUserRole("coordinator");
-        } else if (userEmail.includes("factory")) {
-          setUserRole("factory");
-        } else {
-          setUserRole("user");
-        }
       }
     }
   }, [pathname]);
@@ -65,6 +58,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("loggedInUser");
+      localStorage.removeItem("userRole");
     }
     router.push("/login");
   };

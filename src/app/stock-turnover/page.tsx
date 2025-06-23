@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -55,10 +56,8 @@ export default function StockTurnoverPage() {
   const [newItemReorderLevel, setNewItemReorderLevel] = useState("");
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser?.includes("factory")) {
-      setUserRole("factory");
-    }
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
   }, []);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {

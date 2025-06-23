@@ -23,17 +23,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Users, ShieldAlert } from "lucide-react";
 
+type UserRole = "owner" | "coordinator" | "factory";
+
+type User = {
+  email: string;
+  password?: string;
+  role: UserRole;
+};
+
 // In a real application, this would come from a database or a secure backend.
 // For this demo, we'll start with the same list as the login page.
-const initialUsers = [
-  { email: "owner@furnishflow.com", password: "password123" },
-  { email: "coordinator@furnishflow.com", password: "password456" },
-  { email: "factory@furnishflow.com", password: "password789" },
+const initialUsers: User[] = [
+  { email: "owner@furnishflow.com", password: "password123", role: "owner" },
+  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" },
+  { email: "factory@furnishflow.com", password: "password789", role: "factory" },
 ];
+
+const roleDisplayNames: Record<UserRole, string> = {
+  owner: "Owner",
+  coordinator: "Coordinator",
+  factory: "Factory Worker",
+};
 
 export default function ManageUsersPage() {
   const router = useRouter();
@@ -43,47 +64,41 @@ export default function ManageUsersPage() {
   const [users, setUsers] = useState(initialUsers);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<UserRole>("coordinator");
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser === "owner@furnishflow.com") {
+    const role = localStorage.getItem("userRole");
+    if (role === "owner") {
       setIsOwner(true);
     } else {
       setIsOwner(false);
     }
     setIsLoading(false);
   }, []);
-  
-  const getUserRole = (email: string) => {
-      if (email.includes("owner")) return "Owner";
-      if (email.includes("coordinator")) return "Coordinator";
-      if (email.includes("factory")) return "Factory Worker";
-      return "User";
-  }
 
   const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newUserEmail || !newUserPassword) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Please enter both email and password.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter both email and password.",
+      });
+      return;
     }
 
-    if (users.some(user => user.email === newUserEmail)) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "A user with this email already exists.",
-        });
-        return;
+    if (users.some((user) => user.email === newUserEmail)) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "A user with this email already exists.",
+      });
+      return;
     }
 
     setUsers([
       ...users,
-      { email: newUserEmail, password: newUserPassword },
+      { email: newUserEmail, password: newUserPassword, role: newUserRole },
     ]);
 
     toast({
@@ -93,25 +108,31 @@ export default function ManageUsersPage() {
 
     setNewUserEmail("");
     setNewUserPassword("");
+    setNewUserRole("coordinator");
   };
 
   if (isLoading) {
-      return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>
+    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
   if (!isOwner) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive"/> Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p>You do not have permission to view this page. Please contact the administrator.</p>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={() => router.push('/')}>Return to Dashboard</Button>
-            </CardFooter>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="text-destructive" /> Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              You do not have permission to view this page. Please contact the
+              administrator.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => router.push("/")}>Return to Dashboard</Button>
+          </CardFooter>
         </Card>
       </div>
     );
@@ -142,7 +163,7 @@ export default function ManageUsersPage() {
           <CardHeader>
             <CardTitle>Add New User</CardTitle>
             <CardDescription>
-              Create a new user account.
+              Create a new user account with a specific role.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAddUser}>
@@ -169,6 +190,22 @@ export default function ManageUsersPage() {
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="newUserRole">Role</Label>
+                <Select
+                  value={newUserRole}
+                  onValueChange={(value) => setNewUserRole(value as UserRole)}
+                >
+                  <SelectTrigger id="newUserRole">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="coordinator">Coordinator</SelectItem>
+                    <SelectItem value="factory">Factory Worker</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
             <CardFooter>
               <Button type="submit">Add User</Button>
@@ -179,7 +216,9 @@ export default function ManageUsersPage() {
         <Card>
           <CardHeader>
             <CardTitle>Existing Users</CardTitle>
-            <CardDescription>A list of all users in the system.</CardDescription>
+            <CardDescription>
+              A list of all users in the system.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
@@ -194,7 +233,7 @@ export default function ManageUsersPage() {
                   {users.map((user) => (
                     <TableRow key={user.email}>
                       <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>{getUserRole(user.email)}</TableCell>
+                      <TableCell>{roleDisplayNames[user.role]}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
