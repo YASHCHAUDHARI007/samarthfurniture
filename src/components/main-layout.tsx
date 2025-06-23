@@ -15,6 +15,7 @@ import {
 import {
   Armchair,
   Building,
+  ClipboardList,
   Factory,
   LayoutDashboard,
   LogOut,
@@ -203,22 +204,40 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
 
             {userRole === "owner" && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/manage-users")}
-                  tooltip={{
-                    children: "Manage Users",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/manage-users">
-                    <Users />
-                    <span>Manage Users</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/daily-report")}
+                    tooltip={{
+                      children: "Daily Report",
+                      side: "right",
+                      align: "center",
+                    }}
+                  >
+                    <Link href="/daily-report">
+                      <ClipboardList />
+                      <span>Daily Report</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/manage-users")}
+                    tooltip={{
+                      children: "Manage Users",
+                      side: "right",
+                      align: "center",
+                    }}
+                  >
+                    <Link href="/manage-users">
+                      <Users />
+                      <span>Manage Users</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             )}
           </SidebarMenu>
         </SidebarContent>
