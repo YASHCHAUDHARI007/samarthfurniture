@@ -49,6 +49,7 @@ type Order = {
     width?: string;
     depth?: string;
   };
+  dimensionDetails?: string;
   photoDataUrl?: string;
   customerInfo?: {
     name: string;

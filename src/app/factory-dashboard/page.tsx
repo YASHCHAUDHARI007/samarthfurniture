@@ -56,6 +56,7 @@ type Order = {
     width?: string;
     depth?: string;
   };
+  dimensionDetails?: string;
   photoDataUrl?: string;
   customerInfo?: {
     name: string;
@@ -81,8 +82,9 @@ const initialOrders: Order[] = [
     status: "Working",
     type: "Customized",
     details:
-      "A custom-built bookshelf made from solid oak, with a dark walnut stain. Dimensions are non-standard to fit a specific alcove. Features 5 shelves, with the top two having a smaller depth.",
+      "A custom-built bookshelf made from solid oak, with a dark walnut stain. Features 5 shelves, with the top two having a smaller depth.",
     dimensions: { height: "84", width: "40", depth: "12" },
+    dimensionDetails: "Top two shelves should be 10in deep, bottom three should be 12in deep. Back panel should have a 2in diameter hole for cables, centered, 6in from the bottom.",
     customerInfo: {
       name: "Olivia Martin",
       email: "olivia.martin@email.com",
@@ -423,7 +425,7 @@ export default function FactoryDashboardPage() {
                   <>
                     <Separator />
                     <div className="space-y-2">
-                      <h4 className="font-semibold">Dimensions</h4>
+                      <h4 className="font-semibold">Overall Dimensions</h4>
                       <div className="flex gap-4">
                         {selectedOrder.dimensions.height && (
                           <p>
@@ -447,6 +449,16 @@ export default function FactoryDashboardPage() {
                     </div>
                   </>
                 )}
+
+              {selectedOrder.dimensionDetails && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Additional Measurement Details</h4>
+                    <p className="whitespace-pre-wrap text-sm">{selectedOrder.dimensionDetails}</p>
+                  </div>
+                </>
+              )}
 
               {selectedOrder.photoDataUrl && (
                 <>

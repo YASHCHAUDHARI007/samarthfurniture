@@ -33,6 +33,7 @@ type Order = {
     width?: string;
     depth?: string;
   };
+  dimensionDetails?: string;
   photoDataUrl?: string;
   customerInfo: {
     name: string;
@@ -75,6 +76,7 @@ export default function CustomerOrderPage() {
     const height = formData.get("height") as string;
     const width = formData.get("width") as string;
     const depth = formData.get("depth") as string;
+    const dimensionDetails = formData.get("dimensionDetails") as string;
 
     const newOrder: Order = {
       id: `ORD-${Date.now().toString().slice(-4)}`,
@@ -88,6 +90,7 @@ export default function CustomerOrderPage() {
         width: width || undefined,
         depth: depth || undefined,
       },
+      dimensionDetails: dimensionDetails || undefined,
       photoDataUrl: photoDataUrl,
       customerInfo: {
         name: customerName,
@@ -196,7 +199,7 @@ export default function CustomerOrderPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Ruler className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-lg font-medium">Measurements</h3>
+                  <h3 className="text-lg font-medium">Overall Dimensions</h3>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-2">
@@ -226,6 +229,15 @@ export default function CustomerOrderPage() {
                       placeholder="24"
                     />
                   </div>
+                </div>
+                 <div className="space-y-2 pt-2">
+                    <Label htmlFor="dimensionDetails">Additional Measurement Details</Label>
+                    <Textarea
+                        id="dimensionDetails"
+                        name="dimensionDetails"
+                        placeholder="e.g. Left side shelf depth: 10in, Right side shelf depth: 12in. Clearance needed for baseboard: 1in."
+                        rows={3}
+                    />
                 </div>
               </div>
             </div>
