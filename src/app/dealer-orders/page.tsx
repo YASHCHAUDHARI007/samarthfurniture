@@ -30,7 +30,6 @@ const productCatalog = [
     id: "prod_001",
     name: "Modular 'L' Sofa",
     sku: "SOF-MOD-L-GRY",
-    price: 1299.99,
     image: "https://placehold.co/100x100.png",
     aiHint: "sofa couch"
   },
@@ -38,7 +37,6 @@ const productCatalog = [
     id: "prod_002",
     name: "Minimalist Oak Desk",
     sku: "DSK-OAK-MIN-150",
-    price: 499.0,
     image: "https://placehold.co/100x100.png",
     aiHint: "desk office"
   },
@@ -46,7 +44,6 @@ const productCatalog = [
     id: "prod_003",
     name: "Floating Wall Shelf",
     sku: "SHL-WAL-FLT-WHT",
-    price: 79.5,
     image: "https://placehold.co/100x100.png",
     aiHint: "shelf wall"
   },
@@ -54,7 +51,6 @@ const productCatalog = [
     id: "prod_004",
     name: "Upholstered Dining Chair",
     sku: "CHR-DIN-UPH-BGE",
-    price: 149.0,
     image: "https://placehold.co/100x100.png",
     aiHint: "chair dining"
   },
@@ -142,7 +138,6 @@ export default function DealerOrderPage() {
                     <TableHead className="w-[50px]"></TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead>Unit Price</TableHead>
                     <TableHead className="w-[120px]">Quantity</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -163,7 +158,6 @@ export default function DealerOrderPage() {
                         </div>
                       </TableCell>
                       <TableCell>{product.sku}</TableCell>
-                      <TableCell>${product.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
