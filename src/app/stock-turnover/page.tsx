@@ -18,8 +18,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { Warehouse, Package } from "lucide-react";
+import { Warehouse, Package, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +59,7 @@ export default function StockTurnoverPage() {
   const { toast } = useToast();
   const [stock, setStock] = useState<StockItem[]>(initialStock);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
@@ -120,140 +131,191 @@ export default function StockTurnoverPage() {
     setNewItemQuantity("");
     setNewItemReorderLevel("");
   };
+  
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+    const item = stock.find((s) => s.id === itemToDelete.id);
+    setStock(stock.filter((s) => s.id !== itemToDelete.id));
+    toast({
+      title: "Item Deleted",
+      description: `${item?.name} has been removed from the stock.`,
+      variant: "destructive",
+    });
+    setItemToDelete(null);
+  };
+
 
   const totalUnits = stock.reduce((acc, item) => acc + item.quantity, 0);
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center gap-2">
-        <Warehouse className="h-7 w-7" />
-        <h2 className="text-3xl font-bold tracking-tight">Stock Levels</h2>
-      </div>
-      <p className="text-muted-foreground">
-        View and manage current inventory levels.
-      </p>
-      <Separator />
+    <>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center gap-2">
+          <Warehouse className="h-7 w-7" />
+          <h2 className="text-3xl font-bold tracking-tight">Stock Levels</h2>
+        </div>
+        <p className="text-muted-foreground">
+          View and manage current inventory levels.
+        </p>
+        <Separator />
 
-      {userRole === "factory" && (
+        {userRole === "factory" && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Add New Stock Item</CardTitle>
+              <CardDescription>
+                Fill in the details to add a new product to the inventory.
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleAddItem}>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="itemName">Product Name</Label>
+                    <Input
+                      id="itemName"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder="e.g. Modern Sofa"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="itemSku">SKU</Label>
+                    <Input
+                      id="itemSku"
+                      value={newItemSku}
+                      onChange={(e) => setNewItemSku(e.target.value)}
+                      placeholder="e.g. SOF-MOD-BLU"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="itemQuantity">Quantity</Label>
+                    <Input
+                      id="itemQuantity"
+                      type="number"
+                      min="0"
+                      value={newItemQuantity}
+                      onChange={(e) => setNewItemQuantity(e.target.value)}
+                      placeholder="e.g. 50"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="itemReorderLevel">Reorder Level</Label>
+                    <Input
+                      id="itemReorderLevel"
+                      type="number"
+                      min="0"
+                      value={newItemReorderLevel}
+                      onChange={(e) => setNewItemReorderLevel(e.target.value)}
+                      placeholder="e.g. 10"
+                      required
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit">Add Item</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        )}
+
+        <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Items in Stock</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalUnits} Units</div>
+              <p className="text-xs text-muted-foreground">
+                Across {uniqueProducts} unique products
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Add New Stock Item</CardTitle>
+            <CardTitle>Current Inventory</CardTitle>
             <CardDescription>
-              Fill in the details to add a new product to the inventory.
+              A detailed list of all products in stock. Factory workers can add or delete items.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleAddItem}>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="itemName">Product Name</Label>
-                  <Input
-                    id="itemName"
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                    placeholder="e.g. Modern Sofa"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="itemSku">SKU</Label>
-                  <Input
-                    id="itemSku"
-                    value={newItemSku}
-                    onChange={(e) => setNewItemSku(e.target.value)}
-                    placeholder="e.g. SOF-MOD-BLU"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="itemQuantity">Quantity</Label>
-                  <Input
-                    id="itemQuantity"
-                    type="number"
-                    min="0"
-                    value={newItemQuantity}
-                    onChange={(e) => setNewItemQuantity(e.target.value)}
-                    placeholder="e.g. 50"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="itemReorderLevel">Reorder Level</Label>
-                  <Input
-                    id="itemReorderLevel"
-                    type="number"
-                    min="0"
-                    value={newItemReorderLevel}
-                    onChange={(e) => setNewItemReorderLevel(e.target.value)}
-                    placeholder="e.g. 10"
-                    required
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit">Add Item</Button>
-            </CardFooter>
-          </form>
-        </Card>
-      )}
-
-      <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Items in Stock</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalUnits} Units</div>
-            <p className="text-xs text-muted-foreground">
-              Across {uniqueProducts} unique products
-            </p>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Reorder Level</TableHead>
+                    <TableHead>Status</TableHead>
+                    {userRole === "factory" && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stock.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.sku}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.reorderLevel}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(item.status)}>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      {userRole === "factory" && (
+                        <TableCell className="text-right">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setItemToDelete(item)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete Item</span>
+                            </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Current Inventory</CardTitle>
-          <CardDescription>
-            A detailed list of all products in stock.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reorder Level</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stock.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{item.reorderLevel}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(item.status)}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the item
+                    <span className="font-semibold"> {itemToDelete?.name} </span>
+                    from the inventory.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteItem}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
