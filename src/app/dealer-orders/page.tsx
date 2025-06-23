@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -24,6 +25,16 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+
+const ORDERS_STORAGE_KEY = "furnishflow_orders";
+type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
+
+type Order = {
+  id: string;
+  customer: string;
+  item: string;
+  status: OrderStatus;
+};
 
 const productCatalog = [
   {
@@ -86,9 +97,50 @@ export default function DealerOrderPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const dealerName = formData.get("dealerName") as string;
+
+    if (orderItems.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Items Selected",
+        description: "Please select at least one product for the order.",
+      });
+      return;
+    }
+
+    const orderDescription = orderItems
+      .filter(item => item.quantity > 0)
+      .map(item => {
+        const product = productCatalog.find(p => p.id === item.id);
+        return `${item.quantity}x ${product?.name}`;
+      }).join(', ');
+
+    if (!orderDescription) {
+       toast({
+        variant: "destructive",
+        title: "No Quantities Specified",
+        description: "Please specify a quantity for the selected items.",
+      });
+      return;
+    }
+    
+    const newOrder: Order = {
+      id: `ORD-D${Date.now().toString().slice(-4)}`,
+      customer: dealerName,
+      item: `Bulk Order: ${orderDescription}`,
+      status: "Pending",
+    };
+
+    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const savedOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    const updatedOrders = [...savedOrders, newOrder];
+
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
+    
     toast({
       title: "Dealer Order Placed!",
-      description: "The bulk order has been sent for processing.",
+      description: "The bulk order has been sent to the factory.",
     });
     setOrderItems([]);
     (e.target as HTMLFormElement).reset();
@@ -117,11 +169,11 @@ export default function DealerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="dealerName">Dealer Name</Label>
-                <Input id="dealerName" placeholder="e.g. Modern Furnishings Co." required />
+                <Input id="dealerName" name="dealerName" placeholder="e.g. Modern Furnishings Co." required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dealerId">Dealer ID</Label>
-                <Input id="dealerId" placeholder="e.g. DEALER-12345" required />
+                <Input id="dealerId" name="dealerId" placeholder="e.g. DEALER-12345" required />
               </div>
             </div>
             
@@ -162,7 +214,7 @@ export default function DealerOrderPage() {
                         <Input
                           type="number"
                           min="0"
-                          defaultValue={0}
+                          defaultValue={1}
                           disabled={!isProductSelected(product.id)}
                           onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value, 10) || 0)}
                           className="w-24"

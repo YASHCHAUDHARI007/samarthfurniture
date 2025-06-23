@@ -40,6 +40,8 @@ type Order = {
   status: OrderStatus;
 };
 
+const ORDERS_STORAGE_KEY = "furnishflow_orders";
+
 const initialOrders: Order[] = [
     { id: "ORD-001", customer: "Olivia Martin", item: "Custom Oak Bookshelf", status: "Working" },
     { id: "ORD-002", customer: "Jackson Lee", item: "Minimalist Coffee Table", status: "Pending" },
@@ -54,7 +56,7 @@ export default function FactoryDashboardPage() {
   const { toast } = useToast();
   const [isFactoryWorker, setIsFactoryWorker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -63,15 +65,24 @@ export default function FactoryDashboardPage() {
     } else {
       setIsFactoryWorker(false);
     }
+    
+    const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
+    if (savedOrders) {
+      setOrders(JSON.parse(savedOrders));
+    } else {
+      setOrders(initialOrders);
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
+    }
+    
     setIsLoading(false);
   }, []);
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    setOrders((prevOrders) =>
-      prevOrders.map((order) =>
-        order.id === orderId ? { ...order, status: newStatus } : order
-      )
+    const updatedOrders = orders.map((order) =>
+      order.id === orderId ? { ...order, status: newStatus } : order
     );
+    setOrders(updatedOrders);
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
     toast({
       title: "Status Updated",
       description: `Order ${orderId} status changed to ${newStatus}.`,
