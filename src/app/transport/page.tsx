@@ -77,18 +77,20 @@ const DeliveryReceipt = ({ order }: { order: Order }) => (
         <div>
           <h4 className="font-semibold">Customer Details</h4>
           <p>{order.customerInfo?.name || order.customer}</p>
-          <p className="text-sm">{order.customerInfo?.address || "N/A"}</p>
+          <p className="text-sm break-words">{order.customerInfo?.address || "N/A"}</p>
         </div>
         <div>
           <h4 className="font-semibold">Driver & Vehicle</h4>
-          <p>Driver: {order.transportDetails?.driverName}</p>
-          <p className="text-sm">Contact: {order.transportDetails?.driverContact}</p>
-          <p className="text-sm">Vehicle: {order.transportDetails?.vehicleModel} ({order.transportDetails?.vehicleNumber})</p>
+          <p>Driver: {order.transportDetails?.driverName || 'N/A'}</p>
+          <p className="text-sm">Contact: {order.transportDetails?.driverContact || 'N/A'}</p>
+          <p className="text-sm">Vehicle: {order.transportDetails?.vehicleModel ? `${order.transportDetails.vehicleModel} (${order.transportDetails.vehicleNumber})` : 'N/A'}</p>
         </div>
       </div>
        <div className="space-y-2">
-        <h4 className="font-semibold">Order Items</h4>
-        <p className="whitespace-pre-wrap text-xs">{order.details}</p>
+        <h4 className="font-semibold">Order Items / Details</h4>
+        <p className="whitespace-pre-wrap text-xs break-words border p-2 bg-muted/50 rounded-md min-h-[50px]">
+            {order.details || "No details provided."}
+        </p>
       </div>
       <div className="pt-8">
         <div className="grid grid-cols-2 gap-8">
