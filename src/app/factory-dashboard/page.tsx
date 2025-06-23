@@ -51,6 +51,7 @@ type Order = {
   status: OrderStatus;
   type: "Customized" | "Dealer";
   details: string;
+  createdBy?: string;
   dimensions?: {
     height?: string;
     width?: string;
@@ -83,6 +84,7 @@ const initialOrders: Order[] = [
     type: "Customized",
     details:
       "A custom-built bookshelf made from solid oak, with a dark walnut stain. Features 5 shelves, with the top two having a smaller depth.",
+    createdBy: "coordinator@furnishflow.com",
     dimensions: { height: "84", width: "40", depth: "12" },
     dimensionDetails: "Top two shelves should be 10in deep, bottom three should be 12in deep. Back panel should have a 2in diameter hole for cables, centered, 6in from the bottom.",
     customerInfo: {
@@ -98,6 +100,7 @@ const initialOrders: Order[] = [
     status: "Delivered",
     type: "Dealer",
     details: "50x Upholstered Dining Chair (CHR-DIN-UPH-BGE)",
+    createdBy: "owner@furnishflow.com",
     customerInfo: {
       name: "FineNests Inc.",
       dealerId: "DEALER-FN-458",
@@ -108,7 +111,8 @@ const initialOrders: Order[] = [
 export default function FactoryDashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isFactoryWorker, setIsFactoryWorker] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -116,23 +120,32 @@ export default function FactoryDashboardPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    if (role === "factory") {
-      setIsFactoryWorker(true);
-    } else {
-      setIsFactoryWorker(false);
+    const userEmail = localStorage.getItem("loggedInUser");
+    
+    if (role === "factory" || role === "owner" || role === "coordinator") {
+      setHasAccess(true);
+    }
+    if (role === "factory" || role === "owner") {
+      setCanEdit(true);
     }
 
+    let allOrders: Order[] = [];
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
-
-    if (savedOrders.length === 0) {
-        setOrders(initialOrders);
-        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
-    } else {
-        setOrders(savedOrders);
+    if (savedOrdersRaw) {
+      allOrders = JSON.parse(savedOrdersRaw);
     }
 
+    if (allOrders.length === 0) {
+        allOrders = initialOrders;
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
+    }
+    
+    let filteredOrders = allOrders;
+    if (role === "coordinator") {
+        filteredOrders = allOrders.filter(order => order.createdBy === userEmail);
+    }
 
+    setOrders(filteredOrders);
     setIsLoading(false);
   }, []);
 
@@ -141,7 +154,15 @@ export default function FactoryDashboardPage() {
       order.id === orderId ? { ...order, status: newStatus } : order
     );
     setOrders(updatedOrders);
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
+    
+    // Also update the master list in localStorage
+    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
+    const updatedAllOrders = allOrders.map((order: Order) =>
+      order.id === orderId ? { ...order, status: newStatus } : order
+    );
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
+
     toast({
       title: "Status Updated",
       description: `Order ${orderId} status changed to ${newStatus}.`,
@@ -168,7 +189,7 @@ export default function FactoryDashboardPage() {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
-  if (!isFactoryWorker) {
+  if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -179,8 +200,7 @@ export default function FactoryDashboardPage() {
           </CardHeader>
           <CardContent>
             <p>
-              You do not have permission to view this page. Please log in as a
-              factory worker.
+              You do not have permission to view this page. Please log in with an authorized account.
             </p>
           </CardContent>
           <CardFooter>
@@ -217,7 +237,7 @@ export default function FactoryDashboardPage() {
           </h2>
         </div>
         <p className="text-muted-foreground">
-          View and update the status of current production orders.
+          View and update the status of production orders.
         </p>
 
         <Tabs defaultValue="production">
@@ -248,9 +268,7 @@ export default function FactoryDashboardPage() {
                         <TableHead className="hidden md:table-cell">Customer</TableHead>
                         <TableHead className="hidden md:table-cell">Item Summary</TableHead>
                         <TableHead>Current Status</TableHead>
-                        <TableHead className="w-[180px]">
-                          Change Status
-                        </TableHead>
+                        {canEdit && <TableHead className="w-[180px]">Change Status</TableHead>}
                         <TableHead className="w-[140px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -269,25 +287,27 @@ export default function FactoryDashboardPage() {
                               {order.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Select
-                              value={order.status}
-                              onValueChange={(newStatus: OrderStatus) =>
-                                handleStatusChange(order.id, newStatus)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Set status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Working">Working</SelectItem>
-                                <SelectItem value="Completed">
-                                  Completed
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
+                          {canEdit && (
+                            <TableCell>
+                              <Select
+                                value={order.status}
+                                onValueChange={(newStatus: OrderStatus) =>
+                                  handleStatusChange(order.id, newStatus)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Set status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Pending">Pending</SelectItem>
+                                  <SelectItem value="Working">Working</SelectItem>
+                                  <SelectItem value="Completed">
+                                    Completed
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <Button
                               variant="outline"
@@ -470,7 +490,7 @@ export default function FactoryDashboardPage() {
                           src={selectedOrder.photoDataUrl}
                           alt="Order Design Photo"
                           fill
-                          objectFit="contain"
+                          style={{objectFit: 'contain'}}
                        />
                     </div>
                   </div>

@@ -36,6 +36,7 @@ type Order = {
   status: OrderStatus;
   type: "Customized" | "Dealer";
   details: string;
+  createdBy?: string;
   dimensions?: {
     height?: string;
     width?: string;
@@ -154,6 +155,8 @@ export default function DealerOrderPage() {
     }
 
     const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+    
+    const loggedInUser = localStorage.getItem("loggedInUser");
 
     const newOrder: Order = {
       id: `ORD-D${Date.now().toString().slice(-4)}`,
@@ -162,6 +165,7 @@ export default function DealerOrderPage() {
       status: "Pending",
       type: "Dealer",
       details: orderDescription,
+      createdBy: loggedInUser || undefined,
       customerInfo: {
         name: dealerName,
         dealerId: dealerId,

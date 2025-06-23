@@ -44,6 +44,7 @@ type Order = {
   status: OrderStatus;
   type: "Customized" | "Dealer";
   details: string;
+  createdBy?: string;
   dimensions?: {
     height?: string;
     width?: string;
@@ -60,6 +61,7 @@ type Order = {
   transportDetails?: {
     driverName: string;
     driverContact: string;
+
     vehicleNumber: string;
     vehicleModel: string;
   };
@@ -119,12 +121,18 @@ export default function TransportPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
+    const userEmail = localStorage.getItem("loggedInUser");
     setUserRole(role);
 
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
-    setOrders(savedOrders);
-
+    const savedOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    
+    let ordersToDisplay = savedOrders;
+    if (role === "coordinator") {
+        ordersToDisplay = savedOrders.filter(order => order.createdBy === userEmail);
+    }
+    
+    setOrders(ordersToDisplay);
     setIsLoading(false);
   }, []);
 
@@ -141,16 +149,27 @@ export default function TransportPage() {
     };
 
     let updatedOrder: Order | undefined;
-    const updatedOrders = orders.map((order) => {
+    
+    // Update local state for immediate UI feedback
+    const updatedLocalOrders = orders.map((order) => {
       if (order.id === selectedOrder.id) {
         updatedOrder = { ...order, status: "Delivered", transportDetails };
         return updatedOrder;
       }
       return order;
     });
+    setOrders(updatedLocalOrders);
 
-    setOrders(updatedOrders);
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
+    // Update master list in localStorage
+    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
+    const updatedAllOrders = allOrders.map((order: Order) => {
+        if (order.id === selectedOrder.id) {
+            return { ...order, status: "Delivered", transportDetails };
+        }
+        return order;
+    });
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
     
     toast({
       title: "Order Dispatched!",
@@ -169,7 +188,7 @@ export default function TransportPage() {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
-  if (userRole !== "owner" && userRole !== "factory") {
+  if (userRole !== "owner" && userRole !== "factory" && userRole !== "coordinator") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -223,7 +242,7 @@ export default function TransportPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Shipping Address</TableHead>
-                    {userRole === "factory" && (
+                    {(userRole === "factory" || userRole === "owner") && (
                       <TableHead className="w-[200px] text-right">
                         Action
                       </TableHead>
@@ -241,7 +260,7 @@ export default function TransportPage() {
                         <TableCell>
                           {order.customerInfo?.address || "N/A"}
                         </TableCell>
-                        {userRole === "factory" && (
+                        {(userRole === "factory" || userRole === "owner") && (
                           <TableCell className="text-right">
                             <Button
                               size="sm"
@@ -256,7 +275,7 @@ export default function TransportPage() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={userRole === "factory" ? 4 : 3}
+                        colSpan={(userRole === "factory" || userRole === "owner") ? 4 : 3}
                         className="h-24 text-center"
                       >
                         No orders are currently awaiting transport.
@@ -280,21 +299,25 @@ export default function TransportPage() {
           </DialogHeader>
           <form onSubmit={handleDispatchSubmit}>
             <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="driverName">Driver Name</Label>
-                <Input id="driverName" name="driverName" required />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="driverName">Driver Name</Label>
+                  <Input id="driverName" name="driverName" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driverContact">Driver Contact</Label>
+                  <Input id="driverContact" name="driverContact" required />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="driverContact">Driver Contact</Label>
-                <Input id="driverContact" name="driverContact" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="vehicleNumber">Vehicle Number</Label>
-                <Input id="vehicleNumber" name="vehicleNumber" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="vehicleModel">Vehicle Model</Label>
-                <Input id="vehicleModel" name="vehicleModel" required />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                  <Input id="vehicleNumber" name="vehicleNumber" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleModel">Vehicle Model</Label>
+                  <Input id="vehicleModel" name="vehicleModel" required />
+                </div>
               </div>
             </div>
             <DialogFooter>

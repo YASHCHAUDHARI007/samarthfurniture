@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -25,7 +26,20 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
-import type { ChartConfig } from "@/components/ui/chart"
+import type { ChartConfig } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+
+type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
+type Order = {
+  id: string;
+  customer: string;
+  item: string;
+  status: OrderStatus;
+  type: "Customized" | "Dealer";
+  details: string;
+  createdBy?: string;
+};
+const ORDERS_STORAGE_KEY = "furnishflow_orders";
 
 const chartData = [
   { month: "January", sales: 18623 },
@@ -44,6 +58,57 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function Dashboard() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const role = localStorage.getItem("userRole");
+    const userEmail = localStorage.getItem("loggedInUser");
+    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    
+    let filteredOrders = allOrders;
+    if (role === "coordinator") {
+        filteredOrders = allOrders.filter(order => order.createdBy === userEmail);
+    }
+    
+    setOrders(filteredOrders);
+    setIsLoading(false);
+  }, []);
+
+  const getBadgeVariant = (status: OrderStatus) => {
+    switch (status) {
+      case "Delivered":
+      case "Completed":
+        return "success";
+      case "Working":
+        return "secondary";
+      case "Pending":
+      default:
+        return "outline";
+    }
+  };
+
+  const recentOrders = orders.slice(0, 4);
+
+  const totalCustomizedOrders = orders.filter(o => o.type === 'Customized').length;
+  const activeProductions = orders.filter(o => o.status === 'Working' || o.status === 'Pending').length;
+  
+  const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+  const unitsSold = deliveredOrders.reduce((acc, order) => {
+      if (order.type === 'Customized') {
+          return acc + 1;
+      }
+      const quantities = order.details.split('\n').map(line => {
+          const match = line.match(/^(\d+)x/);
+          return match ? parseInt(match[1], 10) : 0;
+      });
+      return acc + quantities.reduce((sum, q) => sum + q, 0);
+  }, 0);
+
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
@@ -51,26 +116,26 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Customized Orders
+              Your Customized Orders
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2350</div>
+            {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{totalCustomizedOrders}</div>}
             <p className="text-xs text-muted-foreground">
-              +180.1% from last month
+              Total customized orders created.
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Units Sold</CardTitle>
+            <CardTitle className="text-sm font-medium">Units Delivered</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+1,234</div>
+             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{unitsSold}</div>}
             <p className="text-xs text-muted-foreground">
-              +19% from last month
+              Total units in delivered orders.
             </p>
           </CardContent>
         </Card>
@@ -82,9 +147,9 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+573</div>
+             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{activeProductions}</div>}
             <p className="text-xs text-muted-foreground">
-              +201 since last hour
+              Orders currently in pending or working state.
             </p>
           </CardContent>
         </Card>
@@ -92,33 +157,37 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
+            <CardTitle>Sales Overview</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={chartData}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                  tickFormatter={(value) => value.slice(0, 3)}
-                />
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent indicator="dot" />}
-                />
-                <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
-              </BarChart>
-            </ChartContainer>
+            {isClient ? (
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <BarChart data={chartData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                    tickFormatter={(value) => value.slice(0, 3)}
+                  />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                  />
+                  <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+               <Skeleton className="h-[300px] w-full" />
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-4 lg:col-span-3">
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>
             <CardDescription>
-              You made 265 sales this month.
+              Your most recent orders.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -131,86 +200,42 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar" data-ai-hint="person woman" />
-                        <AvatarFallback>OM</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-medium">Olivia Martin</p>
-                        <p className="text-xs text-muted-foreground">
-                          olivia.martin@email.com
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>Customized</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">In Production</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar" data-ai-hint="person man" />
-                        <AvatarFallback>JL</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-medium">Jackson Lee</p>
-                        <p className="text-xs text-muted-foreground">
-                          jackson.lee@email.com
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>Customized</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">Shipped</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar" data-ai-hint="company logo" />
-                        <AvatarFallback>FN</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-medium">FineNests Inc.</p>
-                        <p className="text-xs text-muted-foreground">
-                          sales@finenests.com
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>Dealer</TableCell>
-                  <TableCell>
-                    <Badge>Fulfilled</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar" data-ai-hint="person" />
-                        <AvatarFallback>WM</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-medium">William Kim</p>
-                        <p className="text-xs text-muted-foreground">
-                          will@email.com
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>Customized</TableCell>
-                  <TableCell>
-                    <Badge>Fulfilled</Badge>
-                  </TableCell>
-                </TableRow>
+                {isLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="hidden h-9 w-9 sm:flex">
+                            <AvatarImage src={`https://placehold.co/100x100.png`} alt="Avatar" data-ai-hint="person" />
+                            <AvatarFallback>{order.customer.substring(0,2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="grid gap-0.5">
+                            <p className="font-medium">{order.customer}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {order.id}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{order.type}</TableCell>
+                      <TableCell>
+                        <Badge variant={getBadgeVariant(order.status)}>{order.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center h-24">No recent orders found.</TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>

@@ -28,6 +28,7 @@ type Order = {
   status: OrderStatus;
   type: "Customized" | "Dealer";
   details: string;
+  createdBy?: string;
   dimensions?: {
     height?: string;
     width?: string;
@@ -77,6 +78,8 @@ export default function CustomerOrderPage() {
     const width = formData.get("width") as string;
     const depth = formData.get("depth") as string;
     const dimensionDetails = formData.get("dimensionDetails") as string;
+    
+    const loggedInUser = localStorage.getItem("loggedInUser");
 
     const newOrder: Order = {
       id: `ORD-${Date.now().toString().slice(-4)}`,
@@ -85,6 +88,7 @@ export default function CustomerOrderPage() {
       status: "Pending",
       type: "Customized",
       details: orderDetails,
+      createdBy: loggedInUser || undefined,
       dimensions: {
         height: height || undefined,
         width: width || undefined,
