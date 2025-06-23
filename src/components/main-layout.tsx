@@ -160,24 +160,24 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/stock-turnover")}
+                    tooltip={{
+                      children: "Stock & Turnover",
+                      side: "right",
+                      align: "center",
+                    }}
+                  >
+                    <Link href="/stock-turnover">
+                      <Warehouse />
+                      <span>Stock & Turnover</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 {userRole === "owner" && (
                   <>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive("/stock-turnover")}
-                        tooltip={{
-                          children: "Stock & Turnover",
-                          side: "right",
-                          align: "center",
-                        }}
-                      >
-                        <Link href="/stock-turnover">
-                          <Warehouse />
-                          <span>Stock & Turnover</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild

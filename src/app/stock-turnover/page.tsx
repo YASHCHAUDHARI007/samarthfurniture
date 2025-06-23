@@ -1,17 +1,12 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -22,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { ShieldAlert, Warehouse, DollarSign, Package } from "lucide-react";
+import { Warehouse, DollarSign, Package } from "lucide-react";
 
 type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -44,20 +39,6 @@ const initialStock: StockItem[] = [
 ];
 
 export default function StockTurnoverPage() {
-  const router = useRouter();
-  const [isOwner, setIsOwner] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    if (loggedInUser === "owner@furnishflow.com") {
-      setIsOwner(true);
-    } else {
-      setIsOwner(false);
-    }
-    setIsLoading(false);
-  }, []);
-
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
     switch (status) {
       case "In Stock":
@@ -70,33 +51,6 @@ export default function StockTurnoverPage() {
         return "outline";
     }
   };
-
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
-  }
-
-  if (!isOwner) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldAlert className="text-destructive" /> Access Denied
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>
-              You do not have permission to view this page. This page is
-              restricted to owners.
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={() => router.push("/")}>Return to Dashboard</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
