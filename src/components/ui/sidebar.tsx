@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -317,7 +318,7 @@ SidebarRail.displayName = "SidebarRail"
 const SidebarInset = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"main">
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   return (
     <main
       ref={ref}
@@ -327,7 +328,12 @@ const SidebarInset = React.forwardRef<
         className
       )}
       {...props}
-    />
+    >
+      <header className="sticky top-0 z-10 flex h-14 items-center border-b bg-background px-4 md:hidden">
+        <SidebarTrigger />
+      </header>
+      {children}
+    </main>
   )
 })
 SidebarInset.displayName = "SidebarInset"
