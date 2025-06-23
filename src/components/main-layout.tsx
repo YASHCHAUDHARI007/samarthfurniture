@@ -20,6 +20,7 @@ import {
   LogOut,
   User,
   Users,
+  Warehouse,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -160,22 +161,40 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {userRole === "owner" && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/manage-users")}
-                      tooltip={{
-                        children: "Manage Users",
-                        side: "right",
-                        align: "center",
-                      }}
-                    >
-                      <Link href="/manage-users">
-                        <Users />
-                        <span>Manage Users</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/stock-turnover")}
+                        tooltip={{
+                          children: "Stock & Turnover",
+                          side: "right",
+                          align: "center",
+                        }}
+                      >
+                        <Link href="/stock-turnover">
+                          <Warehouse />
+                          <span>Stock & Turnover</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/manage-users")}
+                        tooltip={{
+                          children: "Manage Users",
+                          side: "right",
+                          align: "center",
+                        }}
+                      >
+                        <Link href="/manage-users">
+                          <Users />
+                          <span>Manage Users</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
                 )}
               </>
             )}
