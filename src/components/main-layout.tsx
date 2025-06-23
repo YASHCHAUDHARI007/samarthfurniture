@@ -93,24 +93,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {userRole === "factory" ? (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/factory-dashboard")}
-                  tooltip={{
-                    children: "Factory Dashboard",
-                    side: "right",
-                    align: "center",
-                  }}
-                >
-                  <Link href="/factory-dashboard">
-                    <Factory />
-                    <span>Factory Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ) : (
+            {(userRole === "owner" || userRole === "coordinator") && (
               <>
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -160,43 +143,62 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/stock-turnover")}
-                    tooltip={{
-                      children: "Stock & Turnover",
-                      side: "right",
-                      align: "center",
-                    }}
-                  >
-                    <Link href="/stock-turnover">
-                      <Warehouse />
-                      <span>Stock & Turnover</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {userRole === "owner" && (
-                  <>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive("/manage-users")}
-                        tooltip={{
-                          children: "Manage Users",
-                          side: "right",
-                          align: "center",
-                        }}
-                      >
-                        <Link href="/manage-users">
-                          <Users />
-                          <span>Manage Users</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </>
-                )}
               </>
+            )}
+
+            {userRole === "factory" && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/factory-dashboard")}
+                  tooltip={{
+                    children: "Factory Dashboard",
+                    side: "right",
+                    align: "center",
+                  }}
+                >
+                  <Link href="/factory-dashboard">
+                    <Factory />
+                    <span>Factory Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/stock-turnover")}
+                tooltip={{
+                  children: "Stock & Turnover",
+                  side: "right",
+                  align: "center",
+                }}
+              >
+                <Link href="/stock-turnover">
+                  <Warehouse />
+                  <span>Stock & Turnover</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {userRole === "owner" && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/manage-users")}
+                  tooltip={{
+                    children: "Manage Users",
+                    side: "right",
+                    align: "center",
+                  }}
+                >
+                  <Link href="/manage-users">
+                    <Users />
+                    <span>Manage Users</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             )}
           </SidebarMenu>
         </SidebarContent>
