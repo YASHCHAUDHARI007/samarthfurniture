@@ -32,6 +32,7 @@ import { Terminal, Users, ShieldAlert } from "lucide-react";
 const initialUsers = [
   { email: "owner@furnishflow.com", password: "password123" },
   { email: "coordinator@furnishflow.com", password: "password456" },
+  { email: "factory@furnishflow.com", password: "password789" },
 ];
 
 export default function ManageUsersPage() {
@@ -52,6 +53,13 @@ export default function ManageUsersPage() {
     }
     setIsLoading(false);
   }, []);
+  
+  const getUserRole = (email: string) => {
+      if (email.includes("owner")) return "Owner";
+      if (email.includes("coordinator")) return "Coordinator";
+      if (email.includes("factory")) return "Factory Worker";
+      return "User";
+  }
 
   const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -186,9 +194,7 @@ export default function ManageUsersPage() {
                   {users.map((user) => (
                     <TableRow key={user.email}>
                       <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>
-                        {user.email.includes("owner") ? "Owner" : "User"}
-                      </TableCell>
+                      <TableCell>{getUserRole(user.email)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

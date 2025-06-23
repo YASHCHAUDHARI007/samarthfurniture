@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -17,9 +18,14 @@ import { useToast } from "@/hooks/use-toast";
 
 // To add more users, add a new object to this array.
 // For example: { email: "newuser@furnishflow.com", password: "newpassword" }
+// User Roles:
+// - owner: Can access all pages including user management.
+// - coordinator: Can access main dashboard and order pages.
+// - factory: Can only access the factory dashboard.
 const allowedUsers = [
   { email: "owner@furnishflow.com", password: "password123" },
   { email: "coordinator@furnishflow.com", password: "password456" },
+  { email: "factory@furnishflow.com", password: "password789" },
 ];
 
 export default function LoginPage() {
@@ -41,10 +47,14 @@ export default function LoginPage() {
       }
       toast({
         title: "Login Successful",
-        description: "Redirecting to the dashboard...",
+        description: "Redirecting to your dashboard...",
       });
       setTimeout(() => {
-        router.push("/");
+        if (user.email.includes("factory")) {
+            router.push("/factory-dashboard");
+        } else {
+            router.push("/");
+        }
       }, 1000);
     } else {
       toast({
