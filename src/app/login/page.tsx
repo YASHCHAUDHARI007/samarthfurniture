@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 type UserRole = "owner" | "coordinator" | "factory";
 
 type User = {
-  email: string;
+  username: string;
   password: string;
   role: UserRole;
 };
@@ -27,15 +27,15 @@ type User = {
 const USERS_STORAGE_KEY = "furnishflow_users";
 
 const initialUsers: User[] = [
-  { email: "owner@furnishflow.com", password: "password123", role: "owner" },
-  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" },
-  { email: "factory@furnishflow.com", password: "password789", role: "factory" },
+  { username: "owner", password: "password123", role: "owner" },
+  { username: "coordinator", password: "password456", role: "coordinator" },
+  { username: "factory", password: "password789", role: "factory" },
 ];
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -52,12 +52,12 @@ export default function LoginPage() {
     }
 
     const user = allowedUsers.find(
-      (u) => u.email === email && u.password === password
+      (u) => u.username === username && u.password === password
     );
 
     if (user) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('loggedInUser', user.email);
+        localStorage.setItem('loggedInUser', user.username);
         localStorage.setItem('userRole', user.role);
       }
       toast({
@@ -75,7 +75,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
+        description: "Invalid username or password. Please try again.",
       });
     }
   };
@@ -95,14 +95,14 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
+                id="username"
+                type="text"
+                placeholder="e.g. owner"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div className="grid gap-2">

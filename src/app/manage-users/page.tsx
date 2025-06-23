@@ -36,15 +36,15 @@ import { Users, ShieldAlert } from "lucide-react";
 type UserRole = "owner" | "coordinator" | "factory";
 
 type User = {
-  email: string;
+  username: string;
   password: string;
   role: UserRole;
 };
 
 const initialUsers: User[] = [
-  { email: "owner@furnishflow.com", password: "password123", role: "owner" },
-  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" },
-  { email: "factory@furnishflow.com", password: "password789", role: "factory" },
+  { username: "owner", password: "password123", role: "owner" },
+  { username: "coordinator", password: "password456", role: "coordinator" },
+  { username: "factory", password: "password789", role: "factory" },
 ];
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -61,7 +61,7 @@ export default function ManageUsersPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
-  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("coordinator");
 
@@ -92,35 +92,35 @@ export default function ManageUsersPage() {
 
   const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newUserEmail || !newUserPassword) {
+    if (!newUserName || !newUserPassword) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please enter both email and password.",
+        description: "Please enter both username and password.",
       });
       return;
     }
 
-    if (users.some((user) => user.email === newUserEmail)) {
+    if (users.some((user) => user.username === newUserName)) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "A user with this email already exists.",
+        description: "A user with this username already exists.",
       });
       return;
     }
 
     setUsers([
       ...users,
-      { email: newUserEmail, password: newUserPassword, role: newUserRole },
+      { username: newUserName, password: newUserPassword, role: newUserRole },
     ]);
 
     toast({
       title: "User Added",
-      description: `User ${newUserEmail} has been added and can now log in.`,
+      description: `User ${newUserName} has been added and can now log in.`,
     });
 
-    setNewUserEmail("");
+    setNewUserName("");
     setNewUserPassword("");
     setNewUserRole("coordinator");
   };
@@ -174,13 +174,13 @@ export default function ManageUsersPage() {
           <form onSubmit={handleAddUser}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="newUserEmail">Email</Label>
+                <Label htmlFor="newUserName">Username</Label>
                 <Input
-                  id="newUserEmail"
-                  type="email"
-                  placeholder="new.user@example.com"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  id="newUserName"
+                  type="text"
+                  placeholder="e.g. new_coordinator"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
                   required
                 />
               </div>
@@ -230,14 +230,14 @@ export default function ManageUsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Username</TableHead>
                     <TableHead>Role</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.email}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
+                    <TableRow key={user.username}>
+                      <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>{roleDisplayNames[user.role]}</TableCell>
                     </TableRow>
                   ))}

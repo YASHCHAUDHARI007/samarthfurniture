@@ -128,7 +128,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuItem>
       )}
 
-      {(userRole === "owner" || userRole === "factory") && (
+      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator") && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -237,12 +237,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const userEmail = localStorage.getItem("loggedInUser");
+      const username = localStorage.getItem("loggedInUser");
       const role = localStorage.getItem("userRole");
-      setLoggedInUser(userEmail);
+      setLoggedInUser(username);
       setUserRole(role);
-      if (userEmail) {
-        setUserAvatar(userEmail.substring(0, 2).toUpperCase());
+      if (username) {
+        setUserAvatar(username.substring(0, 2).toUpperCase());
       }
     }
   }, [pathname]);
@@ -293,10 +293,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               </Avatar>
               <div className="flex flex-col truncate">
                 <span className="truncate text-sm font-medium capitalize text-sidebar-foreground">
-                  {loggedInUser ? loggedInUser.split("@")[0] : "User"}
+                  {loggedInUser || "User"}
                 </span>
-                <span className="truncate text-xs text-sidebar-foreground/70">
-                  {loggedInUser || "Not logged in"}
+                <span className="truncate text-xs capitalize text-sidebar-foreground/70">
+                  {userRole || "No role"}
                 </span>
               </div>
             </div>

@@ -84,7 +84,7 @@ const initialOrders: Order[] = [
     type: "Customized",
     details:
       "A custom-built bookshelf made from solid oak, with a dark walnut stain. Features 5 shelves, with the top two having a smaller depth.",
-    createdBy: "coordinator@furnishflow.com",
+    createdBy: "coordinator",
     dimensions: { height: "84", width: "40", depth: "12" },
     dimensionDetails: "Top two shelves should be 10in deep, bottom three should be 12in deep. Back panel should have a 2in diameter hole for cables, centered, 6in from the bottom.",
     customerInfo: {
@@ -100,7 +100,7 @@ const initialOrders: Order[] = [
     status: "Delivered",
     type: "Dealer",
     details: "50x Upholstered Dining Chair (CHR-DIN-UPH-BGE)",
-    createdBy: "owner@furnishflow.com",
+    createdBy: "owner",
     customerInfo: {
       name: "FineNests Inc.",
       dealerId: "DEALER-FN-458",
@@ -120,7 +120,7 @@ export default function FactoryDashboardPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    const userEmail = localStorage.getItem("loggedInUser");
+    const username = localStorage.getItem("loggedInUser");
     
     if (role === "factory" || role === "owner" || role === "coordinator") {
       setHasAccess(true);
@@ -142,7 +142,7 @@ export default function FactoryDashboardPage() {
     
     let filteredOrders = allOrders;
     if (role === "coordinator") {
-        filteredOrders = allOrders.filter(order => order.createdBy === userEmail);
+        filteredOrders = allOrders.filter(order => order.createdBy === username);
     }
 
     setOrders(filteredOrders);

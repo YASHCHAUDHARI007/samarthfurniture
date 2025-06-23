@@ -121,7 +121,7 @@ export default function TransportPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    const userEmail = localStorage.getItem("loggedInUser");
+    const username = localStorage.getItem("loggedInUser");
     setUserRole(role);
 
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
@@ -129,7 +129,7 @@ export default function TransportPage() {
     
     let ordersToDisplay = savedOrders;
     if (role === "coordinator") {
-        ordersToDisplay = savedOrders.filter(order => order.createdBy === userEmail);
+        ordersToDisplay = savedOrders.filter(order => order.createdBy === username);
     }
     
     setOrders(ordersToDisplay);

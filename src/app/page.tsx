@@ -65,13 +65,13 @@ export default function Dashboard() {
   useEffect(() => {
     setIsClient(true);
     const role = localStorage.getItem("userRole");
-    const userEmail = localStorage.getItem("loggedInUser");
+    const username = localStorage.getItem("loggedInUser");
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
     
     let filteredOrders = allOrders;
     if (role === "coordinator") {
-        filteredOrders = allOrders.filter(order => order.createdBy === userEmail);
+        filteredOrders = allOrders.filter(order => order.createdBy === username);
     }
     
     setOrders(filteredOrders);
