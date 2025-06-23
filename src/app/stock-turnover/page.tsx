@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { Warehouse, DollarSign, Package } from "lucide-react";
+import { Warehouse, Package } from "lucide-react";
 
 type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -56,28 +56,14 @@ export default function StockTurnoverPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center gap-2">
         <Warehouse className="h-7 w-7" />
-        <h2 className="text-3xl font-bold tracking-tight">Stock & Turnover</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Stock Levels</h2>
       </div>
       <p className="text-muted-foreground">
-        View inventory levels and turnover metrics.
+        View current inventory levels.
       </p>
       <Separator />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Inventory Value
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$125,430.50</div>
-            <p className="text-xs text-muted-foreground">
-              Based on current stock levels
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-1 pt-4 max-w-xs">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Items in Stock</CardTitle>
@@ -86,18 +72,6 @@ export default function StockTurnoverPage() {
           <CardContent>
             <div className="text-2xl font-bold">165 Units</div>
             <p className="text-xs text-muted-foreground">Across 4 unique products</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Turnover Rate</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4.2</div>
-            <p className="text-xs text-muted-foreground">
-              Inventory turnover this quarter
-            </p>
           </CardContent>
         </Card>
       </div>

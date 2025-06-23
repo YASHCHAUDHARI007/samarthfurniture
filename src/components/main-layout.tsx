@@ -170,14 +170,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 asChild
                 isActive={isActive("/stock-turnover")}
                 tooltip={{
-                  children: "Stock & Turnover",
+                  children: "Stock Levels",
                   side: "right",
                   align: "center",
                 }}
               >
                 <Link href="/stock-turnover">
                   <Warehouse />
-                  <span>Stock & Turnover</span>
+                  <span>Stock Levels</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
