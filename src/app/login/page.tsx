@@ -18,16 +18,18 @@ import { useToast } from "@/hooks/use-toast";
 
 type UserRole = "owner" | "coordinator" | "factory";
 
-// To add more users, add a new object to this array.
-// For example: { email: "newuser@furnishflow.com", password: "newpassword", role: "coordinator" }
-// User Roles:
-// - owner: Can access all pages including user management.
-// - coordinator: Can access main dashboard and order pages.
-// - factory: Can only access the factory dashboard.
-const allowedUsers = [
-  { email: "owner@furnishflow.com", password: "password123", role: "owner" as UserRole },
-  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" as UserRole },
-  { email: "factory@furnishflow.com", password: "password789", role: "factory" as UserRole },
+type User = {
+  email: string;
+  password: string;
+  role: UserRole;
+};
+
+const USERS_STORAGE_KEY = "furnishflow_users";
+
+const initialUsers: User[] = [
+  { email: "owner@furnishflow.com", password: "password123", role: "owner" },
+  { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" },
+  { email: "factory@furnishflow.com", password: "password789", role: "factory" },
 ];
 
 export default function LoginPage() {
@@ -39,6 +41,16 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    let allowedUsers: User[] = initialUsers;
+    if (typeof window !== 'undefined') {
+      const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+      if (savedUsers) {
+        allowedUsers = JSON.parse(savedUsers);
+      } else {
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(initialUsers));
+      }
+    }
+
     const user = allowedUsers.find(
       (u) => u.email === email && u.password === password
     );

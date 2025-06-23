@@ -31,19 +31,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Users, ShieldAlert } from "lucide-react";
+import { Users, ShieldAlert } from "lucide-react";
 
 type UserRole = "owner" | "coordinator" | "factory";
 
 type User = {
   email: string;
-  password?: string;
+  password: string;
   role: UserRole;
 };
 
-// In a real application, this would come from a database or a secure backend.
-// For this demo, we'll start with the same list as the login page.
 const initialUsers: User[] = [
   { email: "owner@furnishflow.com", password: "password123", role: "owner" },
   { email: "coordinator@furnishflow.com", password: "password456", role: "coordinator" },
@@ -56,12 +53,14 @@ const roleDisplayNames: Record<UserRole, string> = {
   factory: "Factory Worker",
 };
 
+const USERS_STORAGE_KEY = "furnishflow_users";
+
 export default function ManageUsersPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("coordinator");
@@ -73,8 +72,23 @@ export default function ManageUsersPage() {
     } else {
       setIsOwner(false);
     }
+    
+    const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    if (savedUsers) {
+      setUsers(JSON.parse(savedUsers));
+    } else {
+      setUsers(initialUsers);
+    }
+    
     setIsLoading(false);
   }, []);
+  
+  useEffect(() => {
+    if (users.length > 0) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+  }, [users]);
+
 
   const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -103,7 +117,7 @@ export default function ManageUsersPage() {
 
     toast({
       title: "User Added",
-      description: `User ${newUserEmail} has been added to the list.`,
+      description: `User ${newUserEmail} has been added and can now log in.`,
     });
 
     setNewUserEmail("");
@@ -148,15 +162,6 @@ export default function ManageUsersPage() {
         Add or remove users from the application.
       </p>
       <Separator />
-
-      <Alert className="mt-4">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Developer Note</AlertTitle>
-        <AlertDescription>
-          This is a demonstration page. Users added here are not persisted and
-          will not be able to log in. The user list will reset on page refresh.
-        </AlertDescription>
-      </Alert>
 
       <div className="grid md:grid-cols-2 gap-8 pt-4">
         <Card>
