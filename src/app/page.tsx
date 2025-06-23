@@ -98,14 +98,19 @@ export default function Dashboard() {
   
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
   const unitsSold = deliveredOrders.reduce((acc, order) => {
-      if (order.type === 'Customized') {
-          return acc + 1;
-      }
-      const quantities = order.details.split('\n').map(line => {
-          const match = line.match(/^(\d+)x/);
-          return match ? parseInt(match[1], 10) : 0;
+    if (order.type === "Customized") {
+      return acc + 1;
+    }
+    if (!order.details) {
+      return acc;
+    }
+    const quantities = order.details
+      .split("\n")
+      .map((line) => {
+        const match = line.match(/^(\d+)x/);
+        return match ? parseInt(match[1], 10) : 0;
       });
-      return acc + quantities.reduce((sum, q) => sum + q, 0);
+    return acc + quantities.reduce((sum, q) => sum + q, 0);
   }, 0);
 
 
