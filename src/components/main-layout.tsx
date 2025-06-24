@@ -33,6 +33,7 @@ import {
   ShoppingBag,
   Building2,
   BookUser,
+  FileSpreadsheet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -74,6 +75,7 @@ const navItems: {
   { path: "/stock-turnover", icon: Warehouse, text: "Finished Stock", fkey: "F10", roles: ["owner", "coordinator", "factory", "administrator"] },
   { path: "/raw-materials", icon: Wrench, text: "Raw Materials", fkey: "F12", roles: ["owner", "factory", "administrator"] },
   { path: "/daily-report", icon: ClipboardList, text: "Daily Report", roles: ["owner", "administrator"] },
+  { path: "/gst-reports", icon: FileSpreadsheet, text: "GST Reports", roles: ["owner", "administrator"] },
   { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator"], separator: true },
   { path: "/locations", icon: Warehouse, text: "Locations", roles: ["owner", "administrator"] },
   { path: "/manage-users", icon: Users, text: "Manage Users", roles: ["owner", "administrator"] },
