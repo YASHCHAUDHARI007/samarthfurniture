@@ -35,8 +35,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer } from "lucide-react";
 import type { Order } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 
 
 const DeliveryReceipt = ({ order }: { order: Order }) => (
@@ -94,29 +92,19 @@ export default function TransportPage() {
     const username = localStorage.getItem("loggedInUser");
     setUserRole(role);
 
-    const fetchOrders = async () => {
-      try {
-        const q = query(collection(db, "orders"), where("status", "==", "Completed"));
-        const querySnapshot = await getDocs(q);
-        let ordersToDisplay = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
-        
-        if (role === "coordinator") {
-          ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
-        }
-        
-        setOrders(ordersToDisplay);
-      } catch (error) {
-        console.error("Error fetching orders for transport: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not fetch orders." });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const allOrders: Order[] = JSON.parse(
+      localStorage.getItem("samarth_furniture_orders") || "[]"
+    );
+    let ordersToDisplay = allOrders.filter(o => o.status === 'Completed');
     
-    fetchOrders();
-  }, [toast]);
+    if (role === "coordinator") {
+      ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
+    }
+    setOrders(ordersToDisplay);
+    setIsLoading(false);
+  }, []);
 
-  const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedOrder) return;
 
@@ -127,33 +115,39 @@ export default function TransportPage() {
       vehicleNumber: formData.get("vehicleNumber") as string,
       vehicleModel: formData.get("vehicleModel") as string,
     };
+    
+    const allOrders: Order[] = JSON.parse(
+        localStorage.getItem("samarth_furniture_orders") || "[]"
+    );
 
     const deliveredAt = new Date().toISOString();
     let updatedOrder: Order | undefined;
-    
-    try {
-      const orderRef = doc(db, "orders", selectedOrder.id);
-      await updateDoc(orderRef, {
-        status: "Delivered",
-        transportDetails,
-        deliveredAt,
-      });
 
-      updatedOrder = { ...selectedOrder, status: "Delivered", transportDetails, deliveredAt };
+    const updatedOrders = allOrders.map((o) => {
+      if (o.id === selectedOrder.id) {
+        updatedOrder = {
+          ...o,
+          status: "Delivered",
+          transportDetails,
+          deliveredAt,
+        };
+        return updatedOrder;
+      }
+      return o;
+    });
 
-      setOrders(orders.filter((o) => o.id !== selectedOrder.id));
-      
-      toast({
-        title: "Order Dispatched!",
-        description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
-      });
+    localStorage.setItem(
+      "samarth_furniture_orders",
+      JSON.stringify(updatedOrders)
+    );
+    setOrders(orders.filter((o) => o.id !== selectedOrder.id));
+    toast({
+      title: "Order Dispatched!",
+      description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
+    });
 
-      setReceiptOrder(updatedOrder || null);
-      setSelectedOrder(null);
-    } catch (error) {
-      console.error("Error dispatching order: ", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not dispatch the order." });
-    }
+    setReceiptOrder(updatedOrder || null);
+    setSelectedOrder(null);
   };
   
   const handlePrint = () => {

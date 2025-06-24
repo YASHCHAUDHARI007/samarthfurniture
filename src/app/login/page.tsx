@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Armchair } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, limit, writeBatch, doc } from "firebase/firestore";
 
-const initialUsers: Omit<User, "id">[] = [
-  { username: "owner", password: "password123", role: "owner" },
-  { username: "coordinator", password: "password456", role: "coordinator" },
-  { username: "factory", password: "password789", role: "factory" },
-  { username: "admin", password: "password", role: "administrator" },
+const initialUsers: User[] = [
+  { id: "1", username: "owner", password: "password123", role: "owner" },
+  { id: "2", username: "coordinator", password: "password456", role: "coordinator" },
+  { id: "3", username: "factory", password: "password789", role: "factory" },
+  { id: "4", username: "admin", password: "password", role: "administrator" },
 ];
 
 export default function LoginPage() {
@@ -33,77 +31,43 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const seedInitialUsers = async () => {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-        console.log('No users found, seeding initial users...');
-        const batch = writeBatch(db);
-        initialUsers.forEach((user) => {
-            const docRef = doc(usersRef); // Automatically generate ID
-            batch.set(docRef, {...user, id: docRef.id});
-        });
-        await batch.commit();
-        console.log("Initial users seeded.");
+  useEffect(() => {
+    // Seed initial users if they don't exist
+    if (typeof window !== 'undefined' && !localStorage.getItem('samarth_furniture_users')) {
+      localStorage.setItem('samarth_furniture_users', JSON.stringify(initialUsers));
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    try {
-      await seedInitialUsers();
+    const users: User[] = JSON.parse(localStorage.getItem('samarth_furniture_users') || '[]');
+    const user = users.find(
+      (u) => u.username === username && u.password === password
+    );
 
-      const usersRef = collection(db, "users");
-      // Query for the user by username first to avoid needing a composite index
-      const q = query(usersRef, where("username", "==", username));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Invalid username or password. Please try again.",
-        });
-        setIsSubmitting(false);
-        return;
+    if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('loggedInUser', user.username);
+        localStorage.setItem('userRole', user.role);
       }
-      
-      const userDoc = querySnapshot.docs[0];
-      const user = userDoc.data() as User;
-
-      if (user.password === password) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('loggedInUser', user.username);
-          localStorage.setItem('userRole', user.role);
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to your dashboard...",
+      });
+      setTimeout(() => {
+        if (user.role === "factory") {
+            router.push("/factory-dashboard");
+        } else {
+            router.push("/");
         }
-        toast({
-          title: "Login Successful",
-          description: "Redirecting to your dashboard...",
-        });
-        setTimeout(() => {
-          if (user.role === "factory") {
-              router.push("/factory-dashboard");
-          } else {
-              router.push("/");
-          }
-        }, 1000);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Invalid username or password. Please try again.",
-        });
-        setIsSubmitting(false);
-      }
-    } catch (error) {
-      console.error("Login Error: ", error);
+      }, 1000);
+    } else {
       toast({
         variant: "destructive",
-        title: "Login Error",
-        description: "An error occurred. Please check your Firestore security rules in the Firebase console.",
+        title: "Login Failed",
+        description: "Invalid username or password. Please try again.",
       });
       setIsSubmitting(false);
     }

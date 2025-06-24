@@ -31,8 +31,6 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 const chartConfig = {
   sales: {
@@ -59,75 +57,60 @@ export default function Dashboard() {
     setIsAuthenticated(true);
     
     const role = localStorage.getItem("userRole");
+    let allOrders: Order[] = JSON.parse(
+      localStorage.getItem("samarth_furniture_orders") || "[]"
+    );
 
-    const fetchOrders = async () => {
-      try {
-        let ordersQuery = query(collection(db, "orders"));
-        if (role === "coordinator") {
-          ordersQuery = query(collection(db, "orders"), where("createdBy", "==", username));
+    let userOrders = allOrders;
+    if (role === "coordinator") {
+      userOrders = allOrders.filter(order => order.createdBy === username);
+    }
+    setOrders(userOrders);
+
+    // Generate dynamic chart data from all orders, not just user's
+    const now = new Date();
+    const last6Months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(now, i);
+      last6Months.push(format(d, "MMMM"));
+    }
+
+    const salesByMonth = last6Months.reduce((acc, month) => {
+      acc[month] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const deliveredOrdersWithDate = allOrders.filter(
+      (o) => o.status === "Delivered" && o.deliveredAt
+    );
+
+    deliveredOrdersWithDate.forEach((order) => {
+      const month = format(new Date(order.deliveredAt!), "MMMM");
+      if (salesByMonth.hasOwnProperty(month)) {
+        let units = 0;
+        if (order.type === "Customized") {
+          units = 1;
+        } else if (order.details) {
+          const quantities = order.details
+            .split("\n")
+            .map((line) => {
+              const match = line.match(/^(\d+)x/);
+              return match ? parseInt(match[1], 10) : 0;
+            });
+          units = quantities.reduce((sum, q) => sum + q, 0);
         }
-
-        const ordersSnapshot = await getDocs(ordersQuery);
-        const allOrders = ordersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
-        setOrders(allOrders);
-
-        // This needs to fetch all orders for the chart, not just filtered ones
-        let allOrdersForChart = allOrders;
-        if(role === 'coordinator') {
-            const allOrdersSnapshot = await getDocs(collection(db, "orders"));
-            allOrdersForChart = allOrdersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
-        }
-
-        // Generate dynamic chart data
-        const now = new Date();
-        const last6Months: string[] = [];
-        for (let i = 5; i >= 0; i--) {
-          const d = subMonths(now, i);
-          last6Months.push(format(d, "MMMM"));
-        }
-
-        const salesByMonth = last6Months.reduce((acc, month) => {
-          acc[month] = 0;
-          return acc;
-        }, {} as Record<string, number>);
-
-        const deliveredOrdersWithDate = allOrdersForChart.filter(
-          (o) => o.status === "Delivered" && o.deliveredAt
-        );
-
-        deliveredOrdersWithDate.forEach((order) => {
-          const month = format(new Date(order.deliveredAt!), "MMMM");
-          if (salesByMonth.hasOwnProperty(month)) {
-            let units = 0;
-            if (order.type === "Customized") {
-              units = 1;
-            } else if (order.details) {
-              const quantities = order.details
-                .split("\n")
-                .map((line) => {
-                  const match = line.match(/^(\d+)x/);
-                  return match ? parseInt(match[1], 10) : 0;
-                });
-              units = quantities.reduce((sum, q) => sum + q, 0);
-            }
-            salesByMonth[month] += units;
-          }
-        });
-
-        const newChartData = last6Months.map((month) => ({
-          month: month.slice(0, 3),
-          sales: salesByMonth[month],
-        }));
-
-        setChartData(newChartData);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setIsLoading(false);
+        salesByMonth[month] += units;
       }
-    };
-    
-    fetchOrders();
+    });
+
+    const newChartData = last6Months.map((month) => ({
+      month: month.slice(0, 3),
+      sales: salesByMonth[month],
+    }));
+
+    setChartData(newChartData);
+
+    setIsLoading(false);
   }, [router]);
 
   const getBadgeVariant = (status: OrderStatus) => {

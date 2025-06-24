@@ -24,15 +24,14 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Wrench } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
+import type { RawMaterial } from "@/lib/types";
 
-type RawMaterial = {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-};
+const initialRawMaterials: RawMaterial[] = [
+  { id: 'raw-1', name: "Oak Wood Planks", quantity: 200, unit: "planks" },
+  { id: 'raw-2', name: "Steel Screws", quantity: 5000, unit: "units" },
+  { id: 'raw-3', name: "White Paint", quantity: 50, unit: "liters" },
+  { id: 'raw-4', name: "Varnish", quantity: 30, unit: "liters" },
+];
 
 export default function RawMaterialsPage() {
   const { toast } = useToast();
@@ -47,20 +46,16 @@ export default function RawMaterialsPage() {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     
-    const fetchMaterials = async () => {
-        try {
-            const querySnapshot = await getDocs(collection(db, "rawMaterials"));
-            const fetchedMaterials = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as RawMaterial[];
-            setMaterials(fetchedMaterials);
-        } catch (error) {
-            console.error("Error fetching raw materials: ", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not fetch raw materials." });
-        }
-    };
-    fetchMaterials();
-  }, [toast]);
+    const storedMaterials = localStorage.getItem("samarth_furniture_raw_materials");
+    if (storedMaterials) {
+      setMaterials(JSON.parse(storedMaterials));
+    } else {
+      setMaterials(initialRawMaterials);
+      localStorage.setItem("samarth_furniture_raw_materials", JSON.stringify(initialRawMaterials));
+    }
+  }, []);
 
-  const handleUpdateQuantity = async (id: string, newQuantity: number) => {
+  const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (isNaN(newQuantity) || newQuantity < 0) {
       toast({
         variant: "destructive",
@@ -71,29 +66,20 @@ export default function RawMaterialsPage() {
     }
     
     const materialToUpdate = materials.find(mat => mat.id === id);
-    if (!materialToUpdate || materialToUpdate.quantity === newQuantity) {
-      return; // No change needed
-    }
-    
-    try {
-        const materialRef = doc(db, "rawMaterials", id);
-        await updateDoc(materialRef, { quantity: newQuantity });
-        
-        setMaterials(
-          materials.map((mat) => mat.id === id ? { ...mat, quantity: newQuantity } : mat)
-        );
-
-        toast({
-            title: "Quantity Updated",
-            description: `Stock for ${materialToUpdate.name} has been updated.`,
-        });
-    } catch (error) {
-        console.error("Error updating quantity: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not update quantity." });
+    if (materialToUpdate && materialToUpdate.quantity !== newQuantity) {
+      const updatedMaterials = materials.map((mat) =>
+        mat.id === id ? { ...mat, quantity: newQuantity } : mat
+      );
+      setMaterials(updatedMaterials);
+      localStorage.setItem("samarth_furniture_raw_materials", JSON.stringify(updatedMaterials));
+      toast({
+        title: "Quantity Updated",
+        description: `Stock for ${materialToUpdate.name} has been updated.`,
+      });
     }
   };
   
-  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const quantity = parseInt(newItemQuantity, 10);
 
@@ -111,40 +97,35 @@ export default function RawMaterialsPage() {
       return;
     }
     
-    try {
-      const q = query(collection(db, "rawMaterials"), where("name", "==", newItemName.toLowerCase()));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-          toast({
-              variant: "destructive",
-              title: "Item Exists",
-              description: "A raw material with this name already exists.",
-          });
-          return;
-      }
-
-      const newItem: Omit<RawMaterial, "id"> = {
-        name: newItemName,
-        quantity,
-        unit: newItemUnit,
-      };
-
-      const docRef = await addDoc(collection(db, "rawMaterials"), newItem);
-      await updateDoc(docRef, { id: docRef.id });
-
-      setMaterials([...materials, { ...newItem, id: docRef.id }]);
-      toast({
-        title: "Material Added",
-        description: `${newItem.name} has been added to the raw materials stock.`,
-      });
-
-      setNewItemName("");
-      setNewItemQuantity("");
-      setNewItemUnit("");
-    } catch (error) {
-      console.error("Error adding material: ", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not add new material." });
+    if (materials.some(m => m.name.toLowerCase() === newItemName.toLowerCase())) {
+        toast({
+            variant: "destructive",
+            title: "Item Exists",
+            description: "A raw material with this name already exists.",
+        });
+        return;
     }
+
+    const newItem: RawMaterial = {
+      id: `raw-${new Date().getTime()}`,
+      name: newItemName,
+      quantity,
+      unit: newItemUnit,
+    };
+
+    const updatedMaterials = [...materials, newItem];
+    setMaterials(updatedMaterials);
+    localStorage.setItem(
+      "samarth_furniture_raw_materials",
+      JSON.stringify(updatedMaterials)
+    );
+    toast({
+      title: "Material Added",
+      description: `${newItem.name} has been added to the raw materials stock.`,
+    });
+    setNewItemName("");
+    setNewItemQuantity("");
+    setNewItemUnit("");
   };
   
   const canEdit = userRole === "factory" || userRole === "administrator";

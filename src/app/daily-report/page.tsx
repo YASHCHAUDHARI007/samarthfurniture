@@ -24,8 +24,6 @@ import {
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
 import type { Order, StockItem, StockStatus } from "@/lib/types";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function DailyReportPage() {
   const router = useRouter();
@@ -42,23 +40,13 @@ export default function DailyReportPage() {
       setHasAccess(true);
     }
 
-    const fetchData = async () => {
-      try {
-        const ordersSnapshot = await getDocs(collection(db, "orders"));
-        const allOrders = ordersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
-        setOrders(allOrders);
+    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+    setOrders(allOrders);
 
-        const stockSnapshot = await getDocs(collection(db, "stockItems"));
-        const allStock = stockSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as StockItem[];
-        setStockItems(allStock);
-      } catch (error) {
-        console.error("Error fetching daily report data: ", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const allStock: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
+    setStockItems(allStock);
     
-    fetchData();
+    setIsLoading(false);
 
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',

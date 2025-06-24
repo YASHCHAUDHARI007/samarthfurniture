@@ -37,14 +37,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import type { Order, Product } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
-
 
 type OrderItem = {
   id: string;
   quantity: number;
 };
+
+const initialProductCatalog: Product[] = [
+    { id: "prod-1", name: "Classic Oak Dining Table", sku: "TBL-OAK-CLS", image: "https://placehold.co/100x100.png", aiHint: "dining table" },
+    { id: "prod-2", name: "Modern Leather Sofa", sku: "SOF-LTH-MOD", image: "https://placehold.co/100x100.png", aiHint: "leather sofa" },
+    { id: "prod-3", name: "Walnut Bookshelf", sku: "BKS-WLN-STD", image: "https://placehold.co/100x100.png", aiHint: "bookshelf" },
+];
 
 export default function DealerOrderPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -63,18 +66,13 @@ export default function DealerOrderPage() {
     if (role === "factory" || role === "administrator") {
       setCanEdit(true);
     }
-
-    const fetchCatalog = async () => {
-        try {
-            const querySnapshot = await getDocs(collection(db, "productCatalog"));
-            const catalog = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id })) as Product[];
-            setProductCatalog(catalog);
-        } catch (error) {
-            console.error("Error fetching product catalog: ", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not fetch product catalog."})
-        }
+    const storedCatalog = localStorage.getItem("samarth_furniture_product_catalog");
+    if (storedCatalog) {
+      setProductCatalog(JSON.parse(storedCatalog));
+    } else {
+      setProductCatalog(initialProductCatalog);
+      localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(initialProductCatalog));
     }
-    fetchCatalog();
   }, []);
 
   const handleCheckboxChange = (
@@ -101,7 +99,7 @@ export default function DealerOrderPage() {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const dealerName = formData.get("dealerName") as string;
@@ -137,7 +135,8 @@ export default function DealerOrderPage() {
     
     const loggedInUser = localStorage.getItem("loggedInUser");
 
-    const newOrder: Omit<Order, 'id'> = {
+    const newOrder: Order = {
+      id: `ORD-${new Date().getTime()}`,
       customer: dealerName,
       item: `Bulk Order: ${summary}`,
       status: "Pending",
@@ -151,72 +150,57 @@ export default function DealerOrderPage() {
       },
     };
 
-    try {
-        const docRef = await addDoc(collection(db, "orders"), newOrder);
-        await updateDoc(docRef, { id: docRef.id });
-        toast({
-            title: "Dealer Order Placed!",
-            description: "The bulk order has been sent to the factory.",
-        });
-        setOrderItems([]);
-        (e.target as HTMLFormElement).reset();
-    } catch (error) {
-        console.error("Error placing order: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not place the order." });
-    }
+    const existingOrders: Order[] = JSON.parse(
+      localStorage.getItem("samarth_furniture_orders") || "[]"
+    );
+    localStorage.setItem(
+      "samarth_furniture_orders",
+      JSON.stringify([...existingOrders, newOrder])
+    );
+    toast({
+      title: "Dealer Order Placed!",
+      description: "The bulk order has been sent to the factory.",
+    });
+    setOrderItems([]);
+    (e.target as HTMLFormElement).reset();
   };
 
-  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newItemName || !newItemSku) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a name and SKU." });
       return;
     }
-
-    try {
-        const q = query(collection(db, "productCatalog"), where("sku", "==", newItemSku.toLowerCase()));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
-            return;
-        }
-
-        const newProduct: Omit<Product, "id"> = {
-          name: newItemName,
-          sku: newItemSku,
-          image: "https://placehold.co/100x100.png",
-          aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
-        };
-
-        const docRef = await addDoc(collection(db, "productCatalog"), newProduct);
-        const productWithId = {...newProduct, id: docRef.id};
-        await updateDoc(docRef, { id: docRef.id });
-
-        setProductCatalog([...productCatalog, productWithId]);
-        toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
-        setNewItemName("");
-        setNewItemSku("");
-    } catch (error) {
-        console.error("Error adding product: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not add product." });
+    if (productCatalog.some(p => p.sku.toLowerCase() === newItemSku.toLowerCase())) {
+        toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
+        return;
     }
+    const newProduct: Product = {
+      id: `prod-${new Date().getTime()}`,
+      name: newItemName,
+      sku: newItemSku,
+      image: "https://placehold.co/100x100.png",
+      aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
+    };
+    const updatedCatalog = [...productCatalog, newProduct];
+    setProductCatalog(updatedCatalog);
+    localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(updatedCatalog));
+    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
+    setNewItemName("");
+    setNewItemSku("");
   };
 
-  const handleDeleteItem = async () => {
+  const handleDeleteItem = () => {
     if (!itemToDelete) return;
-    try {
-        await deleteDoc(doc(db, "productCatalog", itemToDelete.id));
-        setProductCatalog(productCatalog.filter((p) => p.id !== itemToDelete.id));
-        toast({
-          title: "Product Deleted",
-          description: `${itemToDelete.name} has been removed from the catalog.`,
-          variant: "destructive",
-        });
-        setItemToDelete(null);
-    } catch (error) {
-        console.error("Error deleting product: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not delete product." });
-    }
+    const updatedCatalog = productCatalog.filter((p) => p.id !== itemToDelete.id);
+    setProductCatalog(updatedCatalog);
+    localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(updatedCatalog));
+    toast({
+      title: "Product Deleted",
+      description: `${itemToDelete.name} has been removed from the catalog.`,
+      variant: "destructive",
+    });
+    setItemToDelete(null);
   };
 
   const isProductSelected = (productId: string) => {

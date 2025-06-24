@@ -18,8 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Order } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, updateDoc } from "firebase/firestore";
 
 export default function CustomerOrderPage() {
   const { toast } = useToast();
@@ -38,7 +36,7 @@ export default function CustomerOrderPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const customerName = formData.get("name") as string;
@@ -52,7 +50,8 @@ export default function CustomerOrderPage() {
     
     const loggedInUser = localStorage.getItem("loggedInUser");
 
-    const newOrder: Omit<Order, "id"> = {
+    const newOrder: Order = {
+      id: `ORD-${new Date().getTime()}`,
       customer: customerName,
       item: `Custom: ${orderDetails.substring(0, 30)}...`,
       status: "Pending",
@@ -74,25 +73,21 @@ export default function CustomerOrderPage() {
       },
     };
 
-    try {
-      const docRef = await addDoc(collection(db, "orders"), newOrder);
-      await updateDoc(docRef, { id: docRef.id });
+    const existingOrders: Order[] = JSON.parse(
+      localStorage.getItem("samarth_furniture_orders") || "[]"
+    );
+    localStorage.setItem(
+      "samarth_furniture_orders",
+      JSON.stringify([...existingOrders, newOrder])
+    );
 
-      toast({
-        title: "Customized Order Submitted!",
-        description: "The customized order has been sent to the factory.",
-        variant: "default",
-      });
-      setPhotoDataUrl(undefined);
-      (e.target as HTMLFormElement).reset();
-    } catch (error) {
-       console.error("Error adding order: ", error);
-       toast({
-        title: "Error",
-        description: "Could not submit the order. Please try again.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Customized Order Submitted!",
+      description: "The customized order has been sent to the factory.",
+      variant: "default",
+    });
+    setPhotoDataUrl(undefined);
+    (e.target as HTMLFormElement).reset();
   };
 
   return (

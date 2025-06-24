@@ -43,8 +43,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Users, ShieldAlert, Trash2 } from "lucide-react";
 import type { User, UserRole } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, query, where, doc, deleteDoc } from "firebase/firestore";
 
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -77,24 +75,12 @@ export default function ManageUsersPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
+    const storedUsers = JSON.parse(localStorage.getItem('samarth_furniture_users') || '[]');
+    setUsers(storedUsers);
+    setIsLoading(false);
+  }, []);
 
-    const fetchUsers = async () => {
-        try {
-            const querySnapshot = await getDocs(collection(db, "users"));
-            const fetchedUsers = querySnapshot.docs.map(doc => doc.data() as User);
-            setUsers(fetchedUsers);
-        } catch (error) {
-            console.error("Error fetching users: ", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not fetch user list."});
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    fetchUsers();
-  }, [toast]);
-
-  const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newUserName || !newUserPassword) {
       toast({
@@ -104,42 +90,37 @@ export default function ManageUsersPage() {
       });
       return;
     }
-
-    try {
-        const q = query(collection(db, "users"), where("username", "==", newUserName));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "A user with this username already exists.",
-            });
-            return;
-        }
-
-        const newUser: Omit<User, "id"> = { username: newUserName, password: newUserPassword, role: newUserRole };
-        const docRef = await addDoc(collection(db, "users"), newUser);
-        await updateDoc(docRef, { id: docRef.id });
-
-        setUsers([...users, { ...newUser, id: docRef.id }]);
-
+    if (users.some(user => user.username === newUserName)) {
         toast({
-        title: "User Added",
-        description: `User ${newUserName} has been added and can now log in.`,
+            variant: "destructive",
+            title: "Error",
+            description: "A user with this username already exists.",
         });
-
-        setNewUserName("");
-        setNewUserPassword("");
-        setNewUserRole("coordinator");
-
-    } catch (error) {
-        console.error("Error adding user: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not add user."});
+        return;
     }
+
+    const newUser: User = { 
+        id: new Date().getTime().toString(),
+        username: newUserName, 
+        password: newUserPassword, 
+        role: newUserRole 
+    };
+
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    localStorage.setItem('samarth_furniture_users', JSON.stringify(updatedUsers));
+    
+    toast({
+      title: "User Added",
+      description: `User ${newUserName} has been added and can now log in.`,
+    });
+
+    setNewUserName("");
+    setNewUserPassword("");
+    setNewUserRole("coordinator");
   };
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = () => {
     if (!userToDelete) return;
     
     if (userToDelete.username === currentUsername || ['owner', 'admin'].includes(userToDelete.username)) {
@@ -148,19 +129,16 @@ export default function ManageUsersPage() {
       return;
     }
 
-    try {
-      await deleteDoc(doc(db, "users", userToDelete.id));
-      setUsers(users.filter((user) => user.id !== userToDelete.id));
-      toast({
-        title: "User Deleted",
-        description: `User account for ${userToDelete.username} has been removed.`,
-        variant: "destructive"
-      });
-      setUserToDelete(null);
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not remove user account." });
-    }
+    const updatedUsers = users.filter((user) => user.id !== userToDelete.id);
+    setUsers(updatedUsers);
+    localStorage.setItem('samarth_furniture_users', JSON.stringify(updatedUsers));
+    
+    toast({
+      title: "User Deleted",
+      description: `User account for ${userToDelete.username} has been removed.`,
+      variant: "destructive"
+    });
+    setUserToDelete(null);
   };
 
   if (isLoading) {
