@@ -113,7 +113,7 @@ export type Contact = {
 };
 
 export type Purchase = {
-    id: string;
+    id:string;
     supplierId: string;
     supplierName: string;
     billNumber: string;
