@@ -43,6 +43,7 @@ export default function PurchasesPage() {
   const [supplierName, setSupplierName] = useState("");
   const [supplierGstin, setSupplierGstin] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   
   const [billNumber, setBillNumber] = useState("");
   const [billDate, setBillDate] = useState("");
