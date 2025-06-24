@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -8,7 +9,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const noLayoutRoutes = ["/login"];
 
-  if (noLayoutRoutes.includes(pathname)) {
+  if (noLayoutRoutes.includes(pathname) || pathname.startsWith("/ledger/")) {
     return <>{children}</>;
   }
 
