@@ -73,7 +73,6 @@ export default function PurchasesPage() {
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSupplierName(value);
-    setSelectedSupplierId(null); // Clear selected ID when name is manually changed
 
     if (value.length > 1) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
@@ -261,7 +260,10 @@ export default function PurchasesPage() {
                         />
                     </PopoverTrigger>
                     {suggestions.length > 0 && (
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <PopoverContent 
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
                         <div className="flex flex-col gap-1 p-1">
                             {suggestions.map(supplier => (
                                 <Button
