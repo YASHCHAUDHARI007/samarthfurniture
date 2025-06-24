@@ -33,45 +33,68 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Truck, ShieldAlert, Printer } from "lucide-react";
+import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
 import type { Order } from "@/lib/types";
 
 
 const DeliveryReceipt = ({ order }: { order: Order }) => (
-    <div className="border p-4 rounded-lg space-y-4">
-      <div className="text-center">
-        <h3 className="font-bold text-lg">Delivery Receipt</h3>
-        <p className="text-sm">Order ID: {order.id}</p>
+    <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-8">
+        <div className="flex items-center gap-3">
+          <Armchair className="h-12 w-12 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">Samarth Furniture</h1>
+            <p className="text-sm text-gray-500">Delivery & Shipping Department</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <h2 className="text-2xl font-semibold uppercase text-gray-700">Delivery Receipt</h2>
+          <p className="text-sm">Order ID: <span className="font-medium">{order.id}</span></p>
+          <p className="text-sm">Date: <span className="font-medium">{new Date().toLocaleDateString()}</span></p>
+        </div>
       </div>
-      <Separator />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Separator className="my-8" />
+      
+      {/* Details Grid */}
+      <div className="grid grid-cols-2 gap-8 mb-8">
         <div>
-          <h4 className="font-semibold">Customer Details</h4>
-          <p>{order.customerInfo?.name || order.customer}</p>
+          <h3 className="text-sm font-semibold uppercase text-gray-500 mb-2">Shipping To</h3>
+          <p className="font-bold text-lg">{order.customerInfo?.name || order.customer}</p>
           <p className="text-sm break-words">{order.customerInfo?.address || "N/A"}</p>
         </div>
         <div>
-          <h4 className="font-semibold">Driver & Vehicle</h4>
-          <p>Driver: {order.transportDetails?.driverName || 'N/A'}</p>
-          <p className="text-sm">Contact: {order.transportDetails?.driverContact || 'N/A'}</p>
-          <p className="text-sm">Vehicle: {order.transportDetails?.vehicleModel ? `${order.transportDetails.vehicleModel} (${order.transportDetails.vehicleNumber})` : 'N/A'}</p>
+          <h3 className="text-sm font-semibold uppercase text-gray-500 mb-2">Transport Details</h3>
+          <p className="text-sm"><strong>Driver:</strong> {order.transportDetails?.driverName || 'N/A'}</p>
+          <p className="text-sm"><strong>Contact:</strong> {order.transportDetails?.driverContact || 'N/A'}</p>
+          <p className="text-sm"><strong>Vehicle:</strong> {order.transportDetails?.vehicleModel ? `${order.transportDetails.vehicleModel} (${order.transportDetails.vehicleNumber})` : 'N/A'}</p>
         </div>
       </div>
-       <div className="space-y-2">
-        <h4 className="font-semibold">Order Items / Details</h4>
-        <p className="whitespace-pre-wrap text-xs break-words border p-2 bg-muted/50 rounded-md min-h-[50px]">
-            {order.details || "No details provided."}
-        </p>
+
+      {/* Items Section */}
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold uppercase text-gray-500 mb-2">Items Included</h3>
+        <div className="whitespace-pre-wrap text-sm break-words border p-4 bg-gray-50 rounded-md min-h-[100px]">
+            {order.lineItems && order.lineItems.length > 0
+                ? order.lineItems.map(item => `- ${item.quantity}x ${item.description}`).join('\n')
+                : order.details || "No details provided."
+            }
+        </div>
       </div>
-      <div className="pt-8">
-        <div className="grid grid-cols-2 gap-8">
-          <div>
-            <Separator className="bg-foreground" />
-            <p className="text-center text-sm pt-2">Customer Signature</p>
+
+      {/* Footer & Signatures */}
+      <div className="absolute bottom-8 left-8 right-8 print:bottom-8 print:left-8 print:right-8">
+        <p className="text-center text-xs text-gray-500 mb-8">Please inspect all items before signing. Your signature confirms that all goods were received in acceptable condition.</p>
+        <div className="grid grid-cols-2 gap-16">
+          <div className="text-center">
+            <Separator className="bg-black mb-2" />
+            <p className="text-sm font-semibold">Customer Signature</p>
+            <p className="text-xs text-gray-500">Received By</p>
           </div>
-          <div>
-            <Separator className="bg-foreground" />
-            <p className="text-center text-sm pt-2">Driver Signature</p>
+          <div className="text-center">
+            <Separator className="bg-black mb-2" />
+            <p className="text-sm font-semibold">Driver Signature</p>
+            <p className="text-xs text-gray-500">Delivered By</p>
           </div>
         </div>
       </div>
@@ -297,16 +320,16 @@ export default function TransportPage() {
       </Dialog>
       
       <Dialog open={!!receiptOrder} onOpenChange={(isOpen) => !isOpen && setReceiptOrder(null)}>
-        <DialogContent className="sm:max-w-4xl">
-            <DialogHeader>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="no-print">
                 <DialogTitle>Print Delivery Receipts</DialogTitle>
                 <DialogDescription>
                     Print two copies of the receipt: one for the customer and one for the driver.
                 </DialogDescription>
             </DialogHeader>
-            <div id="printable-area" className="space-y-6 py-4">
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0 space-y-4">
                 {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
-                <Separator/>
+                <div className="print:h-[2px] print:bg-gray-400 print:border-dashed"></div>
                 {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
             </div>
             <DialogFooter className="no-print">

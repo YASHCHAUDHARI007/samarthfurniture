@@ -35,6 +35,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingBag, IndianRupee, Printer } from "lucide-react";
 import type { Contact, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
+import { Invoice } from "@/components/invoice";
 
 type SaleItem = {
   id: string; // StockItem ID
@@ -45,72 +46,6 @@ type SaleItem = {
   available: number;
 };
 
-const Invoice = ({ order }: { order: Order }) => (
-    <div className="border p-4 rounded-lg space-y-4 text-sm">
-      <div className="text-center">
-        <h3 className="font-bold text-lg">Tax Invoice</h3>
-        <p className="text-xs">Invoice #: {order.invoiceNumber}</p>
-        <p className="text-xs">Date: {order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</p>
-      </div>
-      <Separator />
-       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <h4 className="font-semibold">Billed To</h4>
-          <p>{order.customerInfo?.name || order.customer}</p>
-          <p className="text-xs break-words">{order.customerInfo?.address || "N/A"}</p>
-          <p className="text-xs break-words">{order.customerInfo?.email || ""}</p>
-        </div>
-        <div className="text-right">
-            <h4 className="font-semibold">Samarth Furniture</h4>
-            <p className="text-xs">123 Furniture Lane</p>
-            <p className="text-xs">Anytown, ST 12345</p>
-            <p className="text-xs">contact@samarthfurniture.com</p>
-        </div>
-      </div>
-      <Separator />
-      <div className="space-y-2">
-        <h4 className="font-semibold">Order Summary</h4>
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Item Description</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {order.lineItems?.map(item => (
-                    <TableRow key={item.id}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{item.price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{(item.quantity * item.price).toFixed(2)}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-      </div>
-       <Separator />
-       <div className="flex justify-end">
-            <div className="w-full max-w-xs space-y-2">
-                <div className="flex justify-between">
-                    <span className="font-semibold">Subtotal</span>
-                    <span>{order.subTotal?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="font-semibold">GST ({order.gstRate}%)</span>
-                    <span>{order.gstAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold text-base">
-                    <span>Invoice Total</span>
-                    <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-            </div>
-       </div>
-    </div>
-);
 
 export default function DirectSalePage() {
   const { toast } = useToast();
@@ -443,21 +378,19 @@ export default function DirectSalePage() {
                                     required 
                                     value={customerName} 
                                     onChange={handleNameChange} 
-                                    onBlur={() => setTimeout(() => setCustomerSuggestions([]), 150)}
                                     autoComplete="off"
                                 />
                                 {customerSuggestions.length > 0 && (
                                     <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                         <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                             {customerSuggestions.map(c => ( 
-                                                <Button 
+                                                <button 
                                                     key={c.id} 
                                                     type="button"
-                                                    variant="ghost" 
-                                                    className="justify-start" 
+                                                    className="w-full text-left p-2 rounded-md hover:bg-muted"
                                                     onClick={() => handleSelectCustomer(c)}>
                                                         {c.name}
-                                                </Button>
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
@@ -509,12 +442,12 @@ export default function DirectSalePage() {
     </div>
 
     <Dialog open={!!invoiceOrder} onOpenChange={(isOpen) => !isOpen && setInvoiceOrder(null)}>
-        <DialogContent className="sm:max-w-3xl">
-            <DialogHeader>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="no-print">
                 <DialogTitle>Invoice Generated</DialogTitle>
                 <DialogDescription>The order is now ready for dispatch. You can print the invoice below.</DialogDescription>
             </DialogHeader>
-            <div id="printable-area" className="py-4">
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
                 {invoiceOrder && <Invoice order={invoiceOrder} />}
             </div>
             <DialogFooter className="no-print">

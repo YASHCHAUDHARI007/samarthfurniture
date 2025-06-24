@@ -44,94 +44,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, IndianRupee } from "lucide-react";
 import type { Order, LineItem, Payment, PaymentStatus, LedgerEntry } from "@/lib/types";
-
-const Invoice = ({ order }: { order: Order }) => (
-    <div className="border p-4 rounded-lg space-y-4 text-sm">
-      <div className="text-center">
-        <h3 className="font-bold text-lg">Tax Invoice</h3>
-        <p className="text-xs">Invoice #: {order.invoiceNumber}</p>
-        <p className="text-xs">Date: {order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</p>
-      </div>
-      <Separator />
-       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <h4 className="font-semibold">Billed To</h4>
-          <p>{order.customerInfo?.name || order.customer}</p>
-          <p className="text-xs break-words">{order.customerInfo?.address || "N/A"}</p>
-          <p className="text-xs break-words">{order.customerInfo?.email || ""}</p>
-        </div>
-        <div className="text-right">
-            <h4 className="font-semibold">Samarth Furniture</h4>
-            <p className="text-xs">123 Furniture Lane</p>
-            <p className="text-xs">Anytown, ST 12345</p>
-            <p className="text-xs">contact@samarthfurniture.com</p>
-        </div>
-      </div>
-      <Separator />
-      <div className="space-y-2">
-        <h4 className="font-semibold">Order Summary</h4>
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Item Description</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {order.lineItems?.map(item => (
-                    <TableRow key={item.id}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{item.price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{(item.quantity * item.price).toFixed(2)}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-      </div>
-       <Separator />
-       <div className="flex justify-end">
-            <div className="w-full max-w-xs space-y-2">
-                <div className="flex justify-between">
-                    <span className="font-semibold">Subtotal</span>
-                    <span>{order.subTotal?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="font-semibold">GST ({order.gstRate}%)</span>
-                    <span>{order.gstAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold text-base">
-                    <span>Invoice Total</span>
-                    <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                 {order.payments && order.payments.length > 0 && (
-                    <>
-                        <Separator />
-                        {order.payments.map(p => (
-                             <div className="flex justify-between text-xs" key={p.id}>
-                                <span>Payment ({new Date(p.date).toLocaleDateString()})</span>
-                                <span>-₹{p.amount.toFixed(2)}</span>
-                            </div>
-                        ))}
-                        <Separator />
-                    </>
-                 )}
-                <div className="flex justify-between font-bold text-base">
-                    <span>Balance Due</span>
-                    <span>₹{order.balanceDue?.toFixed(2) || order.totalAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-            </div>
-       </div>
-
-      <div className="pt-16">
-        <Separator className="bg-foreground" />
-        <p className="text-center text-xs pt-2">Authorized Signatory</p>
-      </div>
-    </div>
-);
+import { Invoice } from "@/components/invoice";
 
 
 export default function BillingPage() {
@@ -279,7 +192,7 @@ export default function BillingPage() {
         const newPayment: Payment = {
             id: `PAY-${Date.now()}`,
             date: paymentDate,
-            amount: paymentAmount,
+            amount: Number(paymentAmount),
             method: paymentMethod
         };
         
@@ -315,7 +228,7 @@ export default function BillingPage() {
             type: 'Receipt',
             details: `Payment via ${paymentMethod} for ${paymentOrder.invoiceNumber}`,
             debit: 0,
-            credit: paymentAmount,
+            credit: Number(paymentAmount),
             refId: newPayment.id,
         };
         const cashDebitEntry: LedgerEntry = {
@@ -325,7 +238,7 @@ export default function BillingPage() {
             accountName: 'Cash/Bank Account',
             type: 'Receipt',
             details: `From ${paymentOrder.customerInfo!.name}`,
-            debit: paymentAmount,
+            debit: Number(paymentAmount),
             credit: 0,
             refId: newPayment.id,
         };
@@ -564,12 +477,12 @@ export default function BillingPage() {
         </Dialog>
 
         <Dialog open={!!invoiceOrder} onOpenChange={(isOpen) => !isOpen && setInvoiceOrder(null)}>
-            <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="no-print">
                     <DialogTitle>Invoice Generated</DialogTitle>
                     <DialogDescription>You can view or print the invoice. It is now available in the 'Billed Orders' tab.</DialogDescription>
                 </DialogHeader>
-                <div id="printable-area" className="py-4">
+                <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
                     {invoiceOrder && <Invoice order={invoiceOrder} />}
                 </div>
                 <DialogFooter className="no-print">
