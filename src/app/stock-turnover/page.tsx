@@ -256,7 +256,8 @@ export default function StockTurnoverPage() {
                 <Button type="submit">Add Item</Button>
               </CardFooter>
             </form>
-          )}
+          </Card>
+        )}
 
         <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
