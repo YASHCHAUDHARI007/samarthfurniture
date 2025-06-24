@@ -29,6 +29,7 @@ import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
 type PurchaseItem = {
   id: string; // Raw material ID
   name: string;
+  hsn: string;
   quantity: number | "";
   price: number | "";
 };
@@ -39,6 +40,7 @@ export default function PurchasesPage() {
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
 
   const [suggestions, setSuggestions] = useState<Contact[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
 
   const [supplierName, setSupplierName] = useState("");
   const [supplierGstin, setSupplierGstin] = useState("");
@@ -72,8 +74,10 @@ export default function PurchasesPage() {
     if (value) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
+      setIsSuggestionsOpen(true);
     } else {
       setSuggestions([]);
+      setIsSuggestionsOpen(false);
     }
   };
 
@@ -82,10 +86,11 @@ export default function PurchasesPage() {
     setSupplierGstin(supplier.gstin || "");
     setSelectedSupplierId(supplier.id);
     setSuggestions([]);
+    setIsSuggestionsOpen(false);
   };
   
   const addPurchaseItem = () => {
-    setPurchaseItems(current => [...current, {id: '', name: '', quantity: '', price: ''}]);
+    setPurchaseItems(current => [...current, {id: '', name: '', hsn: '', quantity: '', price: ''}]);
   };
   
   const removePurchaseItem = (index: number) => {
@@ -154,7 +159,7 @@ export default function PurchasesPage() {
         supplierName,
         billNumber,
         date: new Date(billDate).toISOString(),
-        items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price)})).filter(item => item.id),
+        items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price), hsn: item.hsn})).filter(item => item.id),
         totalAmount,
         payments: [],
         paidAmount: 0,
@@ -224,11 +229,10 @@ export default function PurchasesPage() {
                                     required
                                     value={supplierName}
                                     onChange={handleSupplierNameChange}
-                                    onFocus={() => setSuggestions(allSuppliers.filter(s => supplierName ? s.name.toLowerCase().includes(supplierName.toLowerCase()) : true))}
-                                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                                    onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 150)}
                                     autoComplete="off"
                                 />
-                                {suggestions.length > 0 && (
+                                {isSuggestionsOpen && suggestions.length > 0 && (
                                     <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                         <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                             {suggestions.map(supplier => (
@@ -262,7 +266,8 @@ export default function PurchasesPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[40%]">Material</TableHead>
+                                    <TableHead className="w-[35%]">Material</TableHead>
+                                    <TableHead>HSN/SAC</TableHead>
                                     <TableHead>Quantity</TableHead>
                                     <TableHead>Price/Unit</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
@@ -299,6 +304,9 @@ export default function PurchasesPage() {
                                                 )}
                                             </div>
                                         </TableCell>
+                                        <TableCell>
+                                            <Input placeholder="e.g. 9403" value={item.hsn} onChange={e => handleItemChange(index, 'hsn', e.target.value)} />
+                                        </TableCell>
                                         <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/></TableCell>
                                         <TableCell><Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/></TableCell>
                                         <TableCell className="text-right font-medium">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</TableCell>
@@ -306,7 +314,7 @@ export default function PurchasesPage() {
                                     </TableRow>
                                 ))}
                                 {purchaseItems.length === 0 && (
-                                    <TableRow><TableCell colSpan={5} className="text-center h-24">No items added.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="text-center h-24">No items added.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

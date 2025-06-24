@@ -121,6 +121,7 @@ export type Purchase = {
     items: {
         id: string;
         name: string;
+        hsn?: string;
         quantity: number;
         price: number;
     }[];
