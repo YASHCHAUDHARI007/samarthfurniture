@@ -115,14 +115,13 @@ body {
     visibility: visible;
   }
 
-  /* Position the printable area to take up the whole screen, overriding any other layout constraints */
+  /* Position the printable area to take up the whole screen */
   #printable-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    /* Let the height be determined by the content, which allows it to flow across pages */
     height: auto;
-    overflow: visible; /* Ensure nothing is clipped */
+    overflow: visible;
   }
 }
