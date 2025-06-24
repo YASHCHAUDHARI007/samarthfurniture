@@ -22,13 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee } from "lucide-react";
 import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
@@ -55,6 +48,8 @@ export default function PurchasesPage() {
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
 
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  
+  const [activeMaterialInput, setActiveMaterialInput] = useState<number | null>(null);
 
   useEffect(() => {
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
@@ -68,7 +63,7 @@ export default function PurchasesPage() {
     const value = e.target.value;
     setSupplierName(value);
 
-    if (value.length > 1) {
+    if (value) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
     } else {
@@ -95,6 +90,12 @@ export default function PurchasesPage() {
     setPurchaseItems(current => current.map((item, i) => {
         if (i === index) {
             const updatedItem = { ...item, [field]: value };
+            
+            if (field === 'name') {
+              // When user types, we should clear the ID to ensure they select an item
+              updatedItem.id = '';
+            }
+            
             if (field === 'id') {
                 const selectedMaterial = allRawMaterials.find(m => m.id === value);
                 updatedItem.name = selectedMaterial?.name || '';
@@ -123,35 +124,29 @@ export default function PurchasesPage() {
 
     // --- Save or update supplier ---
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
-    let supplierId: string;
-    
-    // First, try to find an existing supplier by the name entered in the input box.
-    const existingSupplier = storedContacts.find(
-      s => s.type === 'Supplier' && s.name.toLowerCase() === supplierName.toLowerCase()
+    let supplier: Contact | undefined = storedContacts.find(
+      (c) => c.type === 'Supplier' && c.name.toLowerCase() === supplierName.toLowerCase()
     );
+    let supplierId: string;
 
-    if (existingSupplier) {
-      // If found, use their ID and check if the GSTIN needs updating.
-      supplierId = existingSupplier.id;
-      if (existingSupplier.gstin !== supplierGstin) {
-        const updatedContacts = storedContacts.map(c => 
-          c.id === supplierId ? { ...c, gstin: supplierGstin } : c
-        );
+    if (supplier) {
+        supplierId = supplier.id;
+        if(supplier.gstin !== supplierGstin) {
+            const updatedContacts = storedContacts.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
+            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+        }
+    } else {
+        supplierId = `SUPP-${Date.now()}`;
+        supplier = {
+            id: supplierId,
+            name: supplierName,
+            type: 'Supplier',
+            gstin: supplierGstin,
+        };
+        const updatedContacts = [...storedContacts, supplier];
         localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
         setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
-      }
-    } else {
-      // If no supplier with that name exists, create a new one.
-      supplierId = `SUPP-${Date.now()}`;
-      const newSupplier: Contact = {
-        id: supplierId,
-        name: supplierName,
-        type: 'Supplier',
-        gstin: supplierGstin,
-      };
-      const updatedContacts = [...storedContacts, newSupplier];
-      localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
-      setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
     }
 
     // --- Create Purchase Record ---
@@ -253,15 +248,13 @@ export default function PurchasesPage() {
                             <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                 <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                     {suggestions.map(supplier => (
-                                        <Button
+                                        <div
                                             key={supplier.id}
-                                            type="button"
-                                            variant="ghost"
-                                            className="justify-start"
-                                            onClick={() => handleSelectSupplier(supplier)}
+                                            className="p-2 hover:bg-muted rounded-md cursor-pointer"
+                                            onMouseDown={() => handleSelectSupplier(supplier)}
                                         >
                                             {supplier.name}
-                                        </Button>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -306,16 +299,38 @@ export default function PurchasesPage() {
                             {purchaseItems.map((item, index) => (
                                 <TableRow key={index}>
                                     <TableCell>
-                                        <Select value={item.id} onValueChange={(value) => handleItemChange(index, 'id', value)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a material" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {allRawMaterials.map(mat => (
-                                                    <SelectItem key={mat.id} value={mat.id}>{mat.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="relative">
+                                            <Input
+                                                placeholder="Type or select material"
+                                                value={item.name}
+                                                onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                                                onFocus={() => setActiveMaterialInput(index)}
+                                                onBlur={() => setTimeout(() => setActiveMaterialInput(null), 150)}
+                                                autoComplete="off"
+                                                required
+                                            />
+                                            {activeMaterialInput === index && (
+                                                <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                                    <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                                        {allRawMaterials
+                                                            .filter(material => item.name ? material.name.toLowerCase().includes(item.name.toLowerCase()) : true)
+                                                            .map(material => (
+                                                                <div
+                                                                    key={material.id}
+                                                                    className="p-2 hover:bg-muted rounded-md cursor-pointer"
+                                                                    onMouseDown={() => {
+                                                                        handleItemChange(index, 'id', material.id);
+                                                                        setActiveMaterialInput(null);
+                                                                    }}
+                                                                >
+                                                                    {material.name}
+                                                                </div>
+                                                            ))
+                                                        }
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/>
