@@ -45,7 +45,7 @@ export default function PurchasesPage() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   
   const [billNumber, setBillNumber] = useState("");
-  const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
+  const [billDate, setBillDate] = useState("");
 
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   
@@ -57,6 +57,8 @@ export default function PurchasesPage() {
     
     const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
     setAllRawMaterials(storedMaterials);
+    
+    setBillDate(new Date().toISOString().split("T")[0]);
   }, []);
 
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,8 +233,8 @@ export default function PurchasesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-6">
-                <div className="space-y-2">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2 lg:col-span-1">
                     <Label htmlFor="supplierName">Supplier Name</Label>
                     <div className="relative">
                         <Input
@@ -241,10 +243,11 @@ export default function PurchasesPage() {
                             required
                             value={supplierName}
                             onChange={handleSupplierNameChange}
-                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                            onFocus={() => setIsSuggestionsOpen(true)}
+                            onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 150)}
                             autoComplete="off"
                         />
-                        {suggestions.length > 0 && (
+                        {isSuggestionsOpen && suggestions.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                 <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                     {suggestions.map(supplier => (
@@ -273,6 +276,10 @@ export default function PurchasesPage() {
                  <div className="space-y-2">
                     <Label htmlFor="billNumber">Bill Number</Label>
                     <Input id="billNumber" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="billDate">Bill Date</Label>
+                    <Input id="billDate" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} required />
                 </div>
             </div>
           </CardContent>
