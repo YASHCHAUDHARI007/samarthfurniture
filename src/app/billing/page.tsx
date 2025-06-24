@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, ShieldAlert, Trash2, Printer, IndianRupee } from "lucide-react";
+import { Receipt, ShieldAlert, Trash2, Printer, IndianRupee, Search } from "lucide-react";
 import type { Order, LineItem, Payment, PaymentStatus, LedgerEntry } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 
@@ -62,6 +62,9 @@ export default function BillingPage() {
 
     const [paymentAmount, setPaymentAmount] = useState<number | "">("");
     const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI' | 'Bank Transfer' | 'Other'>('UPI');
+
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isReprintView, setIsReprintView] = useState(false);
 
 
     const fetchOrders = () => {
@@ -178,6 +181,7 @@ export default function BillingPage() {
 
         fetchOrders();
         setInvoiceOrder(updatedOrder);
+        setIsReprintView(false);
         setSelectedOrder(null);
         toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });
     };
@@ -291,6 +295,11 @@ export default function BillingPage() {
     const ordersReadyForBilling = allOrders.filter(o => o.status === 'Completed');
     const billedOrders = allOrders.filter(o => o.status === 'Billed' || o.status === 'Delivered');
 
+    const filteredBilledOrders = billedOrders.filter(order => 
+        (order.invoiceNumber && order.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        order.customer.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : 0);
+
     return (
         <>
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -306,7 +315,7 @@ export default function BillingPage() {
             <Tabs defaultValue="billing" className="pt-4">
                 <TabsList className="grid w-full grid-cols-2 max-w-md">
                     <TabsTrigger value="billing">Ready for Billing</TabsTrigger>
-                    <TabsTrigger value="payments">Billed Orders & Payments</TabsTrigger>
+                    <TabsTrigger value="payments">Bill History & Payments</TabsTrigger>
                 </TabsList>
                 <TabsContent value="billing">
                     <Card className="mt-2">
@@ -351,12 +360,23 @@ export default function BillingPage() {
                 <TabsContent value="payments">
                      <Card className="mt-2">
                         <CardHeader>
-                            <CardTitle>Billed Orders</CardTitle>
+                            <CardTitle>Bill History</CardTitle>
                             <CardDescription>
-                                Track payments for all billed orders.
+                                Search and reprint past bills, and track payments for all invoiced orders.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
+                             <div className="flex items-center py-4">
+                                <div className="relative w-full max-w-sm">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by Invoice #, Customer..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
                              <div className="rounded-md border">
                                 <Table>
                                     <TableHeader>
@@ -371,7 +391,7 @@ export default function BillingPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {billedOrders.length > 0 ? billedOrders.map(order => (
+                                        {filteredBilledOrders.length > 0 ? filteredBilledOrders.map(order => (
                                             <TableRow key={order.id}>
                                                 <TableCell className="font-medium">{order.invoiceNumber}</TableCell>
                                                 <TableCell>{order.customer}</TableCell>
@@ -380,7 +400,7 @@ export default function BillingPage() {
                                                 <TableCell className="text-right font-semibold">₹{order.balanceDue?.toFixed(2)}</TableCell>
                                                 <TableCell><Badge variant={getPaymentStatusVariant(order.paymentStatus)}>{order.paymentStatus}</Badge></TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button size="sm" onClick={() => setInvoiceOrder(order)} variant="outline" className="mr-2">View</Button>
+                                                    <Button size="sm" onClick={() => { setInvoiceOrder(order); setIsReprintView(true); }} variant="outline" className="mr-2">View / Reprint</Button>
                                                     {order.paymentStatus !== 'Paid' && (
                                                         <Button size="sm" onClick={() => setPaymentOrder(order)}>Record Payment</Button>
                                                     )}
@@ -476,11 +496,11 @@ export default function BillingPage() {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={!!invoiceOrder} onOpenChange={(isOpen) => !isOpen && setInvoiceOrder(null)}>
+        <Dialog open={!!invoiceOrder} onOpenChange={(isOpen) => { if (!isOpen) { setInvoiceOrder(null); setIsReprintView(false); }}}>
             <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
                 <DialogHeader className="no-print">
-                    <DialogTitle>Invoice Generated</DialogTitle>
-                    <DialogDescription>You can view or print the invoice. It is now available in the 'Billed Orders' tab.</DialogDescription>
+                    <DialogTitle>{isReprintView ? `Invoice: ${invoiceOrder?.invoiceNumber}` : 'Invoice Generated'}</DialogTitle>
+                    <DialogDescription>{isReprintView ? 'View or reprint the invoice for this order.' : "You can view or print the invoice. It is now available in the 'Bill History' tab."}</DialogDescription>
                 </DialogHeader>
                 <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
                     {invoiceOrder && <Invoice order={invoiceOrder} />}
