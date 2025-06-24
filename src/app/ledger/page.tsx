@@ -28,14 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookText, IndianRupee, Search } from "lucide-react";
 import type { Contact, LedgerEntry, Order, Purchase } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 
 const internalAccounts = [
-    { id: 'SALES_ACCOUNT', name: 'Sales Account' },
-    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account' },
-    { id: 'CASH_BANK_ACCOUNT', name: 'Cash/Bank Account' },
+    { id: 'SALES_ACCOUNT', name: 'Sales Account', type: 'Internal' },
+    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', type: 'Internal' },
+    { id: 'CASH_BANK_ACCOUNT', name: 'Cash/Bank Account', type: 'Internal' },
 ];
 
 export default function LedgerPage() {
@@ -45,8 +46,7 @@ export default function LedgerPage() {
   const [allPurchases, setAllPurchases] = useState<Purchase[]>([]);
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [suggestions, setSuggestions] = useState<(Contact | {id: string, name: string})[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<{id: string, name: string} | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<(Contact | {id: string, name: string, type: string}) | null>(null);
 
   const [billToView, setBillToView] = useState<Order | Purchase | null>(null);
 
@@ -68,22 +68,12 @@ export default function LedgerPage() {
     return [...internalAccounts, ...allContacts].sort((a,b) => a.name.localeCompare(b.name));
   }, [allContacts]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    if (value.length > 0) {
-        const filtered = ledgerAccounts.filter(acc => acc.name.toLowerCase().includes(value.toLowerCase()));
-        setSuggestions(filtered);
-    } else {
-        setSuggestions([]);
+  const filteredAccounts = useMemo(() => {
+    if (!searchTerm) {
+        return ledgerAccounts;
     }
-  };
-
-  const handleSelectAccount = (account: Contact | {id: string, name: string}) => {
-    setSelectedAccount(account);
-    setSearchTerm(account.name);
-    setSuggestions([]);
-  };
+    return ledgerAccounts.filter(acc => acc.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [searchTerm, ledgerAccounts]);
 
   const displayedEntries = useMemo(() => {
     if (!selectedAccount) return [];
@@ -128,99 +118,116 @@ export default function LedgerPage() {
       </p>
       <Separator />
 
-      <Card className="mt-6">
-        <CardHeader>
-            <CardTitle>Account Search</CardTitle>
-            <CardDescription>
-                Search for a customer, supplier, or internal account to view its statement.
-            </CardDescription>
-             <div className="relative w-full max-w-md pt-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search for an account..."
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
-                    className="pl-9"
-                    autoComplete="off"
-                />
-                {suggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
-                    <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                    {suggestions.map(account => (
-                        <Button
-                        key={account.id}
-                        type="button"
-                        variant="ghost"
-                        className="justify-start"
-                        onClick={() => handleSelectAccount(account)}
-                        >
-                        {account.name}
-                        </Button>
-                    ))}
+      <div className="grid lg:grid-cols-3 gap-8 mt-6">
+        <div className="lg:col-span-1">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Accounts</CardTitle>
+                    <div className="relative pt-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search accounts..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9"
+                        />
                     </div>
-                </div>
-                )}
-            </div>
-        </CardHeader>
-        {selectedAccount && (
-        <CardContent>
-          <Separator className="my-4"/>
-          <h3 className="text-xl font-semibold mb-4">Statement for: {selectedAccount.name}</h3>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Date</TableHead>
-                  <TableHead>Particulars</TableHead>
-                  <TableHead className="w-[120px]">Vch Type</TableHead>
-                  <TableHead className="w-[120px] text-right">Debit</TableHead>
-                  <TableHead className="w-[120px] text-right">Credit</TableHead>
-                  <TableHead className="w-[150px] text-right">Running Balance</TableHead>
-                  <TableHead className="w-[100px] text-center">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedEntries.length > 0 ? displayedEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                        <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
-                        <TableCell>{entry.details}</TableCell>
-                        <TableCell>{entry.type}</TableCell>
-                        <TableCell className="text-right font-mono">{entry.debit > 0 ? entry.debit.toFixed(2) : ''}</TableCell>
-                        <TableCell className="text-right font-mono">{entry.credit > 0 ? entry.credit.toFixed(2) : ''}</TableCell>
-                        <TableCell className="text-right font-mono">
-                            {Math.abs(entry.runningBalance).toFixed(2)} {entry.runningBalance >= 0 ? 'Dr' : 'Cr'}
-                        </TableCell>
-                        <TableCell className="text-center">
-                            {(entry.type === 'Sales' || entry.type === 'Purchase') && (
-                                <Button variant="outline" size="sm" onClick={() => handleViewBill(entry)}>View Bill</Button>
-                            )}
-                        </TableCell>
-                    </TableRow>
-                )) : (
-                    <TableRow>
-                        <TableCell colSpan={7} className="text-center h-24">No transactions for this account.</TableCell>
-                    </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-           {displayedEntries.length > 0 && (
-                <div className="flex justify-end mt-4">
-                    <div className="w-full max-w-xs space-y-2 text-right">
-                        <div className="flex justify-between font-bold text-base">
-                            <span>Closing Balance</span>
-                            <div className="flex items-center">
-                                <IndianRupee className="h-4 w-4 mr-1" />
-                                <span>{Math.abs(finalBalance).toFixed(2)} {balanceType}</span>
+                </CardHeader>
+                <CardContent>
+                    <ScrollArea className="h-[60vh]">
+                        <div className="flex flex-col gap-1 pr-2">
+                            {filteredAccounts.map(account => (
+                                <Button
+                                    key={account.id}
+                                    variant={selectedAccount?.id === account.id ? 'secondary' : 'ghost'}
+                                    className="w-full justify-start text-left h-auto py-2"
+                                    onClick={() => setSelectedAccount(account)}
+                                >
+                                    <div>
+                                        <p className="font-semibold">{account.name}</p>
+                                        <p className="text-xs text-muted-foreground">{'type' in account ? account.type : 'Internal'}</p>
+                                    </div>
+                                </Button>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        </div>
+        <div className="lg:col-span-2">
+            <Card className="min-h-[78vh]">
+                {selectedAccount ? (
+                    <>
+                        <CardHeader>
+                            <CardTitle>Statement for: {selectedAccount.name}</CardTitle>
+                            <CardDescription>A detailed history of all transactions for this account.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-md border">
+                                <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead className="w-[100px]">Date</TableHead>
+                                    <TableHead>Particulars</TableHead>
+                                    <TableHead className="w-[120px]">Vch Type</TableHead>
+                                    <TableHead className="w-[120px] text-right">Debit</TableHead>
+                                    <TableHead className="w-[120px] text-right">Credit</TableHead>
+                                    <TableHead className="w-[150px] text-right">Running Balance</TableHead>
+                                    <TableHead className="w-[100px] text-center">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {displayedEntries.length > 0 ? displayedEntries.map((entry) => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
+                                            <TableCell>{entry.details}</TableCell>
+                                            <TableCell>{entry.type}</TableCell>
+                                            <TableCell className="text-right font-mono">{entry.debit > 0 ? entry.debit.toFixed(2) : ''}</TableCell>
+                                            <TableCell className="text-right font-mono">{entry.credit > 0 ? entry.credit.toFixed(2) : ''}</TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                {Math.abs(entry.runningBalance).toFixed(2)} {entry.runningBalance >= 0 ? 'Dr' : 'Cr'}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {(entry.type === 'Sales' || entry.type === 'Purchase') && (
+                                                    <Button variant="outline" size="sm" onClick={() => handleViewBill(entry)}>View Bill</Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center h-24">No transactions for this account.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                </Table>
                             </div>
+                            {displayedEntries.length > 0 && (
+                                    <div className="flex justify-end mt-4">
+                                        <div className="w-full max-w-xs space-y-2 text-right">
+                                            <div className="flex justify-between font-bold text-base">
+                                                <span>Closing Balance</span>
+                                                <div className="flex items-center">
+                                                    <IndianRupee className="h-4 w-4 mr-1" />
+                                                    <span>{Math.abs(finalBalance).toFixed(2)} {balanceType}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                        </CardContent>
+                    </>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center text-muted-foreground p-8">
+                            <BookText className="mx-auto h-12 w-12 mb-4" />
+                            <h3 className="text-lg font-semibold">Select an account</h3>
+                            <p>Choose an account from the list on the left to view its statement.</p>
                         </div>
                     </div>
-                </div>
-            )}
-        </CardContent>
-        )}
-      </Card>
+                )}
+            </Card>
+        </div>
+      </div>
     </div>
 
     <Dialog open={!!billToView} onOpenChange={(isOpen) => !isOpen && setBillToView(null)}>
