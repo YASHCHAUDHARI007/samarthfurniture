@@ -43,10 +43,9 @@ export default function PurchasesPage() {
   const [supplierName, setSupplierName] = useState("");
   const [supplierGstin, setSupplierGstin] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   
   const [billNumber, setBillNumber] = useState("");
-  const [billDate, setBillDate] = useState("");
+  const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
 
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   
@@ -59,7 +58,6 @@ export default function PurchasesPage() {
     const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
     setAllRawMaterials(storedMaterials);
     
-    setBillDate(new Date().toISOString().split("T")[0]);
   }, []);
 
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,7 +93,6 @@ export default function PurchasesPage() {
             const updatedItem = { ...item, [field]: value };
             
             if (field === 'name') {
-              // When user types, we should clear the ID to ensure they select an item
               updatedItem.id = '';
             }
             
@@ -125,7 +122,6 @@ export default function PurchasesPage() {
         return;
     }
 
-    // --- Save or update supplier ---
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
     let supplier: Contact | undefined = storedContacts.find(
       (c) => c.type === 'Supplier' && c.name.toLowerCase() === supplierName.toLowerCase()
@@ -141,18 +137,12 @@ export default function PurchasesPage() {
         }
     } else {
         supplierId = `SUPP-${Date.now()}`;
-        supplier = {
-            id: supplierId,
-            name: supplierName,
-            type: 'Supplier',
-            gstin: supplierGstin,
-        };
+        supplier = { id: supplierId, name: supplierName, type: 'Supplier', gstin: supplierGstin };
         const updatedContacts = [...storedContacts, supplier];
         localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
         setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
     }
 
-    // --- Create Purchase Record ---
     const newPurchase: Purchase = {
         id: `PUR-${Date.now()}`,
         supplierId,
@@ -161,12 +151,15 @@ export default function PurchasesPage() {
         date: new Date(billDate).toISOString(),
         items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price)})).filter(item => item.id),
         totalAmount,
+        payments: [],
+        paidAmount: 0,
+        balanceDue: totalAmount,
+        paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
     };
 
     const allPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
     localStorage.setItem('samarth_furniture_purchases', JSON.stringify([...allPurchases, newPurchase]));
 
-    // --- Update Raw Material Stock ---
     let materials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
     newPurchase.items.forEach(item => {
         const materialIndex = materials.findIndex(m => m.id === item.id);
@@ -177,36 +170,18 @@ export default function PurchasesPage() {
     localStorage.setItem('samarth_furniture_raw_materials', JSON.stringify(materials));
     setAllRawMaterials(materials);
 
-    // --- Create Ledger Entries ---
     const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
     const purchaseDebitEntry: LedgerEntry = {
-        id: `LEDG-${Date.now()}-D`,
-        date: newPurchase.date,
-        accountId: 'PURCHASE_ACCOUNT',
-        accountName: 'Purchase Account',
-        type: 'Purchase',
-        details: `Bill #${billNumber} from ${supplierName}`,
-        debit: totalAmount,
-        credit: 0,
-        refId: newPurchase.id,
+        id: `LEDG-${Date.now()}-D`, date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
     };
     const supplierCreditEntry: LedgerEntry = {
-        id: `LEDG-${Date.now()}-C`,
-        date: newPurchase.date,
-        accountId: supplierId,
-        accountName: supplierName,
-        type: 'Purchase',
-        details: `Bill #${billNumber}`,
-        debit: 0,
-        credit: totalAmount,
-        refId: newPurchase.id,
+        id: `LEDG-${Date.now()}-C`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
     };
     ledgerEntries.push(purchaseDebitEntry, supplierCreditEntry);
     localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
 
     toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
     
-    // --- Reset form ---
     setSupplierName("");
     setSupplierGstin("");
     setSelectedSupplierId(null);
@@ -229,12 +204,10 @@ export default function PurchasesPage() {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Purchase Details</CardTitle>
-            <CardDescription>
-              Enter supplier and bill information.
-            </CardDescription>
+            <CardDescription>Enter supplier and bill information.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2 lg:col-span-1">
                     <Label htmlFor="supplierName">Supplier Name</Label>
                     <div className="relative">
@@ -244,19 +217,15 @@ export default function PurchasesPage() {
                             required
                             value={supplierName}
                             onChange={handleSupplierNameChange}
-                            onFocus={() => setIsSuggestionsOpen(true)}
-                            onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 150)}
+                            onFocus={() => setSuggestions(allSuppliers.filter(s => supplierName ? s.name.toLowerCase().includes(supplierName.toLowerCase()) : true))}
+                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
                             autoComplete="off"
                         />
-                        {isSuggestionsOpen && suggestions.length > 0 && (
+                        {suggestions.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                 <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                     {suggestions.map(supplier => (
-                                        <div
-                                            key={supplier.id}
-                                            className="p-2 hover:bg-muted rounded-md cursor-pointer"
-                                            onMouseDown={() => handleSelectSupplier(supplier)}
-                                        >
+                                        <div key={supplier.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectSupplier(supplier)}>
                                             {supplier.name}
                                         </div>
                                     ))}
@@ -267,12 +236,7 @@ export default function PurchasesPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="supplierGstin">Supplier GSTIN (Optional)</Label>
-                    <Input
-                    id="supplierGstin"
-                    placeholder="e.g. 29ABCDE1234F1Z5"
-                    value={supplierGstin}
-                    onChange={(e) => setSupplierGstin(e.target.value)}
-                    />
+                    <Input id="supplierGstin" placeholder="e.g. 29ABCDE1234F1Z5" value={supplierGstin} onChange={(e) => setSupplierGstin(e.target.value)} />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="billNumber">Bill Number</Label>
@@ -323,14 +287,7 @@ export default function PurchasesPage() {
                                                         {allRawMaterials
                                                             .filter(material => item.name ? material.name.toLowerCase().includes(item.name.toLowerCase()) : true)
                                                             .map(material => (
-                                                                <div
-                                                                    key={material.id}
-                                                                    className="p-2 hover:bg-muted rounded-md cursor-pointer"
-                                                                    onMouseDown={() => {
-                                                                        handleItemChange(index, 'id', material.id);
-                                                                        setActiveMaterialInput(null);
-                                                                    }}
-                                                                >
+                                                                <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(index, 'id', material.id); setActiveMaterialInput(null);}}>
                                                                     {material.name}
                                                                 </div>
                                                             ))
@@ -340,24 +297,14 @@ export default function PurchasesPage() {
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">
-                                        {((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" onClick={() => removePurchaseItem(index)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                                    </TableCell>
+                                    <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/></TableCell>
+                                    <TableCell><Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/></TableCell>
+                                    <TableCell className="text-right font-medium">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</TableCell>
+                                    <TableCell><Button variant="ghost" size="icon" onClick={() => removePurchaseItem(index)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button></TableCell>
                                 </TableRow>
                             ))}
                             {purchaseItems.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">No items added.</TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">No items added.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

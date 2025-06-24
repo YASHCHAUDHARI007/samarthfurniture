@@ -1,4 +1,5 @@
 
+
 export type UserRole = "owner" | "coordinator" | "factory" | "administrator";
 
 export type OrderStatus = "Pending" | "Working" | "Completed" | "Billed" | "Delivered";
@@ -120,6 +121,10 @@ export type Purchase = {
         price: number;
     }[];
     totalAmount: number;
+    payments?: Payment[];
+    paidAmount?: number;
+    balanceDue?: number;
+    paymentStatus?: PaymentStatus;
 };
 
 export type LedgerEntryType = 'Sales' | 'Purchase' | 'Receipt' | 'Payment';
