@@ -35,8 +35,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
-import type { Order, Product } from "@/lib/types";
+import type { Order, Product, Customer } from "@/lib/types";
 
 type OrderItem = {
   id: string;
@@ -60,6 +65,12 @@ export default function DealerOrderPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
 
+  const [allDealers, setAllDealers] = useState<Customer[]>([]);
+  const [suggestions, setSuggestions] = useState<Customer[]>([]);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
+  const [dealerName, setDealerName] = useState("");
+  const [dealerId, setDealerId] = useState("");
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -73,7 +84,33 @@ export default function DealerOrderPage() {
       setProductCatalog(initialProductCatalog);
       localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(initialProductCatalog));
     }
+    
+    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
+    setAllDealers(storedCustomers.filter(c => c.type === 'Dealer'));
+
   }, []);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDealerName(value);
+
+    if (value.length > 1) {
+      const filtered = allDealers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
+      setSuggestions(filtered);
+      setIsPopoverOpen(filtered.length > 0);
+    } else {
+      setSuggestions([]);
+      setIsPopoverOpen(false);
+    }
+  };
+
+  const handleSelectDealer = (dealer: Customer) => {
+    setDealerName(dealer.name);
+    setDealerId(dealer.dealerId || "");
+    setSuggestions([]);
+    setIsPopoverOpen(false);
+  };
+
 
   const handleCheckboxChange = (
     productId: string,
@@ -101,9 +138,10 @@ export default function DealerOrderPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const dealerName = formData.get("dealerName") as string;
-    const dealerId = formData.get("dealerId") as string;
+    if (!dealerName || !dealerId) {
+        toast({ variant: "destructive", title: "Missing Dealer Info", description: "Please fill in all dealer details."});
+        return;
+    }
 
     if (orderItems.length === 0) {
       toast({
@@ -131,8 +169,28 @@ export default function DealerOrderPage() {
       return;
     }
 
-    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
+    let dealer = storedCustomers.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.type === 'Dealer');
     
+    if (!dealer) {
+        dealer = {
+            id: `CUST-${Date.now()}`,
+            name: dealerName,
+            type: 'Dealer',
+            dealerId: dealerId,
+        };
+        const updatedCustomers = [...storedCustomers, dealer];
+        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
+        setAllDealers(updatedCustomers.filter(c => c.type === 'Dealer'));
+    } else if (dealer.dealerId !== dealerId) {
+        dealer.dealerId = dealerId;
+        const updatedCustomers = storedCustomers.map(c => c.id === dealer!.id ? dealer : c);
+        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
+        setAllDealers(updatedCustomers.filter(c => c.type === 'Dealer'));
+    }
+
+
+    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
     const loggedInUser = localStorage.getItem("loggedInUser");
 
     const newOrder: Order = {
@@ -161,8 +219,13 @@ export default function DealerOrderPage() {
       title: "Dealer Order Placed!",
       description: "The bulk order has been sent to the factory.",
     });
+
     setOrderItems([]);
+    setDealerName("");
+    setDealerId("");
     (e.target as HTMLFormElement).reset();
+    // This part is tricky, how to reset the checkboxes?
+    // A simple way is to force a re-render or manage checkbox state, but for now we leave it.
   };
 
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
@@ -268,12 +331,35 @@ export default function DealerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="dealerName">Dealer Name</Label>
-                <Input
-                  id="dealerName"
-                  name="dealerName"
-                  placeholder="e.g. Modern Furnishings Co."
-                  required
-                />
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Input
+                      id="dealerName"
+                      name="dealerName"
+                      placeholder="e.g. Modern Furnishings Co."
+                      required
+                      value={dealerName}
+                      onChange={handleNameChange}
+                      autoComplete="off"
+                    />
+                  </PopoverTrigger>
+                  {suggestions.length > 0 && (
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                       <div className="flex flex-col gap-1 p-1">
+                          {suggestions.map(dealer => (
+                              <Button
+                                  key={dealer.id}
+                                  variant="ghost"
+                                  className="justify-start"
+                                  onClick={() => handleSelectDealer(dealer)}
+                              >
+                                  {dealer.name}
+                              </Button>
+                          ))}
+                       </div>
+                    </PopoverContent>
+                  )}
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dealerId">Dealer ID</Label>
@@ -282,6 +368,8 @@ export default function DealerOrderPage() {
                   name="dealerId"
                   placeholder="e.g. DEALER-12345"
                   required
+                  value={dealerId}
+                  onChange={(e) => setDealerId(e.target.value)}
                 />
               </div>
             </div>

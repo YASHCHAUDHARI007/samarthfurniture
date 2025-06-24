@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -17,38 +17,92 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Order } from "@/lib/types";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import type { Order, Customer } from "@/lib/types";
 
 export default function CustomerOrderPage() {
   const { toast } = useToast();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
+  
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [suggestions, setSuggestions] = useState<Customer[]>([]);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      setPhotoDataUrl(undefined);
-      return;
+
+  useEffect(() => {
+    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
+    setAllCustomers(storedCustomers.filter(c => c.type === 'Customer'));
+  }, []);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomerName(value);
+
+    if (value.length > 1) {
+      const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
+      setSuggestions(filtered);
+      setIsPopoverOpen(filtered.length > 0);
+    } else {
+      setSuggestions([]);
+      setIsPopoverOpen(false);
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoDataUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
   };
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setCustomerName(customer.name);
+    setCustomerEmail(customer.email || "");
+    setShippingAddress(customer.address || "");
+    setSuggestions([]);
+    setIsPopoverOpen(false);
+  };
+
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const customerName = formData.get("name") as string;
-    const customerEmail = formData.get("email") as string;
-    const shippingAddress = formData.get("address") as string;
     const orderDetails = formData.get("details") as string;
     const height = formData.get("height") as string;
     const width = formData.get("width") as string;
     const depth = formData.get("depth") as string;
     const dimensionDetails = formData.get("dimensionDetails") as string;
     
+    if (!customerName || !customerEmail || !shippingAddress) {
+      toast({ variant: "destructive", title: "Missing Customer Info", description: "Please fill in all customer details."});
+      return;
+    }
+
     const loggedInUser = localStorage.getItem("loggedInUser");
+
+    // Save or update customer ledger
+    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
+    let customer = storedCustomers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.type === 'Customer');
+    
+    if (!customer) {
+        customer = {
+            id: `CUST-${Date.now()}`,
+            name: customerName,
+            type: 'Customer',
+            email: customerEmail,
+            address: shippingAddress,
+        };
+        const updatedCustomers = [...storedCustomers, customer];
+        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
+        setAllCustomers(updatedCustomers.filter(c => c.type === 'Customer'));
+    } else if (customer.email !== customerEmail || customer.address !== shippingAddress) {
+        customer.email = customerEmail;
+        customer.address = shippingAddress;
+        const updatedCustomers = storedCustomers.map(c => c.id === customer!.id ? customer : c);
+        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
+        setAllCustomers(updatedCustomers.filter(c => c.type === 'Customer'));
+    }
 
     const newOrder: Order = {
       id: `ORD-${new Date().getTime()}`,
@@ -86,7 +140,11 @@ export default function CustomerOrderPage() {
       description: "The customized order has been sent to the factory.",
       variant: "default",
     });
+    
     setPhotoDataUrl(undefined);
+    setCustomerName("");
+    setCustomerEmail("");
+    setShippingAddress("");
     (e.target as HTMLFormElement).reset();
   };
 
@@ -110,12 +168,35 @@ export default function CustomerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Customer Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="e.g. Jane Doe"
-                  required
-                />
+                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Input
+                      id="name"
+                      name="name"
+                      placeholder="e.g. Jane Doe"
+                      required
+                      value={customerName}
+                      onChange={handleNameChange}
+                      autoComplete="off"
+                    />
+                  </PopoverTrigger>
+                  {suggestions.length > 0 && (
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                       <div className="flex flex-col gap-1 p-1">
+                          {suggestions.map(customer => (
+                              <Button
+                                  key={customer.id}
+                                  variant="ghost"
+                                  className="justify-start"
+                                  onClick={() => handleSelectCustomer(customer)}
+                              >
+                                  {customer.name}
+                              </Button>
+                          ))}
+                       </div>
+                    </PopoverContent>
+                  )}
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Customer Email</Label>
@@ -125,6 +206,8 @@ export default function CustomerOrderPage() {
                   type="email"
                   placeholder="e.g. jane.doe@example.com"
                   required
+                  value={customerEmail}
+                  onChange={e => setCustomerEmail(e.target.value)}
                 />
               </div>
             </div>
@@ -135,6 +218,8 @@ export default function CustomerOrderPage() {
                 name="address"
                 placeholder="e.g. 123 Main St, Anytown, USA 12345"
                 required
+                value={shippingAddress}
+                onChange={e => setShippingAddress(e.target.value)}
               />
             </div>
             <div className="space-y-2">

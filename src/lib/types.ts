@@ -95,3 +95,12 @@ export type RawMaterial = {
   quantity: number;
   unit: string;
 }
+
+export type Customer = {
+  id: string;
+  name: string;
+  type: 'Customer' | 'Dealer';
+  email?: string;
+  address?: string;
+  dealerId?: string;
+};
