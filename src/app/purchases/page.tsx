@@ -28,7 +28,7 @@ import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 type PurchaseItem = {
-  id: string; // Raw material ID
+  id: string; // Raw material stock ID
   name: string;
   hsn: string;
   quantity: number | "";
@@ -154,6 +154,7 @@ export default function PurchasesPage() {
 
   const handleSelectMaterial = (index: number, material: RawMaterial) => {
       handleItemChange(index, 'id', material.id);
+      handleItemChange(index, 'name', material.name);
       setMaterialSuggestions([]);
       setActiveMaterialInput(null);
   };
@@ -230,12 +231,8 @@ export default function PurchasesPage() {
         const materialIndex = materials.findIndex(m => m.id === item.id);
         if (materialIndex !== -1) {
             materials[materialIndex].quantity += item.quantity;
-        } else {
-            const newMaterial = allRawMaterials.find(m => m.id === item.id);
-            if (newMaterial) {
-                materials.push({ ...newMaterial, quantity: item.quantity });
-            }
         }
+        // This won't create a new material as user must select an existing one
     });
     localStorage.setItem(materialsKey, JSON.stringify(materials));
     setAllRawMaterials(materials);
@@ -367,7 +364,7 @@ export default function PurchasesPage() {
                                                         <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                                                             {materialSuggestions.map(material => (
                                                                 <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectMaterial(index, material)}>
-                                                                    {material.name} ({material.unit})
+                                                                    {material.name} ({material.locationName || 'No Location'})
                                                                 </div>
                                                             ))}
                                                         </div>

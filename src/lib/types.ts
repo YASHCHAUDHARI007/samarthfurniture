@@ -23,7 +23,7 @@ export type Payment = {
 export type PaymentStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
 
 export type Order = {
-  id: string;
+  id:string;
   customer: string;
   item: string;
   status: OrderStatus;
@@ -93,6 +93,8 @@ export type StockItem = {
   quantity: number;
   reorderLevel: number;
   status: StockStatus;
+  locationId?: string;
+  locationName?: string;
 };
 
 export type RawMaterial = {
@@ -100,6 +102,8 @@ export type RawMaterial = {
   name: string;
   quantity: number;
   unit: string;
+  locationId?: string;
+  locationName?: string;
 }
 
 export type Contact = {
@@ -152,4 +156,10 @@ export type Company = {
   name: string;
   financialYearStart: string;
   financialYearEnd:string;
+};
+
+export type Location = {
+  id: string;
+  name: string;
+  address?: string;
 };

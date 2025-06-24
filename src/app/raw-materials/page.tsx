@@ -24,17 +24,21 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Wrench } from "lucide-react";
-import type { RawMaterial } from "@/lib/types";
+import type { RawMaterial, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RawMaterialsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
+  const [newItemQuantity, setNewItemQuantity] = useState("");
+  const [newItemLocationId, setNewItemLocationId] = useState("");
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
@@ -53,28 +57,22 @@ export default function RawMaterialsPage() {
   useEffect(() => {
     if (!activeCompanyId) {
         setMaterials([]);
+        setLocations([]);
         return;
     }
     const materialsKey = getCompanyStorageKey('raw_materials')!;
     const storedMaterials = localStorage.getItem(materialsKey);
-    if (storedMaterials) {
-      setMaterials(JSON.parse(storedMaterials));
-    } else {
-      const initialMaterials: RawMaterial[] = [
-        { id: 'raw-1', name: 'Plywood 18mm', quantity: 100, unit: 'sheets' },
-        { id: 'raw-2', name: 'Laminate Sheen', quantity: 50, unit: 'sheets' },
-        { id: 'raw-3', name: 'Screws 2-inch', quantity: 2000, unit: 'pieces' },
-      ];
-      localStorage.setItem(materialsKey, JSON.stringify(initialMaterials));
-      setMaterials(initialMaterials);
-    }
+    setMaterials(storedMaterials ? JSON.parse(storedMaterials) : []);
+    
+    const locationsKey = getCompanyStorageKey('locations')!;
+    const storedLocations = localStorage.getItem(locationsKey);
+    setLocations(storedLocations ? JSON.parse(storedLocations) : []);
+
   }, [activeCompanyId]);
   
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!activeCompanyId) return;
-
-    if (!newItemName || !newItemUnit) {
+    if (!activeCompanyId || !newItemName || !newItemUnit || !newItemLocationId) {
       toast({
         variant: "destructive",
         title: "Invalid Input",
@@ -83,20 +81,25 @@ export default function RawMaterialsPage() {
       return;
     }
     
-    if (materials.some(m => m.name.toLowerCase() === newItemName.toLowerCase())) {
+    if (materials.some(m => m.name.toLowerCase() === newItemName.toLowerCase() && m.locationId === newItemLocationId)) {
         toast({
             variant: "destructive",
             title: "Item Exists",
-            description: "A raw material with this name already exists.",
+            description: "This raw material already exists at this location.",
         });
         return;
     }
+    
+    const location = locations.find(loc => loc.id === newItemLocationId);
+    if (!location) return;
 
     const newItem: RawMaterial = {
       id: `raw-${new Date().getTime()}`,
       name: newItemName,
-      quantity: 0, // New materials start with 0 quantity
+      quantity: parseInt(newItemQuantity, 10) || 0,
       unit: newItemUnit,
+      locationId: newItemLocationId,
+      locationName: location.name,
     };
 
     const updatedMaterials = [...materials, newItem];
@@ -104,11 +107,13 @@ export default function RawMaterialsPage() {
     const materialsKey = getCompanyStorageKey('raw_materials')!;
     localStorage.setItem(materialsKey, JSON.stringify(updatedMaterials));
     toast({
-      title: "Material Type Added",
-      description: `${newItem.name} has been added. Use the Purchases page to add stock.`,
+      title: "Material Added",
+      description: `${newItem.name} has been added. Use the Purchases page to add more stock.`,
     });
     setNewItemName("");
     setNewItemUnit("");
+    setNewItemQuantity("");
+    setNewItemLocationId("");
   };
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
@@ -131,24 +136,24 @@ export default function RawMaterialsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center gap-2">
         <Wrench className="h-7 w-7" />
-        <h2 className="text-3xl font-bold tracking-tight">Raw Materials</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Raw Material Stock</h2>
       </div>
       <p className="text-muted-foreground">
-        Define your raw materials here. To add or update stock quantities, use the Purchases page.
+        Manage stock levels for raw materials across different locations.
       </p>
       <Separator />
       
       {canEdit && (
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Add New Material Type</CardTitle>
+            <CardTitle>Add New Material Stock</CardTitle>
             <CardDescription>
-              Add a new type of material to the inventory list. To add stock quantity for a material, please create a new entry on the Purchases page.
+              Add a new raw material with its initial quantity at a specific location. To add more stock later, use the Purchases page.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAddItem}>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-                <div className="space-y-2 md:col-span-2">
+          <CardContent className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="itemName">Material Name</Label>
                   <Input
                     id="itemName"
@@ -168,10 +173,28 @@ export default function RawMaterialsPage() {
                     required
                   />
                 </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="itemQuantity">Initial Quantity</Label>
+                  <Input
+                    id="itemQuantity"
+                    type="number"
+                    min="0"
+                    value={newItemQuantity}
+                    onChange={(e) => setNewItemQuantity(e.target.value)}
+                    placeholder="e.g. 100"
+                    required
+                  />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="itemLocation">Location</Label>
+                   <Select value={newItemLocationId} onValueChange={setNewItemLocationId} required>
+                      <SelectTrigger id="itemLocation"><SelectValue placeholder="Select a location..." /></SelectTrigger>
+                      <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
             </CardContent>
             <CardFooter className="gap-4">
-              <Button type="submit">Add New Material Type</Button>
-              <Button variant="secondary" type="button" onClick={() => router.push('/purchases')}>Go to Purchases</Button>
+              <Button type="submit">Add New Material</Button>
             </CardFooter>
           </form>
         </Card>
@@ -181,7 +204,7 @@ export default function RawMaterialsPage() {
         <CardHeader>
           <CardTitle>Current Material Stock</CardTitle>
           <CardDescription>
-            A read-only list of all raw materials. To update quantities, create a Purchase entry.
+            A read-only list of all raw materials across all locations. To update quantities, create a Purchase entry.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -190,6 +213,7 @@ export default function RawMaterialsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Material</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Unit</TableHead>
                 </TableRow>
@@ -198,12 +222,13 @@ export default function RawMaterialsPage() {
                 {materials.length > 0 ? materials.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>{item.locationName || 'N/A'}</TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell>{item.unit}</TableCell>
                   </TableRow>
                 )) : (
                     <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center">No raw materials found.</TableCell>
+                        <TableCell colSpan={4} className="h-24 text-center">No raw materials found.</TableCell>
                     </TableRow>
                 )}
               </TableBody>

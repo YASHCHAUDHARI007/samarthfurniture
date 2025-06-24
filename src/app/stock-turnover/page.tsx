@@ -35,14 +35,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { StockItem, StockStatus } from "@/lib/types";
+import type { StockItem, StockStatus, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function StockTurnoverPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [stock, setStock] = useState<StockItem[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
 
@@ -50,6 +51,7 @@ export default function StockTurnoverPage() {
   const [newItemSku, setNewItemSku] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState("");
   const [newItemReorderLevel, setNewItemReorderLevel] = useState("");
+  const [newItemLocationId, setNewItemLocationId] = useState("");
 
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
@@ -68,11 +70,17 @@ export default function StockTurnoverPage() {
   useEffect(() => {
     if (!activeCompanyId) {
         setStock([]);
+        setLocations([]);
         return;
     }
     const stockKey = getCompanyStorageKey('stock_items')!;
     const storedStock = localStorage.getItem(stockKey);
     setStock(storedStock ? JSON.parse(storedStock) : []);
+    
+    const locationsKey = getCompanyStorageKey('locations')!;
+    const storedLocations = localStorage.getItem(locationsKey);
+    setLocations(storedLocations ? JSON.parse(storedLocations) : []);
+
   }, [activeCompanyId]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
@@ -104,6 +112,7 @@ export default function StockTurnoverPage() {
     if (
       !newItemName ||
       !newItemSku ||
+      !newItemLocationId ||
       isNaN(quantity) ||
       isNaN(reorderLevel) ||
       quantity < 0 ||
@@ -117,10 +126,13 @@ export default function StockTurnoverPage() {
       return;
     }
 
-    if (stock.some(item => item.sku.toLowerCase() === newItemSku.toLowerCase())) {
-        toast({ variant: "destructive", title: "SKU already exists", description: "An item with this SKU is already in the inventory."});
+    if (stock.some(item => item.sku.toLowerCase() === newItemSku.toLowerCase() && item.locationId === newItemLocationId)) {
+        toast({ variant: "destructive", title: "SKU already exists", description: "An item with this SKU already exists in this location."});
         return;
     }
+    
+    const location = locations.find(loc => loc.id === newItemLocationId);
+    if (!location) return;
 
     const newItem: StockItem = {
       id: `stock-${new Date().getTime()}`,
@@ -129,6 +141,8 @@ export default function StockTurnoverPage() {
       quantity,
       reorderLevel,
       status: getStatus(quantity, reorderLevel),
+      locationId: newItemLocationId,
+      locationName: location.name,
     };
 
     const updatedStock = [...stock, newItem];
@@ -145,6 +159,7 @@ export default function StockTurnoverPage() {
     setNewItemSku("");
     setNewItemQuantity("");
     setNewItemReorderLevel("");
+    setNewItemLocationId("");
   };
   
   const handleDeleteItem = () => {
@@ -186,7 +201,7 @@ export default function StockTurnoverPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center gap-2">
           <Warehouse className="h-7 w-7" />
-          <h2 className="text-3xl font-bold tracking-tight">Stock Levels</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Finished Product Stock</h2>
         </div>
         <p className="text-muted-foreground">
           View and manage finished goods inventory. Stock is automatically deducted for dealer orders upon completion.
@@ -198,7 +213,7 @@ export default function StockTurnoverPage() {
             <CardHeader>
               <CardTitle>Add New Stock Item</CardTitle>
               <CardDescription>
-                Fill in the details to add a new product to the inventory.
+                Fill in the details to add a new product to the inventory at a specific location.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleAddItem}>
@@ -225,7 +240,7 @@ export default function StockTurnoverPage() {
                     />
                   </div>
                 </div>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="itemQuantity">Quantity</Label>
                     <Input
@@ -249,6 +264,13 @@ export default function StockTurnoverPage() {
                       placeholder="e.g. 10"
                       required
                     />
+                  </div>
+                   <div className="space-y-2">
+                    <Label htmlFor="itemLocation">Location</Label>
+                     <Select value={newItemLocationId} onValueChange={setNewItemLocationId} required>
+                        <SelectTrigger id="itemLocation"><SelectValue placeholder="Select a location..." /></SelectTrigger>
+                        <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -278,7 +300,7 @@ export default function StockTurnoverPage() {
           <CardHeader>
             <CardTitle>Current Inventory</CardTitle>
             <CardDescription>
-              A detailed list of all finished products in stock. Factory workers or admins can add or delete items.
+              A detailed list of all finished products in stock across all locations.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -288,6 +310,7 @@ export default function StockTurnoverPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
+                    <TableHead>Location</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Reorder Level</TableHead>
                     <TableHead>Status</TableHead>
@@ -299,6 +322,7 @@ export default function StockTurnoverPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.sku}</TableCell>
+                      <TableCell>{item.locationName || "N/A"}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{item.reorderLevel}</TableCell>
                       <TableCell>
@@ -322,7 +346,7 @@ export default function StockTurnoverPage() {
                     </TableRow>
                   )) : (
                     <TableRow>
-                        <TableCell colSpan={canEdit ? 6: 5} className="h-24 text-center">No stock items found.</TableCell>
+                        <TableCell colSpan={canEdit ? 7: 6} className="h-24 text-center">No stock items found.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -339,7 +363,7 @@ export default function StockTurnoverPage() {
                 <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete the item
                     <span className="font-semibold"> {itemToDelete?.name} </span>
-                    from the inventory.
+                    from the inventory at <span className="font-semibold">{itemToDelete?.locationName}</span>.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -42,8 +42,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useEffect, useState } from "react";
-import { Company } from "@/lib/types";
+import { useEffect, useState, useMemo } from "react";
+import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "./ui/separator";
 
@@ -52,6 +52,32 @@ const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
     {children}
   </span>
 );
+
+const navItems: {
+  path: string;
+  icon: React.ElementType;
+  text: string;
+  fkey?: string;
+  roles: UserRole[];
+  separator?: boolean;
+}[] = [
+  { path: "/", icon: LayoutDashboard, text: "Dashboard", fkey: "F1", roles: ["owner", "coordinator", "administrator"] },
+  { path: "/customer-orders", icon: User, text: "Customized Orders", fkey: "F2", roles: ["owner", "coordinator", "administrator"] },
+  { path: "/dealer-orders", icon: Building, text: "Dealer Orders", fkey: "F3", roles: ["owner", "coordinator", "administrator"] },
+  { path: "/direct-sale", icon: ShoppingBag, text: "Direct Sale", fkey: "F4", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/factory-dashboard", icon: Factory, text: "Factory Dashboard", fkey: "F5", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/billing", icon: Receipt, text: "Sales & Billing", fkey: "F6", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/purchases", icon: ShoppingCart, text: "Purchases", fkey: "F7", roles: ["owner", "administrator"] },
+  { path: "/payments", icon: Banknote, text: "Vouchers", fkey: "F8", roles: ["owner", "administrator"] },
+  { path: "/ledger", icon: BookText, text: "Ledger", fkey: "F9", roles: ["owner", "administrator"] },
+  { path: "/transport", icon: Truck, text: "Transport", fkey: "F11", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/stock-turnover", icon: Warehouse, text: "Finished Stock", fkey: "F10", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/raw-materials", icon: Wrench, text: "Raw Materials", fkey: "F12", roles: ["owner", "factory", "administrator"] },
+  { path: "/daily-report", icon: ClipboardList, text: "Daily Report", roles: ["owner", "administrator"] },
+  { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator"], separator: true },
+  { path: "/locations", icon: Warehouse, text: "Locations", roles: ["owner", "administrator"] },
+  { path: "/manage-users", icon: Users, text: "Manage Users", roles: ["owner", "administrator"] },
+];
 
 function Menu({ userRole }: { userRole: string | null }) {
   const pathname = usePathname();
@@ -65,342 +91,40 @@ function Menu({ userRole }: { userRole: string | null }) {
 
   const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
 
-  const isOwner = userRole === "owner";
-  const isAdmin = userRole === "administrator";
-  const isCoordinator = userRole === "coordinator";
-  const isFactory = userRole === "factory";
-
-  const canSeeStandardOrders = isOwner || isCoordinator || isAdmin;
-  const canSeeFactoryFeatures = isFactory || isOwner || isAdmin || isCoordinator;
-  const isAccounting = isOwner || isAdmin;
-  const canManageUsers = isOwner || isAdmin;
-  const canSeeReports = isOwner || isAdmin;
-  const canManageInventory = isOwner || isFactory || isAdmin;
+  const filteredNavItems = useMemo(() => {
+    if (!userRole) return [];
+    return navItems.filter(item => item.roles.includes(userRole as UserRole));
+  }, [userRole]);
 
   return (
     <SidebarMenu>
-      {canSeeStandardOrders && (
-        <>
+      {filteredNavItems.map((item, index) => (
+        <React.Fragment key={item.path}>
+          {item.separator && (
+            <SidebarMenuItem>
+              <div className="my-2 mx-2 h-px w-auto bg-sidebar-border" />
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/")}
+              isActive={isActive(item.path)}
               tooltip={{
-                children: "Dashboard",
+                children: item.text,
                 side: "right",
                 align: "center",
               }}
               onClick={handleLinkClick}
             >
-              <Link href="/">
-                <LayoutDashboard />
-                <span>Dashboard</span>
-                <FKeyShortcut>F1</FKeyShortcut>
+              <Link href={item.path}>
+                <item.icon />
+                <span>{item.text}</span>
+                {item.fkey && <FKeyShortcut>{item.fkey}</FKeyShortcut>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/customer-orders")}
-              tooltip={{
-                children: "Customized Orders",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/customer-orders">
-                <User />
-                <span>Customized Orders</span>
-                <FKeyShortcut>F2</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/dealer-orders")}
-              tooltip={{
-                children: "Dealer Orders",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/dealer-orders">
-                <Building />
-                <span>Dealer Orders</span>
-                <FKeyShortcut>F3</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </>
-      )}
-
-      {canSeeFactoryFeatures && (
-         <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/direct-sale")}
-              tooltip={{
-                children: "Direct Sale",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/direct-sale">
-                <ShoppingBag />
-                <span>Direct Sale</span>
-                <FKeyShortcut>F4</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-      )}
-
-      {canSeeFactoryFeatures && (
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            asChild
-            isActive={isActive("/factory-dashboard")}
-            tooltip={{
-              children: "Factory Dashboard",
-              side: "right",
-              align: "center",
-            }}
-            onClick={handleLinkClick}
-          >
-            <Link href="/factory-dashboard">
-              <Factory />
-              <span>Factory Dashboard</span>
-              <FKeyShortcut>F5</FKeyShortcut>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
-      
-      {isAccounting && (
-        <>
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/billing")}
-              tooltip={{
-                children: "Sales",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/billing">
-                <Receipt />
-                <span>Sales</span>
-                <FKeyShortcut>F6</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/purchases")}
-              tooltip={{
-                children: "Purchases",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/purchases">
-                <ShoppingCart />
-                <span>Purchases</span>
-                <FKeyShortcut>F7</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/payments")}
-              tooltip={{
-                children: "Vouchers",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/payments">
-                <Banknote />
-                <span>Vouchers</span>
-                <FKeyShortcut>F8</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/ledger")}
-              tooltip={{
-                children: "Ledger",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/ledger">
-                <BookText />
-                <span>Ledger</span>
-                <FKeyShortcut>F9</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </>
-      )}
-
-
-      {canSeeFactoryFeatures && !isAccounting && (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/billing")}
-              tooltip={{
-                children: "Billing",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/billing">
-                <Receipt />
-                <span>Billing</span>
-                <FKeyShortcut>F6</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-      )}
-      
-      {canSeeFactoryFeatures && (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/transport")}
-              tooltip={{
-                children: "Transport",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/transport">
-                <Truck />
-                <span>Transport</span>
-                <FKeyShortcut>F11</FKeyShortcut>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-      )}
-
-
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={isActive("/stock-turnover")}
-          tooltip={{
-            children: "Stock Levels",
-            side: "right",
-            align: "center",
-          }}
-          onClick={handleLinkClick}
-        >
-          <Link href="/stock-turnover">
-            <Warehouse />
-            <span>Stock Levels</span>
-            <FKeyShortcut>F10</FKeyShortcut>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      {canManageInventory && (
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            asChild
-            isActive={isActive("/raw-materials")}
-            tooltip={{
-              children: "Raw Materials",
-              side: "right",
-              align: "center",
-            }}
-            onClick={handleLinkClick}
-          >
-            <Link href="/raw-materials">
-              <Wrench />
-              <span>Raw Materials</span>
-              <FKeyShortcut>F12</FKeyShortcut>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
-
-      {canSeeReports && (
-        <>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/daily-report")}
-              tooltip={{
-                children: "Daily Report",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/daily-report">
-                <ClipboardList />
-                <span>Daily Report</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </>
-      )}
-      {isAdmin && (
-        <>
-          <Separator className="my-2" />
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/manage-companies")}
-              tooltip={{
-                children: "Manage Companies",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/manage-companies">
-                <Building2 />
-                <span>Companies</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/manage-users")}
-              tooltip={{
-                children: "Manage Users",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/manage-users">
-                <Users />
-                <span>Manage Users</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </>
-      )}
+        </React.Fragment>
+      ))}
     </SidebarMenu>
   );
 }
@@ -422,10 +146,7 @@ function CompanySwitcher() {
         if (companyId) {
             localStorage.setItem('activeCompanyId', companyId);
             setActiveCompanyId(companyId);
-            router.refresh();
-            if (isMobile) {
-                setOpenMobile(false);
-            }
+            window.location.reload();
         }
     };
 
@@ -448,7 +169,7 @@ function CompanySwitcher() {
                     ))}
                 </SelectContent>
             </Select>
-            <Separator />
+            <div className="my-2 mx-2 h-px w-auto bg-sidebar-border" />
         </div>
     )
 }
@@ -461,9 +182,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const fKeyRoutes: { [key: string]: string } = {
-        'F1': '/', 'F2': '/customer-orders', 'F3': '/dealer-orders', 'F4': '/direct-sale', 'F5': '/factory-dashboard', 'F6': '/billing', 'F7': '/purchases', 'F8': '/payments', 'F9': '/ledger', 'F10': '/stock-turnover', 'F11': '/transport', 'F12': '/raw-materials',
-    };
+    const fKeyRoutes: { [key: string]: string } = navItems.reduce((acc, item) => {
+        if (item.fkey) {
+            acc[item.fkey] = item.path;
+        }
+        return acc;
+    }, {} as { [key: string]: string });
 
     const handleKeyDown = (event: KeyboardEvent) => {
         const route = fKeyRoutes[event.key];

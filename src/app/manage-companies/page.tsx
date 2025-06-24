@@ -54,9 +54,13 @@ const initialProductCatalog = [
 ];
 
 const initialStock = [
-  { id: 'stock-1', name: "Modern Sofa", sku: "SOF-MOD-BLU", quantity: 25, reorderLevel: 10, status: "In Stock" },
-  { id: 'stock-2', name: "Oak Bookshelf", sku: "BKS-OAK-LRG", quantity: 8, reorderLevel: 5, status: "Low Stock" },
-  { id: 'stock-3', name: "Coffee Table", sku: "TBL-COF-WHT", quantity: 0, reorderLevel: 8, status: "Out of Stock" },
+  { id: 'stock-1', name: "Modern Sofa", sku: "SOF-MOD-BLU", quantity: 25, reorderLevel: 10, status: "In Stock", locationId: "loc-default", locationName: "Main Warehouse" },
+  { id: 'stock-2', name: "Oak Bookshelf", sku: "BKS-OAK-LRG", quantity: 8, reorderLevel: 5, status: "Low Stock", locationId: "loc-default", locationName: "Main Warehouse" },
+  { id: 'stock-3', name: "Coffee Table", sku: "TBL-COF-WHT", quantity: 0, reorderLevel: 8, status: "Out of Stock", locationId: "loc-default", locationName: "Main Warehouse" },
+];
+
+const initialLocations = [
+    { id: 'loc-default', name: 'Main Warehouse', address: 'Default Location' }
 ];
 
 export default function ManageCompaniesPage() {
@@ -111,6 +115,7 @@ export default function ManageCompaniesPage() {
     });
     localStorage.setItem(`samarth_furniture_${companyId}_product_catalog`, JSON.stringify(initialProductCatalog));
     localStorage.setItem(`samarth_furniture_${companyId}_stock_items`, JSON.stringify(initialStock));
+    localStorage.setItem(`samarth_furniture_${companyId}_locations`, JSON.stringify(initialLocations));
 
     // If it's the first company, set it as active
     if (!localStorage.getItem('activeCompanyId')) {
@@ -144,7 +149,7 @@ export default function ManageCompaniesPage() {
     localStorage.setItem('samarth_furniture_companies', JSON.stringify(updatedCompanies));
     
     // Clean up company-specific data
-    const dataKeys = ['orders', 'contacts', 'purchases', 'ledger', 'raw_materials', 'product_catalog', 'stock_items'];
+    const dataKeys = ['orders', 'contacts', 'purchases', 'ledger', 'raw_materials', 'product_catalog', 'stock_items', 'locations'];
     dataKeys.forEach(key => {
         localStorage.removeItem(`samarth_furniture_${companyToDelete.id}_${key}`);
     });
