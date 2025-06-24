@@ -35,17 +35,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import type { StockItem, StockStatus } from "@/lib/types";
 
-type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
-
-type StockItem = {
-  id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  reorderLevel: number;
-  status: StockStatus;
-};
+const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
 
 const initialStock: StockItem[] = [
   { id: "prod_001", name: "Modular 'L' Sofa", sku: "SOF-MOD-L-GRY", quantity: 25, reorderLevel: 10, status: "In Stock" },
@@ -57,7 +49,7 @@ const initialStock: StockItem[] = [
 
 export default function StockTurnoverPage() {
   const { toast } = useToast();
-  const [stock, setStock] = useState<StockItem[]>(initialStock);
+  const [stock, setStock] = useState<StockItem[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
 
@@ -69,7 +61,20 @@ export default function StockTurnoverPage() {
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
+    
+    const savedStockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
+    if (savedStockRaw) {
+        setStock(JSON.parse(savedStockRaw));
+    } else {
+        setStock(initialStock);
+    }
   }, []);
+
+  useEffect(() => {
+    if (stock.length > 0) {
+      localStorage.setItem(STOCK_ITEMS_STORAGE_KEY, JSON.stringify(stock));
+    }
+  }, [stock]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity === 0) return "Out of Stock";

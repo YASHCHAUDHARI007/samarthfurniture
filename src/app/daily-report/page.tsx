@@ -23,30 +23,10 @@ import {
 } from "@/components/ui/table";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
+import type { Order, StockItem, StockStatus } from "@/lib/types";
 
-type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
-
-type StockItem = {
-  id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  reorderLevel: number;
-  status: StockStatus;
-};
-
-const lowStockItems: StockItem[] = [
-  { id: "prod_002", name: "Minimalist Oak Desk", sku: "DSK-OAK-MIN-150", quantity: 8, reorderLevel: 15, status: "Low Stock" },
-  { id: "prod_004", name: "Upholstered Dining Chair", sku: "CHR-DIN-UPH-BGE", quantity: 0, reorderLevel: 20, status: "Out of Stock" },
-];
-
-const recentActivities = [
-    { time: "09:15 AM", description: "Order ORD-008 status changed to 'Working'." },
-    { time: "10:30 AM", description: "New customer order placed by John Smith." },
-    { time: "11:00 AM", description: "Material 'Pine Wood Planks' quantity updated to 300." },
-    { time: "01:45 PM", description: "Order ORD-003 status changed to 'Delivered'." },
-    { time: "03:20 PM", description: "Bulk order placed by 'Modern Furnishings Co.'." },
-];
+const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
+const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
 
 export default function DailyReportPage() {
   const router = useRouter();
@@ -54,11 +34,23 @@ export default function DailyReportPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
 
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
+
+    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    setOrders(allOrders);
+
+    const savedStockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
+    const allStock: StockItem[] = savedStockRaw ? JSON.parse(savedStockRaw) : [];
+    setStockItems(allStock);
+
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -79,7 +71,7 @@ export default function DailyReportPage() {
         return "outline";
     }
   };
-
+  
   if (isLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
@@ -107,6 +99,17 @@ export default function DailyReportPage() {
     );
   }
 
+  const newOrdersCount = orders.filter(o => o.status === 'Pending').length;
+  const completedProductionsCount = orders.filter(o => o.status === 'Completed').length;
+  const itemsShippedCount = orders.filter(o => o.status === 'Delivered').length;
+  
+  const lowStockItems = stockItems.filter(item => item.quantity <= item.reorderLevel);
+  const lowStockAlertsCount = lowStockItems.length;
+  
+  const recentOrders = orders
+    .sort((a, b) => b.id.localeCompare(a.id))
+    .slice(0, 5);
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center gap-2">
@@ -125,9 +128,9 @@ export default function DailyReportPage() {
                   <Boxes className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">12</div>
+                  <div className="text-2xl font-bold">{newOrdersCount}</div>
                   <p className="text-xs text-muted-foreground">
-                      8 Customer, 4 Dealer
+                      Orders awaiting production.
                   </p>
               </CardContent>
           </Card>
@@ -137,9 +140,9 @@ export default function DailyReportPage() {
                   <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">8</div>
+                  <div className="text-2xl font-bold">{completedProductionsCount}</div>
                    <p className="text-xs text-muted-foreground">
-                      For 5 different orders
+                      Orders ready for shipping.
                   </p>
               </CardContent>
           </Card>
@@ -149,9 +152,9 @@ export default function DailyReportPage() {
                   <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">4</div>
+                  <div className="text-2xl font-bold">{itemsShippedCount}</div>
                    <p className="text-xs text-muted-foreground">
-                      Total orders delivered
+                      Total orders delivered.
                   </p>
               </CardContent>
           </Card>
@@ -161,9 +164,9 @@ export default function DailyReportPage() {
                   <AlertTriangle className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">2</div>
+                  <div className="text-2xl font-bold">{lowStockAlertsCount}</div>
                    <p className="text-xs text-muted-foreground">
-                      Items need reordering
+                      Items that need reordering.
                   </p>
               </CardContent>
           </Card>
@@ -172,22 +175,28 @@ export default function DailyReportPage() {
       <div className="grid md:grid-cols-2 gap-8 pt-4">
         <Card>
             <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>A log of today's key events.</CardDescription>
+                <CardTitle>Recent Orders</CardTitle>
+                <CardDescription>A log of the 5 most recent orders.</CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[100px]">Time</TableHead>
-                            <TableHead>Event</TableHead>
+                            <TableHead>Order ID</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {recentActivities.map((activity, index) => (
-                            <TableRow key={index}>
-                                <TableCell className="font-medium">{activity.time}</TableCell>
-                                <TableCell>{activity.description}</TableCell>
+                        {recentOrders.map((order) => (
+                            <TableRow key={order.id}>
+                                <TableCell className="font-medium">{order.id}</TableCell>
+                                <TableCell>{order.customer}</TableCell>
+                                 <TableCell>
+                                    <Badge variant={order.status === "Delivered" || order.status === "Completed" ? "success" : order.status === "Working" ? "secondary" : "outline"}>
+                                        {order.status}
+                                    </Badge>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

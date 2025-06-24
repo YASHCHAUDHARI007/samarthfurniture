@@ -45,3 +45,14 @@ export type Product = {
   image: string;
   aiHint: string;
 };
+
+export type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
+
+export type StockItem = {
+  id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  reorderLevel: number;
+  status: StockStatus;
+};
