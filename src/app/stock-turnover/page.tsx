@@ -151,7 +151,7 @@ export default function StockTurnoverPage() {
 
   const totalUnits = stock.reduce((acc, item) => acc + item.quantity, 0);
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
-  const canEdit = userRole === "factory" || userRole === "administrator";
+  const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
 
   return (
     <>
@@ -228,8 +228,7 @@ export default function StockTurnoverPage() {
                 <Button type="submit">Add Item</Button>
               </CardFooter>
             </form>
-          </Card>
-        )}
+          )}
 
         <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>

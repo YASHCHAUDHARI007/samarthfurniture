@@ -55,12 +55,21 @@ function Menu({ userRole }: { userRole: string | null }) {
 
   const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
 
+  const isOwner = userRole === "owner";
+  const isAdmin = userRole === "administrator";
+  const isCoordinator = userRole === "coordinator";
+  const isFactory = userRole === "factory";
 
-  const isAccounting = (userRole === "owner" || userRole === "administrator");
+  const canSeeStandardOrders = isOwner || isCoordinator || isAdmin;
+  const canSeeFactoryFeatures = isFactory || isOwner || isAdmin || isCoordinator;
+  const isAccounting = isOwner || isAdmin;
+  const canManageUsers = isOwner || isAdmin;
+  const canSeeReports = isOwner || isAdmin;
+  const canManageInventory = isOwner || isFactory || isAdmin;
 
   return (
     <SidebarMenu>
-      {(userRole === "owner" || userRole === "coordinator" || userRole === "administrator") && (
+      {canSeeStandardOrders && (
         <>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -116,7 +125,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </>
       )}
 
-      {(userRole === "factory" || userRole === "owner" || userRole === "coordinator" || userRole === "administrator") && (
+      {canSeeFactoryFeatures && (
          <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -136,7 +145,7 @@ function Menu({ userRole }: { userRole: string | null }) {
           </SidebarMenuItem>
       )}
 
-      {(userRole === "factory" || userRole === "owner" || userRole === "administrator") && (
+      {canSeeFactoryFeatures && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -230,7 +239,7 @@ function Menu({ userRole }: { userRole: string | null }) {
       )}
 
 
-      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && !isAccounting && (
+      {canSeeFactoryFeatures && !isAccounting && (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -250,7 +259,7 @@ function Menu({ userRole }: { userRole: string | null }) {
           </SidebarMenuItem>
       )}
       
-      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && (
+      {canSeeFactoryFeatures && (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -289,7 +298,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuButton>
       </SidebarMenuItem>
 
-      {(userRole === "owner" || userRole === "factory" || userRole === "administrator") && (
+      {canManageInventory && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -309,7 +318,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuItem>
       )}
 
-      {(userRole === "owner" || userRole === "administrator") && (
+      {canSeeReports && (
         <>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -328,24 +337,26 @@ function Menu({ userRole }: { userRole: string | null }) {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/manage-users")}
-              tooltip={{
-                children: "Manage Users",
-                side: "right",
-                align: "center",
-              }}
-              onClick={handleLinkClick}
-            >
-              <Link href="/manage-users">
-                <Users />
-                <span>Manage Users</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         </>
+      )}
+      {canManageUsers && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive("/manage-users")}
+            tooltip={{
+              children: "Manage Users",
+              side: "right",
+              align: "center",
+            }}
+            onClick={handleLinkClick}
+          >
+            <Link href="/manage-users">
+              <Users />
+              <span>Manage Users</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       )}
     </SidebarMenu>
   );

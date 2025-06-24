@@ -74,7 +74,7 @@ export default function DealerOrderPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    if (role === "factory" || role === "administrator") {
+    if (role === "factory" || role === "administrator" || role === "owner") {
       setCanEdit(true);
     }
     const storedCatalog = localStorage.getItem("samarth_furniture_product_catalog");
