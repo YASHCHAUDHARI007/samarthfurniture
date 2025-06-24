@@ -35,10 +35,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
 import type { Order } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 
-const DeliveryReceipt = ({ order }: { order: Order }) => (
-    <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
+const DeliveryReceipt = ({ order, addPageBreakBefore = false }: { order: Order, addPageBreakBefore?: boolean }) => (
+    <div className={cn(
+        "bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative",
+        addPageBreakBefore && "print:break-before-page"
+      )}>
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div className="flex items-center gap-3">
@@ -351,13 +355,12 @@ export default function TransportPage() {
             <DialogHeader className="no-print">
                 <DialogTitle>Print Delivery Receipts</DialogTitle>
                 <DialogDescription>
-                    Print two copies of the receipt: one for the customer and one for the driver.
+                    Printing two copies: one for the customer and one for the driver.
                 </DialogDescription>
             </DialogHeader>
-            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white space-y-4">
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white print:space-y-0">
                 {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
-                <div className="print:h-[2px] print:bg-gray-400 print:border-dashed"></div>
-                {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
+                {receiptOrder && <DeliveryReceipt order={receiptOrder} addPageBreakBefore={true} />}
             </div>
             <DialogFooter className="no-print">
                  <DialogClose asChild>

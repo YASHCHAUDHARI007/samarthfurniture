@@ -96,33 +96,44 @@ body {
 
 @media print {
   body {
+    /* Ensures background colors and images are printed */
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .no-print, [data-radix-dialog-overlay] {
+  /* Hide the dialog overlay and any other elements marked as no-print */
+  .no-print,
+  [data-radix-dialog-overlay] {
     display: none !important;
   }
   
+  /* 
+    Reset the dialog's container to behave like a normal part of the document flow,
+    instead of a centered, fixed-position modal. This is the key fix.
+  */
   [role="dialog"] {
     position: static !important;
     inset: auto !important;
     transform: none !important;
-    width: auto !important;
+    width: 100% !important; /* Use 100% of the page width */
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
     display: block !important;
+    overflow: visible !important;
     border: none !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
-    overflow: visible !important;
-    max-height: none !important;
-    max-width: none !important;
+    background: white !important; /* Ensure a white background */
   }
 
+  /* Hide the dialog's header and footer, which are not part of the printable content */
   [role="dialog"] > *:not(#printable-area) {
      display: none !important;
   }
 
+  /* Ensure the designated printable area takes up the full space */
   #printable-area {
     display: block !important;
     width: 100% !important;
