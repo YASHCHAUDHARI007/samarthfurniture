@@ -51,6 +51,7 @@ export default function BillingPage() {
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [gstRate, setGstRate] = useState(18);
+    const [reference, setReference] = useState("");
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isReprintView, setIsReprintView] = useState(false);
@@ -95,6 +96,7 @@ export default function BillingPage() {
         setIsCreating(false);
         setSelectedOrder(null);
         setLineItems([]);
+        setReference("");
     };
 
 
@@ -143,6 +145,7 @@ export default function BillingPage() {
             paidAmount: 0,
             balanceDue: totalAmount,
             paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
+            reference: reference || undefined,
         };
         
         const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
@@ -157,7 +160,7 @@ export default function BillingPage() {
             accountId: selectedOrder.customerInfo.id,
             accountName: selectedOrder.customerInfo.name,
             type: 'Sales',
-            details: `Invoice ${invoiceNumber}`,
+            details: `Invoice ${invoiceNumber}${reference ? ` (Ref: ${reference})` : ''}`,
             debit: totalAmount,
             credit: 0,
             refId: selectedOrder.id,
@@ -168,7 +171,7 @@ export default function BillingPage() {
             accountId: 'SALES_ACCOUNT',
             accountName: 'Sales Account',
             type: 'Sales',
-            details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}`,
+            details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}${reference ? ` (Ref: ${reference})` : ''}`,
             debit: 0,
             credit: totalAmount,
             refId: selectedOrder.id,
@@ -281,7 +284,11 @@ export default function BillingPage() {
                             )}
                         </div>
                         <Separator className="my-4" />
-                        <div className="flex justify-end">
+                        <div className="flex justify-between gap-8 items-start">
+                            <div className="w-full max-w-xs space-y-1">
+                                <Label htmlFor="reference">Ref (Optional)</Label>
+                                <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. PO-123"/>
+                            </div>
                             <div className="w-full max-w-sm space-y-4">
                                 <div className="flex items-center justify-between gap-4">
                                     <Label htmlFor="gstRate" className="whitespace-nowrap">GST Rate (%)</Label>

@@ -22,6 +22,7 @@ export const Invoice = ({ order }: { order: Order }) => (
                 <h2 className="text-2xl font-semibold uppercase text-gray-700">Invoice</h2>
                 <p className="text-sm">Invoice #: <span className="font-medium">{order.invoiceNumber}</span></p>
                 <p className="text-sm">Date: <span className="font-medium">{order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</span></p>
+                {order.reference && (<p className="text-sm">Ref: <span className="font-medium">{order.reference}</span></p>)}
             </div>
         </div>
 

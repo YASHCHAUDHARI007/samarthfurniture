@@ -63,6 +63,7 @@ export type Order = {
   paidAmount?: number;
   balanceDue?: number;
   paymentStatus?: PaymentStatus;
+  reference?: string;
 };
 
 export type User = {
