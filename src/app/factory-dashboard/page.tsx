@@ -166,6 +166,7 @@ export default function FactoryDashboardPage() {
       case "Delivered":
         return "success";
       case "Completed":
+      case "Billed":
         return "default";
       case "Working":
         return "secondary";

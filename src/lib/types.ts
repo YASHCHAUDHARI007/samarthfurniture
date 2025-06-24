@@ -1,7 +1,14 @@
 
 export type UserRole = "owner" | "coordinator" | "factory" | "administrator";
 
-export type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
+export type OrderStatus = "Pending" | "Working" | "Completed" | "Billed" | "Delivered";
+
+export type LineItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  price: number;
+};
 
 export type Order = {
   id: string;
@@ -33,6 +40,13 @@ export type Order = {
     vehicleNumber: string;
     vehicleModel: string;
   };
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  lineItems?: LineItem[];
+  subTotal?: number;
+  gstRate?: number;
+  gstAmount?: number;
+  totalAmount?: number;
 };
 
 export type User = {

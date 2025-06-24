@@ -117,6 +117,7 @@ export default function Dashboard() {
     switch (status) {
       case "Delivered":
       case "Completed":
+      case "Billed":
         return "success";
       case "Working":
         return "secondary";

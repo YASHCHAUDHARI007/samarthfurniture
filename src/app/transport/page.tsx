@@ -95,7 +95,7 @@ export default function TransportPage() {
     const allOrders: Order[] = JSON.parse(
       localStorage.getItem("samarth_furniture_orders") || "[]"
     );
-    let ordersToDisplay = allOrders.filter(o => o.status === 'Completed');
+    let ordersToDisplay = allOrders.filter(o => o.status === 'Billed');
     
     if (role === "coordinator") {
       ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
@@ -199,7 +199,7 @@ export default function TransportPage() {
           <CardHeader>
             <CardTitle>Ready for Shipping</CardTitle>
             <CardDescription>
-              The following orders have been marked as 'Completed' and are
+              The following orders have been billed and are
               awaiting transport.
             </CardDescription>
           </CardHeader>

@@ -25,6 +25,7 @@ import {
   Warehouse,
   Wrench,
   Truck,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -129,23 +130,42 @@ function Menu({ userRole }: { userRole: string | null }) {
       )}
 
       {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && (
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            asChild
-            isActive={isActive("/transport")}
-            tooltip={{
-              children: "Transport",
-              side: "right",
-              align: "center",
-            }}
-            onClick={handleLinkClick}
-          >
-            <Link href="/transport">
-              <Truck />
-              <span>Transport</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        <>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/billing")}
+              tooltip={{
+                children: "Billing",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/billing">
+                <Receipt />
+                <span>Billing</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/transport")}
+              tooltip={{
+                children: "Transport",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/transport">
+                <Truck />
+                <span>Transport</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </>
       )}
 
       <SidebarMenuItem>
