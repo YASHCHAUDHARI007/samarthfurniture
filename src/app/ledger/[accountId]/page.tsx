@@ -245,7 +245,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                         <DialogTitle>Invoice: {billToView.invoiceNumber}</DialogTitle>
                         <DialogDescription>Invoice details for order {billToView.id}.</DialogDescription>
                     </DialogHeader>
-                    <div id="printable-area-dialog" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
+                    <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
                        <Invoice order={billToView} />
                     </div>
                     </>

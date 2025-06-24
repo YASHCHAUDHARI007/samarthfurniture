@@ -118,16 +118,5 @@ body {
     left: 0;
     top: 0;
     width: 100%;
-    height: 100%;
-    overflow: hidden; /* Prevent scrollbars in print */
-  }
-
-  /* Ensure the content within the printable area scales correctly */
-  #printable-area > div {
-    width: 100%;
-    height: 100%;
-    transform-origin: top left;
-    transform: scale(1);
-    page-break-inside: avoid;
   }
 }
