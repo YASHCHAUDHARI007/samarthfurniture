@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -32,10 +33,13 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { ShoppingBag, IndianRupee, Printer } from "lucide-react";
+import { ShoppingBag, IndianRupee, Printer, CalendarIcon } from "lucide-react";
 import type { Contact, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
+import { cn } from "@/lib/utils";
 
 type SaleItem = {
   id: string; // StockItem ID
@@ -61,6 +65,7 @@ export default function DirectSalePage() {
 
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [gstRate, setGstRate] = useState(18);
+  const [saleDate, setSaleDate] = useState<Date | undefined>(new Date());
 
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
@@ -144,6 +149,10 @@ export default function DirectSalePage() {
         toast({ variant: "destructive", title: "Invalid Items", description: "Please add items with valid quantity and price."});
         return;
     }
+    if (!saleDate) {
+        toast({ variant: "destructive", title: "Missing Date", description: "Please select a sale date."});
+        return;
+    }
 
     // --- Save or update customer contact ---
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
@@ -170,7 +179,7 @@ export default function DirectSalePage() {
     setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
     
     // --- Create Order and Invoice ---
-    const invoiceDate = new Date().toISOString();
+    const invoiceDate = saleDate.toISOString();
     const invoiceNumber = `INV-${new Date().getTime()}`;
     const orderId = `ORD-${new Date().getTime()}`;
     
@@ -277,6 +286,7 @@ export default function DirectSalePage() {
     setShippingAddress("");
     setSelectedCustomerId(null);
     setSaleItems([]);
+    setSaleDate(new Date());
   };
 
   const handlePrint = () => window.print();
@@ -410,6 +420,21 @@ export default function DirectSalePage() {
                 <Card>
                     <CardHeader><CardTitle>Invoice Summary</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="saleDate">Invoice Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn("w-full justify-start text-left font-normal", !saleDate && "text-muted-foreground")}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {saleDate ? format(saleDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={saleDate} onSelect={setSaleDate} initialFocus /></PopoverContent>
+                            </Popover>
+                        </div>
                         <div className="flex items-center justify-between gap-4">
                             <Label htmlFor="gstRate">GST Rate (%)</Label>
                             <Input id="gstRate" type="number" value={gstRate} onChange={e => setGstRate(parseFloat(e.target.value) || 0)} className="w-24"/>

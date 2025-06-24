@@ -26,9 +26,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Banknote, IndianRupee, CalendarIcon } from "lucide-react";
+import { Banknote, IndianRupee, CalendarIcon, Printer } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Contact, LedgerEntry, Order, Purchase, Payment, PaymentStatus } from "@/lib/types";
+import { VoucherReceipt } from "@/components/voucher-receipt";
 
 export default function PaymentsPage() {
   const { toast } = useToast();
@@ -53,6 +63,8 @@ export default function PaymentsPage() {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [unpaidPurchases, setUnpaidPurchases] = useState<Purchase[]>([]);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState("");
+
+  const [voucherToPrint, setVoucherToPrint] = useState<any | null>(null);
 
   useEffect(() => {
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
@@ -181,6 +193,18 @@ export default function PaymentsPage() {
     
     toast({ title: "Receipt Recorded", description: `Payment from ${customer.name} has been recorded.` });
 
+    const voucherData = {
+        id: paymentId,
+        type: 'Receipt',
+        contactName: customer.name,
+        amount: receiptAmount,
+        date: paymentDateISO,
+        method: receiptMethod,
+        reference: receiptRef,
+        againstBill: selectedInvoiceId ? allOrders.find(o => o.id === selectedInvoiceId)?.invoiceNumber : undefined,
+    };
+    setVoucherToPrint(voucherData);
+
     setReceiptContactId("");
     setReceiptAmount("");
     setReceiptRef("");
@@ -231,6 +255,19 @@ export default function PaymentsPage() {
 
     toast({ title: "Payment Recorded", description: `Payment to ${supplier.name} has been recorded.` });
 
+    const purchase = selectedPurchaseId ? allPurchases.find(p => p.id === selectedPurchaseId) : null;
+    const voucherData = {
+        id: paymentId,
+        type: 'Payment',
+        contactName: supplier.name,
+        amount: paymentAmount,
+        date: paymentDateISO,
+        method: paymentMethod,
+        reference: paymentRef,
+        againstBill: purchase ? purchase.billNumber : undefined,
+    };
+    setVoucherToPrint(voucherData);
+
     setPaymentContactId("");
     setPaymentAmount("");
     setPaymentRef("");
@@ -238,10 +275,13 @@ export default function PaymentsPage() {
     setPaymentDate(new Date());
   };
 
+  const handlePrint = () => window.print();
+
   const customers = contacts.filter(c => c.type === 'Customer' || c.type === 'Dealer');
   const suppliers = contacts.filter(c => c.type === 'Supplier');
 
   return (
+    <>
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center gap-2">
         <Banknote className="h-7 w-7" />
@@ -293,7 +333,7 @@ export default function PaymentsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="receiptDate">Bill Date</Label>
+                        <Label htmlFor="receiptDate">Receipt Date</Label>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !receiptDate && "text-muted-foreground")}>
@@ -365,7 +405,7 @@ export default function PaymentsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="paymentDate">Bill Date</Label>
+                        <Label htmlFor="paymentDate">Payment Date</Label>
                          <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !paymentDate && "text-muted-foreground")}>
@@ -403,5 +443,24 @@ export default function PaymentsPage() {
         </TabsContent>
       </Tabs>
     </div>
+
+    <Dialog open={!!voucherToPrint} onOpenChange={(isOpen) => !isOpen && setVoucherToPrint(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="no-print">
+                <DialogTitle>Voucher Generated</DialogTitle>
+                <DialogDescription>
+                    The transaction has been recorded. You can print the voucher below.
+                </DialogDescription>
+            </DialogHeader>
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
+                {voucherToPrint && <VoucherReceipt voucher={voucherToPrint} />}
+            </div>
+            <DialogFooter className="no-print">
+                <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Voucher</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
