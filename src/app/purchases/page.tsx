@@ -131,48 +131,54 @@ export default function PurchasesPage() {
         return;
     }
 
-    // Save or update supplier
+    // --- Save or update supplier ---
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
-    let supplier = storedContacts.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierName.toLowerCase() && s.type === 'Supplier');
     let supplierId: string;
+    
+    // First, try to find an existing supplier by the name entered in the input box.
+    const existingSupplier = storedContacts.find(
+      s => s.type === 'Supplier' && s.name.toLowerCase() === supplierName.toLowerCase()
+    );
 
-    if (!supplier) {
-        supplierId = `SUPP-${Date.now()}`;
-        const newSupplier: Contact = {
-            id: supplierId,
-            name: supplierName,
-            type: 'Supplier',
-            gstin: supplierGstin,
-        };
-        const updatedContacts = [...storedContacts, newSupplier];
+    if (existingSupplier) {
+      // If found, use their ID and check if the GSTIN needs updating.
+      supplierId = existingSupplier.id;
+      if (existingSupplier.gstin !== supplierGstin) {
+        const updatedContacts = storedContacts.map(c => 
+          c.id === supplierId ? { ...c, gstin: supplierGstin } : c
+        );
         localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
         setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+      }
     } else {
-        supplierId = supplier.id;
-        // Check if details have been updated
-        if (supplier.gstin !== supplierGstin) {
-            supplier.gstin = supplierGstin;
-            const updatedContacts = storedContacts.map(c => c.id === supplier!.id ? supplier : c);
-            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
-            setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
-        }
+      // If no supplier with that name exists, create a new one.
+      supplierId = `SUPP-${Date.now()}`;
+      const newSupplier: Contact = {
+        id: supplierId,
+        name: supplierName,
+        type: 'Supplier',
+        gstin: supplierGstin,
+      };
+      const updatedContacts = [...storedContacts, newSupplier];
+      localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+      setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
     }
 
-    // Create Purchase Record
+    // --- Create Purchase Record ---
     const newPurchase: Purchase = {
         id: `PUR-${Date.now()}`,
         supplierId,
         supplierName,
         billNumber,
         date: new Date(billDate).toISOString(),
-        items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price)})),
+        items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price)})).filter(item => item.id),
         totalAmount,
     };
 
     const allPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
     localStorage.setItem('samarth_furniture_purchases', JSON.stringify([...allPurchases, newPurchase]));
 
-    // Update Raw Material Stock
+    // --- Update Raw Material Stock ---
     let materials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
     newPurchase.items.forEach(item => {
         const materialIndex = materials.findIndex(m => m.id === item.id);
@@ -183,7 +189,7 @@ export default function PurchasesPage() {
     localStorage.setItem('samarth_furniture_raw_materials', JSON.stringify(materials));
     setAllRawMaterials(materials);
 
-    // Create Ledger Entries
+    // --- Create Ledger Entries ---
     const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
     const purchaseDebitEntry: LedgerEntry = {
         id: `LEDG-${Date.now()}-D`,
@@ -212,11 +218,12 @@ export default function PurchasesPage() {
 
     toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
     
-    // Reset form
+    // --- Reset form ---
     setSupplierName("");
     setSupplierGstin("");
     setSelectedSupplierId(null);
     setBillNumber("");
+    setBillDate(new Date().toISOString().split("T")[0]);
     setPurchaseItems([]);
   };
 
@@ -321,13 +328,13 @@ export default function PurchasesPage() {
                                         </Select>
                                     </TableCell>
                                     <TableCell>
-                                        <Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} min="0" placeholder="0"/>
+                                        <Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/>
                                     </TableCell>
                                     <TableCell>
-                                        <Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value))} min="0" placeholder="0.00"/>
+                                        <Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/>
                                     </TableCell>
                                     <TableCell className="text-right font-medium">
-                                        {((item.quantity || 0) * (item.price || 0)).toFixed(2)}
+                                        {((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}
                                     </TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" onClick={() => removePurchaseItem(index)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
