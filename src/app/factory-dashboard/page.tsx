@@ -51,7 +51,7 @@ import { Factory, ShieldAlert, History, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import type { Order, OrderStatus, StockItem, StockStatus } from "@/lib/types";
+import type { Order, OrderStatus, StockItem, StockStatus, PaymentStatus } from "@/lib/types";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -159,9 +159,7 @@ export default function FactoryDashboardPage() {
     setOrderToDelete(null);
   };
 
-  const getStatusBadgeVariant = (
-    status: OrderStatus
-  ): BadgeProps["variant"] => {
+  const getStatusBadgeVariant = (status: OrderStatus): BadgeProps["variant"] => {
     switch (status) {
       case "Delivered":
         return "success";
@@ -173,6 +171,15 @@ export default function FactoryDashboardPage() {
       case "Pending":
       default:
         return "outline";
+    }
+  };
+
+  const getPaymentStatusVariant = (status?: PaymentStatus): BadgeProps["variant"] => {
+    switch (status) {
+        case "Paid": return "success";
+        case "Partially Paid": return "secondary";
+        case "Unpaid": return "destructive";
+        default: return "outline";
     }
   };
 
@@ -213,14 +220,14 @@ export default function FactoryDashboardPage() {
   );
 
   const deliveredOrders = orders.filter(
-    (order) => order.status === "Delivered"
+    (order) => order.status === "Delivered" || order.status === "Billed"
   );
 
   const filteredHistoryOrders = [...completedOrders, ...deliveredOrders].filter(order => 
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.item.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : 0);
   
   const canDelete = userRole === "administrator";
 
@@ -349,9 +356,9 @@ export default function FactoryDashboardPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Order ID</TableHead>
-                                    <TableHead className="hidden md:table-cell">Customer</TableHead>
-                                    <TableHead className="hidden md:table-cell">Item Summary</TableHead>
-                                    <TableHead>Final Status</TableHead>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Order Status</TableHead>
+                                    <TableHead>Payment Status</TableHead>
                                     <TableHead>Details</TableHead>
                                     {canDelete && <TableHead className="text-right">Delete</TableHead>}
                                 </TableRow>
@@ -359,13 +366,21 @@ export default function FactoryDashboardPage() {
                             <TableBody>
                                 {filteredHistoryOrders.length > 0 ? filteredHistoryOrders.map((order) => (
                                     <TableRow key={order.id}>
-                                        <TableCell className="font-medium">{order.id}</TableCell>
-                                        <TableCell className="hidden md:table-cell">{order.customer}</TableCell>
-                                        <TableCell className="hidden md:table-cell">{order.item}</TableCell>
+                                        <TableCell className="font-medium">{order.invoiceNumber || order.id}</TableCell>
+                                        <TableCell>{order.customer}</TableCell>
                                         <TableCell>
                                             <Badge variant={getStatusBadgeVariant(order.status)}>
                                                 {order.status}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {order.paymentStatus ? (
+                                                <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                                                    {order.paymentStatus}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline">N/A</Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Button

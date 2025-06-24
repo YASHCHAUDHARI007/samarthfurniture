@@ -10,6 +10,16 @@ export type LineItem = {
   price: number;
 };
 
+export type Payment = {
+  id: string;
+  date: string;
+  amount: number;
+  method: 'Cash' | 'UPI' | 'Bank Transfer' | 'Other';
+  notes?: string;
+};
+
+export type PaymentStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
+
 export type Order = {
   id: string;
   customer: string;
@@ -47,6 +57,10 @@ export type Order = {
   gstRate?: number;
   gstAmount?: number;
   totalAmount?: number;
+  payments?: Payment[];
+  paidAmount?: number;
+  balanceDue?: number;
+  paymentStatus?: PaymentStatus;
 };
 
 export type User = {
