@@ -39,6 +39,7 @@ export type Order = {
   dimensionDetails?: string;
   photoDataUrl?: string;
   customerInfo?: {
+    id: string;
     name: string;
     email?: string;
     address?: string;
@@ -96,11 +97,42 @@ export type RawMaterial = {
   unit: string;
 }
 
-export type Customer = {
+export type Contact = {
   id: string;
   name: string;
-  type: 'Customer' | 'Dealer';
+  type: 'Customer' | 'Dealer' | 'Supplier';
   email?: string;
   address?: string;
-  dealerId?: string;
+  dealerId?: string; // For Dealers
+  gstin?: string; // For Suppliers/Dealers
+};
+
+export type Purchase = {
+    id: string;
+    supplierId: string;
+    supplierName: string;
+    billNumber: string;
+    date: string;
+    items: {
+        id: string;
+        name: string;
+        quantity: number;
+        price: number;
+    }[];
+    totalAmount: number;
+};
+
+export type LedgerEntryType = 'Sales' | 'Purchase' | 'Receipt' | 'Payment';
+
+export type LedgerEntry = {
+    id: string;
+    date: string;
+    // The account being affected (e.g., customer, supplier, sales, purchase)
+    accountId: string; 
+    accountName: string; 
+    type: LedgerEntryType;
+    details: string; // e.g., "Inv #INV-123", "Payment for Bill #B-456"
+    debit: number; // Amount in
+    credit: number; // Amount out
+    refId: string; // The ID of the order, purchase, or payment that generated this entry
 };

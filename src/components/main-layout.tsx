@@ -26,6 +26,9 @@ import {
   Wrench,
   Truck,
   Receipt,
+  ShoppingCart,
+  BookText,
+  Banknote,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -49,7 +52,10 @@ function Menu({ userRole }: { userRole: string | null }) {
     }
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
+
+
+  const isAccounting = (userRole === "owner" || userRole === "administrator");
 
   return (
     <SidebarMenu>
@@ -128,9 +134,82 @@ function Menu({ userRole }: { userRole: string | null }) {
           </SidebarMenuButton>
         </SidebarMenuItem>
       )}
-
-      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && (
+      
+      {isAccounting && (
         <>
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/billing")}
+              tooltip={{
+                children: "Sales",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/billing">
+                <Receipt />
+                <span>Sales</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/purchases")}
+              tooltip={{
+                children: "Purchases",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/purchases">
+                <ShoppingCart />
+                <span>Purchases</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/payments")}
+              tooltip={{
+                children: "Vouchers",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/payments">
+                <Banknote />
+                <span>Vouchers</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/ledger")}
+              tooltip={{
+                children: "Ledger",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/ledger">
+                <BookText />
+                <span>Ledger</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </>
+      )}
+
+
+      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && !isAccounting && (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -148,6 +227,9 @@ function Menu({ userRole }: { userRole: string | null }) {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+      )}
+      
+      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -165,8 +247,8 @@ function Menu({ userRole }: { userRole: string | null }) {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        </>
       )}
+
 
       <SidebarMenuItem>
         <SidebarMenuButton

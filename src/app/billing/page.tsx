@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, IndianRupee } from "lucide-react";
-import type { Order, LineItem, Payment, PaymentStatus } from "@/lib/types";
+import type { Order, LineItem, Payment, PaymentStatus, LedgerEntry } from "@/lib/types";
 
 const Invoice = ({ order }: { order: Order }) => (
     <div className="border p-4 rounded-lg space-y-4 text-sm">
@@ -168,7 +168,7 @@ export default function BillingPage() {
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer') {
             const items = order.details.split('\n').map((line, index) => {
-                const match = line.match(/(\d+)x\s(.*?)\s\((.*?)\)/);
+                const match = line.match(/(\d+)x\s(.*?)\s\(SKU: (.*?)\)/);
                 if (match) {
                     const quantity = parseInt(match[1], 10);
                     const name = match[2];
@@ -210,7 +210,7 @@ export default function BillingPage() {
     }, [lineItems, gstRate]);
 
     const handleGenerateInvoice = () => {
-        if (!selectedOrder) return;
+        if (!selectedOrder || !selectedOrder.customerInfo) return;
         
         const invoiceDate = new Date().toISOString();
         const invoiceNumber = `INV-${new Date().getTime()}`;
@@ -235,6 +235,34 @@ export default function BillingPage() {
         const updatedOrders = storedOrders.map(o => o.id === selectedOrder.id ? updatedOrder : o);
         localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
 
+        // Create Ledger Entry for Sale
+        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+        const customerDebitEntry: LedgerEntry = {
+            id: `LEDG-${Date.now()}-D`,
+            date: invoiceDate,
+            accountId: selectedOrder.customerInfo.id,
+            accountName: selectedOrder.customerInfo.name,
+            type: 'Sales',
+            details: `Invoice ${invoiceNumber}`,
+            debit: totalAmount,
+            credit: 0,
+            refId: selectedOrder.id,
+        };
+        const salesCreditEntry: LedgerEntry = {
+            id: `LEDG-${Date.now()}-C`,
+            date: invoiceDate,
+            accountId: 'SALES_ACCOUNT',
+            accountName: 'Sales Account',
+            type: 'Sales',
+            details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}`,
+            debit: 0,
+            credit: totalAmount,
+            refId: selectedOrder.id,
+        };
+        ledgerEntries.push(customerDebitEntry, salesCreditEntry);
+        localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+
+
         fetchOrders();
         setInvoiceOrder(updatedOrder);
         setSelectedOrder(null);
@@ -247,9 +275,10 @@ export default function BillingPage() {
             return;
         }
 
+        const paymentDate = new Date().toISOString();
         const newPayment: Payment = {
             id: `PAY-${Date.now()}`,
-            date: new Date().toISOString(),
+            date: paymentDate,
             amount: paymentAmount,
             method: paymentMethod
         };
@@ -275,6 +304,33 @@ export default function BillingPage() {
         const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
         const updatedOrders = storedOrders.map(o => o.id === paymentOrder.id ? updatedOrder : o);
         localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
+
+         // Create Ledger Entry for Receipt
+        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+        const customerCreditEntry: LedgerEntry = {
+            id: `LEDG-${Date.now()}-C`,
+            date: paymentDate,
+            accountId: paymentOrder.customerInfo!.id,
+            accountName: paymentOrder.customerInfo!.name,
+            type: 'Receipt',
+            details: `Payment via ${paymentMethod} for ${paymentOrder.invoiceNumber}`,
+            debit: 0,
+            credit: paymentAmount,
+            refId: newPayment.id,
+        };
+        const cashDebitEntry: LedgerEntry = {
+            id: `LEDG-${Date.now()}-D`,
+            date: paymentDate,
+            accountId: 'CASH_BANK_ACCOUNT',
+            accountName: 'Cash/Bank Account',
+            type: 'Receipt',
+            details: `From ${paymentOrder.customerInfo!.name}`,
+            debit: paymentAmount,
+            credit: 0,
+            refId: newPayment.id,
+        };
+        ledgerEntries.push(customerCreditEntry, cashDebitEntry);
+        localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
         
         fetchOrders();
         setPaymentOrder(null);
@@ -327,7 +383,7 @@ export default function BillingPage() {
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <div className="flex items-center gap-2">
                 <Receipt className="h-7 w-7" />
-                <h2 className="text-3xl font-bold tracking-tight">Billing & Payments</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Sales & Billing</h2>
             </div>
             <p className="text-muted-foreground">
                 Generate invoices and track payments for orders.

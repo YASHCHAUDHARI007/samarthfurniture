@@ -41,7 +41,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
-import type { Order, Product, Customer } from "@/lib/types";
+import type { Order, Product, Contact } from "@/lib/types";
 
 type OrderItem = {
   id: string;
@@ -65,8 +65,8 @@ export default function DealerOrderPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
 
-  const [allDealers, setAllDealers] = useState<Customer[]>([]);
-  const [suggestions, setSuggestions] = useState<Customer[]>([]);
+  const [allDealers, setAllDealers] = useState<Contact[]>([]);
+  const [suggestions, setSuggestions] = useState<Contact[]>([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const [dealerName, setDealerName] = useState("");
@@ -85,8 +85,8 @@ export default function DealerOrderPage() {
       localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(initialProductCatalog));
     }
     
-    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
-    setAllDealers(storedCustomers.filter(c => c.type === 'Dealer'));
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    setAllDealers(storedContacts.filter(c => c.type === 'Dealer'));
 
   }, []);
 
@@ -104,7 +104,7 @@ export default function DealerOrderPage() {
     }
   };
 
-  const handleSelectDealer = (dealer: Customer) => {
+  const handleSelectDealer = (dealer: Contact) => {
     setDealerName(dealer.name);
     setDealerId(dealer.dealerId || "");
     setSuggestions([]);
@@ -169,24 +169,29 @@ export default function DealerOrderPage() {
       return;
     }
 
-    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
-    let dealer = storedCustomers.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.type === 'Dealer');
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    let dealer = storedContacts.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.type === 'Dealer');
+    let contactId = '';
     
     if (!dealer) {
+        contactId = `CONT-${Date.now()}`;
         dealer = {
-            id: `CUST-${Date.now()}`,
+            id: contactId,
             name: dealerName,
             type: 'Dealer',
             dealerId: dealerId,
         };
-        const updatedCustomers = [...storedCustomers, dealer];
-        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
-        setAllDealers(updatedCustomers.filter(c => c.type === 'Dealer'));
-    } else if (dealer.dealerId !== dealerId) {
-        dealer.dealerId = dealerId;
-        const updatedCustomers = storedCustomers.map(c => c.id === dealer!.id ? dealer : c);
-        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
-        setAllDealers(updatedCustomers.filter(c => c.type === 'Dealer'));
+        const updatedContacts = [...storedContacts, dealer];
+        localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+        setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
+    } else {
+        contactId = dealer.id;
+        if (dealer.dealerId !== dealerId) {
+            dealer.dealerId = dealerId;
+            const updatedContacts = storedContacts.map(c => c.id === dealer!.id ? dealer : c);
+            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
+        }
     }
 
 
@@ -203,6 +208,7 @@ export default function DealerOrderPage() {
       createdBy: loggedInUser || undefined,
       createdAt: new Date().toISOString(),
       customerInfo: {
+        id: contactId,
         name: dealerName,
         dealerId: dealerId,
       },

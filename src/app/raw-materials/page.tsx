@@ -25,21 +25,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Wrench } from "lucide-react";
 import type { RawMaterial } from "@/lib/types";
-
-const initialRawMaterials: RawMaterial[] = [
-  { id: 'raw-1', name: "Oak Wood Planks", quantity: 200, unit: "planks" },
-  { id: 'raw-2', name: "Steel Screws", quantity: 5000, unit: "units" },
-  { id: 'raw-3', name: "White Paint", quantity: 50, unit: "liters" },
-  { id: 'raw-4', name: "Varnish", quantity: 30, unit: "liters" },
-];
+import { useRouter } from "next/navigation";
 
 export default function RawMaterialsPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [newItemName, setNewItemName] = useState("");
-  const [newItemQuantity, setNewItemQuantity] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
 
   useEffect(() => {
@@ -50,49 +44,18 @@ export default function RawMaterialsPage() {
     if (storedMaterials) {
       setMaterials(JSON.parse(storedMaterials));
     } else {
-      setMaterials(initialRawMaterials);
-      localStorage.setItem("samarth_furniture_raw_materials", JSON.stringify(initialRawMaterials));
+      // initial seeding handled in purchases for better consistency
+      setMaterials([]);
     }
   }, []);
-
-  const handleUpdateQuantity = (id: string, newQuantity: number) => {
-    if (isNaN(newQuantity) || newQuantity < 0) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Quantity",
-        description: "Please enter a valid non-negative number.",
-      });
-      return;
-    }
-    
-    const materialToUpdate = materials.find(mat => mat.id === id);
-    if (materialToUpdate && materialToUpdate.quantity !== newQuantity) {
-      const updatedMaterials = materials.map((mat) =>
-        mat.id === id ? { ...mat, quantity: newQuantity } : mat
-      );
-      setMaterials(updatedMaterials);
-      localStorage.setItem("samarth_furniture_raw_materials", JSON.stringify(updatedMaterials));
-      toast({
-        title: "Quantity Updated",
-        description: `Stock for ${materialToUpdate.name} has been updated.`,
-      });
-    }
-  };
   
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const quantity = parseInt(newItemQuantity, 10);
-
-    if (
-      !newItemName ||
-      !newItemUnit ||
-      isNaN(quantity) ||
-      quantity < 0
-    ) {
+    if (!newItemName || !newItemUnit) {
       toast({
         variant: "destructive",
         title: "Invalid Input",
-        description: "Please fill out all fields with valid information.",
+        description: "Please fill out all fields.",
       });
       return;
     }
@@ -109,7 +72,7 @@ export default function RawMaterialsPage() {
     const newItem: RawMaterial = {
       id: `raw-${new Date().getTime()}`,
       name: newItemName,
-      quantity,
+      quantity: 0, // New materials start with 0 quantity
       unit: newItemUnit,
     };
 
@@ -120,11 +83,10 @@ export default function RawMaterialsPage() {
       JSON.stringify(updatedMaterials)
     );
     toast({
-      title: "Material Added",
-      description: `${newItem.name} has been added to the raw materials stock.`,
+      title: "Material Type Added",
+      description: `${newItem.name} has been added. Use the Purchases page to add stock.`,
     });
     setNewItemName("");
-    setNewItemQuantity("");
     setNewItemUnit("");
   };
   
@@ -144,15 +106,14 @@ export default function RawMaterialsPage() {
       {canEdit && (
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Add New Raw Material</CardTitle>
+            <CardTitle>Add New Material Type</CardTitle>
             <CardDescription>
-              Add a new material to the inventory list.
+              Add a new type of material to the inventory list. To add stock quantity for a material, please create a new entry on the Purchases page.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAddItem}>
-          <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="space-y-2">
+          <CardContent className="grid md:grid-cols-3 gap-4">
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="itemName">Material Name</Label>
                   <Input
                     id="itemName"
@@ -162,32 +123,20 @@ export default function RawMaterialsPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="itemQuantity">Initial Quantity</Label>
-                  <Input
-                    id="itemQuantity"
-                    type="number"
-                    min="0"
-                    value={newItemQuantity}
-                    onChange={(e) => setNewItemQuantity(e.target.value)}
-                    placeholder="e.g. 200"
-                    required
-                  />
-                </div>
                  <div className="space-y-2">
                   <Label htmlFor="itemUnit">Unit</Label>
                   <Input
                     id="itemUnit"
                     value={newItemUnit}
                     onChange={(e) => setNewItemUnit(e.target.value)}
-                    placeholder="e.g. planks"
+                    placeholder="e.g. planks, units, liters"
                     required
                   />
                 </div>
-              </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit">Add New Material</Button>
+            <CardFooter className="gap-4">
+              <Button type="submit">Add New Material Type</Button>
+              <Button variant="secondary" onClick={() => router.push('/purchases')}>Go to Purchases</Button>
             </CardFooter>
           </form>
         </Card>
@@ -197,7 +146,7 @@ export default function RawMaterialsPage() {
         <CardHeader>
           <CardTitle>Current Material Stock</CardTitle>
           <CardDescription>
-            A detailed list of all raw materials. Factory workers or admins can update quantities directly in the table.
+            A read-only list of all raw materials. To update quantities, create a Purchase entry.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,32 +155,20 @@ export default function RawMaterialsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Material</TableHead>
-                  <TableHead>Quantity</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Unit</TableHead>
-                  {canEdit && <TableHead className="w-[150px]">Update Quantity</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {materials.length > 0 ? materials.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell>{item.unit}</TableCell>
-                    {canEdit && (
-                        <TableCell>
-                            <Input
-                                type="number"
-                                min="0"
-                                defaultValue={item.quantity}
-                                onBlur={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value, 10))}
-                                className="w-24"
-                            />
-                        </TableCell>
-                    )}
                   </TableRow>
                 )) : (
                     <TableRow>
-                        <TableCell colSpan={canEdit ? 4 : 3} className="h-24 text-center">No raw materials found.</TableCell>
+                        <TableCell colSpan={3} className="h-24 text-center">No raw materials found.</TableCell>
                     </TableRow>
                 )}
               </TableBody>

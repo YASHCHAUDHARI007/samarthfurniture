@@ -22,14 +22,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { Order, Customer } from "@/lib/types";
+import type { Order, Contact } from "@/lib/types";
 
 export default function CustomerOrderPage() {
   const { toast } = useToast();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   
-  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
-  const [suggestions, setSuggestions] = useState<Customer[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
+  const [suggestions, setSuggestions] = useState<Contact[]>([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const [customerName, setCustomerName] = useState("");
@@ -38,8 +38,8 @@ export default function CustomerOrderPage() {
 
 
   useEffect(() => {
-    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
-    setAllCustomers(storedCustomers.filter(c => c.type === 'Customer'));
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    setAllCustomers(storedContacts.filter(c => c.type === 'Customer'));
   }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,12 +56,23 @@ export default function CustomerOrderPage() {
     }
   };
 
-  const handleSelectCustomer = (customer: Customer) => {
+  const handleSelectCustomer = (customer: Contact) => {
     setCustomerName(customer.name);
     setCustomerEmail(customer.email || "");
     setShippingAddress(customer.address || "");
     setSuggestions([]);
     setIsPopoverOpen(false);
+  };
+  
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoDataUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
 
@@ -82,26 +93,31 @@ export default function CustomerOrderPage() {
     const loggedInUser = localStorage.getItem("loggedInUser");
 
     // Save or update customer ledger
-    const storedCustomers: Customer[] = JSON.parse(localStorage.getItem('samarth_furniture_customers') || '[]');
-    let customer = storedCustomers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.type === 'Customer');
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    let customer = storedContacts.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.type === 'Customer');
+    let customerId = '';
     
     if (!customer) {
+        customerId = `CUST-${Date.now()}`;
         customer = {
-            id: `CUST-${Date.now()}`,
+            id: customerId,
             name: customerName,
             type: 'Customer',
             email: customerEmail,
             address: shippingAddress,
         };
-        const updatedCustomers = [...storedCustomers, customer];
-        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
-        setAllCustomers(updatedCustomers.filter(c => c.type === 'Customer'));
-    } else if (customer.email !== customerEmail || customer.address !== shippingAddress) {
-        customer.email = customerEmail;
-        customer.address = shippingAddress;
-        const updatedCustomers = storedCustomers.map(c => c.id === customer!.id ? customer : c);
-        localStorage.setItem('samarth_furniture_customers', JSON.stringify(updatedCustomers));
-        setAllCustomers(updatedCustomers.filter(c => c.type === 'Customer'));
+        const updatedContacts = [...storedContacts, customer];
+        localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+        setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
+    } else {
+        customerId = customer.id;
+        if (customer.email !== customerEmail || customer.address !== shippingAddress) {
+            customer.email = customerEmail;
+            customer.address = shippingAddress;
+            const updatedContacts = storedContacts.map(c => c.id === customer!.id ? customer : c);
+            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
+        }
     }
 
     const newOrder: Order = {
@@ -121,6 +137,7 @@ export default function CustomerOrderPage() {
       dimensionDetails: dimensionDetails || undefined,
       photoDataUrl: photoDataUrl,
       customerInfo: {
+        id: customerId,
         name: customerName,
         email: customerEmail,
         address: shippingAddress,
