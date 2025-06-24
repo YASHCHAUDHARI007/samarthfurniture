@@ -123,7 +123,7 @@ export default function BillingPage() {
 
     useEffect(() => {
         const role = localStorage.getItem("userRole");
-        if (role === "owner" || role === "coordinator" || role === "administrator") {
+        if (role === "owner" || role === "coordinator" || role === "administrator" || role === "factory") {
           setHasAccess(true);
         }
         
