@@ -326,13 +326,19 @@ export default function DirectSalePage() {
                     <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
                 </div>
                 
-                 <div className="grid grid-cols-[1fr_auto] items-start gap-y-2 pt-4">
-                    <Label htmlFor="narration" className="font-semibold">Narration:</Label>
-                    <div className="grid grid-cols-[100px_140px] gap-2 text-right font-bold">
-                        <p>{totalQuantity.toFixed(2)}</p>
-                        <p>{totalAmount.toFixed(2)}</p>
+                 <div className="grid grid-cols-[1fr_auto] items-start gap-y-2 gap-x-4 pt-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="narration" className="font-semibold">Narration:</Label>
+                      <Textarea id="narration" value={narration} onChange={e => setNarration(e.target.value)} rows={3} className="bg-white"/>
                     </div>
-                    <Textarea id="narration" value={narration} onChange={e => setNarration(e.target.value)} rows={3} className="bg-white"/>
+                    <div className="text-right font-bold">
+                        <div className="grid grid-cols-[auto_auto] gap-2">
+                            <p className="font-semibold text-sm text-left">Total Qty:</p>
+                            <p className="font-mono">{totalQuantity.toFixed(2)}</p>
+                            <p className="font-semibold text-sm text-left">Total Amt:</p>
+                            <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end pt-4">
