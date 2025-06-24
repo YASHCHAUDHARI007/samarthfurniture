@@ -53,7 +53,7 @@ const roleDisplayNames: Record<UserRole, string> = {
   factory: "Factory Worker",
 };
 
-const USERS_STORAGE_KEY = "furnishflow_users";
+const USERS_STORAGE_KEY = "samarth_furniture_users";
 
 export default function ManageUsersPage() {
   const router = useRouter();

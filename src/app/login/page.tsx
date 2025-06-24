@@ -24,7 +24,7 @@ type User = {
   role: UserRole;
 };
 
-const USERS_STORAGE_KEY = "furnishflow_users";
+const USERS_STORAGE_KEY = "samarth_furniture_users";
 
 const initialUsers: User[] = [
   { username: "owner", password: "password123", role: "owner" },
