@@ -34,16 +34,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, ShieldAlert, Trash2, Printer, IndianRupee, Search } from "lucide-react";
-import type { Order, LineItem, Payment, PaymentStatus, LedgerEntry } from "@/lib/types";
+import { Receipt, ShieldAlert, Trash2, Printer, Search } from "lucide-react";
+import type { Order, LineItem, PaymentStatus, LedgerEntry } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 
 
@@ -56,12 +49,8 @@ export default function BillingPage() {
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
-    const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [gstRate, setGstRate] = useState(18);
-
-    const [paymentAmount, setPaymentAmount] = useState<number | "">("");
-    const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI' | 'Bank Transfer' | 'Other'>('UPI');
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isReprintView, setIsReprintView] = useState(false);
@@ -185,76 +174,7 @@ export default function BillingPage() {
         setSelectedOrder(null);
         toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });
     };
-
-    const handleRecordPayment = () => {
-        if (!paymentOrder || !paymentAmount || paymentAmount <= 0) {
-            toast({ variant: "destructive", title: "Invalid Amount", description: "Please enter a valid payment amount."});
-            return;
-        }
-
-        const paymentDate = new Date().toISOString();
-        const newPayment: Payment = {
-            id: `PAY-${Date.now()}`,
-            date: paymentDate,
-            amount: Number(paymentAmount),
-            method: paymentMethod
-        };
-        
-        const existingPayments = paymentOrder.payments || [];
-        const updatedPayments = [...existingPayments, newPayment];
-        const totalPaid = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
-        const balanceDue = (paymentOrder.totalAmount || 0) - totalPaid;
-        
-        let paymentStatus: PaymentStatus = 'Partially Paid';
-        if (balanceDue <= 0) {
-            paymentStatus = 'Paid';
-        }
-
-        const updatedOrder: Order = {
-            ...paymentOrder,
-            payments: updatedPayments,
-            paidAmount: totalPaid,
-            balanceDue: balanceDue,
-            paymentStatus: paymentStatus
-        };
-
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
-        const updatedOrders = storedOrders.map(o => o.id === paymentOrder.id ? updatedOrder : o);
-        localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
-
-         // Create Ledger Entry for Receipt
-        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
-        const customerCreditEntry: LedgerEntry = {
-            id: `LEDG-${Date.now()}-C`,
-            date: paymentDate,
-            accountId: paymentOrder.customerInfo!.id,
-            accountName: paymentOrder.customerInfo!.name,
-            type: 'Receipt',
-            details: `Payment via ${paymentMethod} for ${paymentOrder.invoiceNumber}`,
-            debit: 0,
-            credit: Number(paymentAmount),
-            refId: newPayment.id,
-        };
-        const cashDebitEntry: LedgerEntry = {
-            id: `LEDG-${Date.now()}-D`,
-            date: paymentDate,
-            accountId: 'CASH_BANK_ACCOUNT',
-            accountName: 'Cash/Bank Account',
-            type: 'Receipt',
-            details: `From ${paymentOrder.customerInfo!.name}`,
-            debit: Number(paymentAmount),
-            credit: 0,
-            refId: newPayment.id,
-        };
-        ledgerEntries.push(customerCreditEntry, cashDebitEntry);
-        localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
-        
-        fetchOrders();
-        setPaymentOrder(null);
-        setPaymentAmount("");
-        toast({ title: "Payment Recorded", description: `Payment of ₹${paymentAmount} recorded for order ${paymentOrder.id}.`});
-    };
-
+    
     const getPaymentStatusVariant = (status?: PaymentStatus): BadgeProps["variant"] => {
         switch (status) {
           case "Paid":
@@ -308,14 +228,14 @@ export default function BillingPage() {
                 <h2 className="text-3xl font-bold tracking-tight">Sales & Billing</h2>
             </div>
             <p className="text-muted-foreground">
-                Generate invoices and track payments for orders.
+                Generate invoices for completed orders.
             </p>
             <Separator />
 
             <Tabs defaultValue="billing" className="pt-4">
                 <TabsList className="grid w-full grid-cols-2 max-w-md">
                     <TabsTrigger value="billing">Ready for Billing</TabsTrigger>
-                    <TabsTrigger value="payments">Bill History & Payments</TabsTrigger>
+                    <TabsTrigger value="payments">Bill History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="billing">
                     <Card className="mt-2">
@@ -362,7 +282,7 @@ export default function BillingPage() {
                         <CardHeader>
                             <CardTitle>Bill History</CardTitle>
                             <CardDescription>
-                                Search and reprint past bills, and track payments for all invoiced orders.
+                                Search and reprint past bills. Payments are recorded on the Vouchers page.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -401,9 +321,6 @@ export default function BillingPage() {
                                                 <TableCell><Badge variant={getPaymentStatusVariant(order.paymentStatus)}>{order.paymentStatus}</Badge></TableCell>
                                                 <TableCell className="text-right">
                                                     <Button size="sm" onClick={() => { setInvoiceOrder(order); setIsReprintView(true); }} variant="outline" className="mr-2">View / Reprint</Button>
-                                                    {order.paymentStatus !== 'Paid' && (
-                                                        <Button size="sm" onClick={() => setPaymentOrder(order)}>Record Payment</Button>
-                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         )) : (
@@ -512,53 +429,6 @@ export default function BillingPage() {
             </DialogContent>
         </Dialog>
         
-        <Dialog open={!!paymentOrder} onOpenChange={(isOpen) => { if (!isOpen) setPaymentOrder(null); }}>
-             <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Record Payment for {paymentOrder?.invoiceNumber}</DialogTitle>
-                    <DialogDescription>
-                        Balance Due: <span className="font-bold">₹{paymentOrder?.balanceDue?.toFixed(2)}</span>
-                    </DialogDescription>
-                </DialogHeader>
-                 <div className="space-y-4 py-2">
-                     <div className="space-y-2">
-                        <Label htmlFor="paymentAmount">Amount</Label>
-                        <div className="relative">
-                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="paymentAmount"
-                                type="number"
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || "")}
-                                placeholder="0.00"
-                                className="pl-8"
-                            />
-                        </div>
-                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="paymentMethod">Payment Method</Label>
-                        <Select
-                            value={paymentMethod}
-                            onValueChange={(value) => setPaymentMethod(value as any)}
-                        >
-                            <SelectTrigger id="paymentMethod">
-                                <SelectValue placeholder="Select method" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="UPI">UPI</SelectItem>
-                                <SelectItem value="Cash">Cash</SelectItem>
-                                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                     </div>
-                 </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleRecordPayment}>Record Payment</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
         </>
     );
 }
