@@ -70,6 +70,7 @@ export default function DirectSalePage() {
 
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
+  const [voucherNumber, setVoucherNumber] = useState("");
 
   useEffect(() => {
     const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
@@ -78,6 +79,7 @@ export default function DirectSalePage() {
     const storedStock: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
     setStockItems(storedStock);
     addSaleItem();
+    setVoucherNumber(new Date().getTime().toString().slice(-5));
   }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,6 +246,7 @@ export default function DirectSalePage() {
     addSaleItem();
     setSaleDate(new Date());
     setNarration("");
+    setVoucherNumber(new Date().getTime().toString().slice(-5));
   };
 
   const handlePrint = () => window.print();
@@ -254,7 +257,7 @@ export default function DirectSalePage() {
       <div className="flex-1 space-y-4 p-4 md:p-6">
         <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-blue-800">Sales</h2>
-            <p className="font-mono">No. {new Date().getTime().toString().slice(-5)}</p>
+            <p className="font-mono">{voucherNumber ? `No. ${voucherNumber}` : 'No. ...'}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
