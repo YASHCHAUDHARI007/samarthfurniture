@@ -98,31 +98,37 @@ body {
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    background-color: #fff !important;
   }
 
-  .no-print {
+  .no-print, [data-radix-dialog-overlay] {
     display: none !important;
   }
+  
+  [role="dialog"] {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: auto !important;
+    display: block !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    max-height: none !important;
+    max-width: none !important;
+  }
 
-  /* By default, hide everything */
-  body * {
-    visibility: hidden;
+  [role="dialog"] > *:not(#printable-area) {
+     display: none !important;
   }
-  
-  /* Then, just show the printable area and its children */
-  #printable-area, #printable-area * {
-    visibility: visible;
-  }
-  
-  /* And position the printable area at the top of the page */
+
   #printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
-    padding: 0;
-    margin: 0;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
 }
