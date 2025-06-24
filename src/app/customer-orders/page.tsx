@@ -30,7 +30,6 @@ export default function CustomerOrderPage() {
   
   const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
   const [suggestions, setSuggestions] = useState<Contact[]>([]);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -49,10 +48,8 @@ export default function CustomerOrderPage() {
     if (value.length > 1) {
       const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
-      setIsPopoverOpen(filtered.length > 0);
     } else {
       setSuggestions([]);
-      setIsPopoverOpen(false);
     }
   };
 
@@ -61,7 +58,6 @@ export default function CustomerOrderPage() {
     setCustomerEmail(customer.email || "");
     setShippingAddress(customer.address || "");
     setSuggestions([]);
-    setIsPopoverOpen(false);
   };
   
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,7 +181,7 @@ export default function CustomerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Customer Name</Label>
-                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                 <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
                   <PopoverTrigger asChild>
                     <Input
                       id="name"
@@ -197,22 +193,20 @@ export default function CustomerOrderPage() {
                       autoComplete="off"
                     />
                   </PopoverTrigger>
-                  {suggestions.length > 0 && (
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                       <div className="flex flex-col gap-1 p-1">
-                          {suggestions.map(customer => (
-                              <Button
-                                  key={customer.id}
-                                  variant="ghost"
-                                  className="justify-start"
-                                  onClick={() => handleSelectCustomer(customer)}
-                              >
-                                  {customer.name}
-                              </Button>
-                          ))}
-                       </div>
-                    </PopoverContent>
-                  )}
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                     <div className="flex flex-col gap-1 p-1">
+                        {suggestions.map(customer => (
+                            <Button
+                                key={customer.id}
+                                variant="ghost"
+                                className="justify-start"
+                                onClick={() => handleSelectCustomer(customer)}
+                            >
+                                {customer.name}
+                            </Button>
+                        ))}
+                     </div>
+                  </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-2">

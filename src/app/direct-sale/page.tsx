@@ -123,7 +123,6 @@ export default function DirectSalePage() {
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   
   const [customerSuggestions, setCustomerSuggestions] = useState<Contact[]>([]);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -150,10 +149,8 @@ export default function DirectSalePage() {
     if (value.length > 1) {
       const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
       setCustomerSuggestions(filtered);
-      setIsPopoverOpen(filtered.length > 0);
     } else {
       setCustomerSuggestions([]);
-      setIsPopoverOpen(false);
     }
   };
 
@@ -163,7 +160,6 @@ export default function DirectSalePage() {
     setShippingAddress(customer.address || "");
     setSelectedCustomerId(customer.id);
     setCustomerSuggestions([]);
-    setIsPopoverOpen(false);
   };
   
   const handleCheckboxChange = (stockItem: StockItem, checked: boolean | "indeterminate") => {
@@ -444,17 +440,15 @@ export default function DirectSalePage() {
                     <CardContent className="space-y-4">
                          <div className="space-y-2">
                             <Label htmlFor="name">Customer Name</Label>
-                            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                            <Popover open={customerSuggestions.length > 0} onOpenChange={(open) => {if(!open) setCustomerSuggestions([])}}>
                             <PopoverTrigger asChild>
                                 <Input id="name" name="name" placeholder="e.g. Jane Doe" required value={customerName} onChange={handleNameChange} autoComplete="off"/>
                             </PopoverTrigger>
-                            {customerSuggestions.length > 0 && (
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                                 <div className="flex flex-col gap-1 p-1">
                                     {customerSuggestions.map(c => ( <Button key={c.id} variant="ghost" className="justify-start" onClick={() => handleSelectCustomer(c)}>{c.name}</Button>))}
                                 </div>
-                                </PopoverContent>
-                            )}
+                            </PopoverContent>
                             </Popover>
                         </div>
                          <div className="space-y-2">

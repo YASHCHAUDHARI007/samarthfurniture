@@ -67,7 +67,6 @@ export default function DealerOrderPage() {
 
   const [allDealers, setAllDealers] = useState<Contact[]>([]);
   const [suggestions, setSuggestions] = useState<Contact[]>([]);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const [dealerName, setDealerName] = useState("");
   const [dealerId, setDealerId] = useState("");
@@ -97,10 +96,8 @@ export default function DealerOrderPage() {
     if (value.length > 1) {
       const filtered = allDealers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
-      setIsPopoverOpen(filtered.length > 0);
     } else {
       setSuggestions([]);
-      setIsPopoverOpen(false);
     }
   };
 
@@ -108,7 +105,6 @@ export default function DealerOrderPage() {
     setDealerName(dealer.name);
     setDealerId(dealer.dealerId || "");
     setSuggestions([]);
-    setIsPopoverOpen(false);
   };
 
 
@@ -337,7 +333,7 @@ export default function DealerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="dealerName">Dealer Name</Label>
-                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
                   <PopoverTrigger asChild>
                     <Input
                       id="dealerName"
@@ -349,22 +345,20 @@ export default function DealerOrderPage() {
                       autoComplete="off"
                     />
                   </PopoverTrigger>
-                  {suggestions.length > 0 && (
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                       <div className="flex flex-col gap-1 p-1">
-                          {suggestions.map(dealer => (
-                              <Button
-                                  key={dealer.id}
-                                  variant="ghost"
-                                  className="justify-start"
-                                  onClick={() => handleSelectDealer(dealer)}
-                              >
-                                  {dealer.name}
-                              </Button>
-                          ))}
-                       </div>
-                    </PopoverContent>
-                  )}
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                     <div className="flex flex-col gap-1 p-1">
+                        {suggestions.map(dealer => (
+                            <Button
+                                key={dealer.id}
+                                variant="ghost"
+                                className="justify-start"
+                                onClick={() => handleSelectDealer(dealer)}
+                            >
+                                {dealer.name}
+                            </Button>
+                        ))}
+                     </div>
+                  </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-2">

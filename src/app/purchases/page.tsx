@@ -51,7 +51,6 @@ export default function PurchasesPage() {
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
 
   const [suggestions, setSuggestions] = useState<Contact[]>([]);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const [supplierName, setSupplierName] = useState("");
   const [supplierGstin, setSupplierGstin] = useState("");
@@ -77,10 +76,8 @@ export default function PurchasesPage() {
     if (value.length > 1) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
-      setIsPopoverOpen(filtered.length > 0);
     } else {
       setSuggestions([]);
-      setIsPopoverOpen(false);
     }
   };
 
@@ -89,7 +86,6 @@ export default function PurchasesPage() {
     setSupplierGstin(supplier.gstin || "");
     setSelectedSupplierId(supplier.id);
     setSuggestions([]);
-    setIsPopoverOpen(false);
   };
   
   const addPurchaseItem = () => {
@@ -248,7 +244,7 @@ export default function PurchasesPage() {
             <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="supplierName">Supplier Name</Label>
-                    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
                     <PopoverTrigger asChild>
                         <Input
                         id="supplierName"
@@ -259,7 +255,6 @@ export default function PurchasesPage() {
                         autoComplete="off"
                         />
                     </PopoverTrigger>
-                    {suggestions.length > 0 && (
                         <PopoverContent 
                             className="w-[--radix-popover-trigger-width] p-0"
                             onOpenAutoFocus={(e) => e.preventDefault()}
@@ -277,7 +272,6 @@ export default function PurchasesPage() {
                             ))}
                         </div>
                         </PopoverContent>
-                    )}
                     </Popover>
                 </div>
                 <div className="space-y-2">
