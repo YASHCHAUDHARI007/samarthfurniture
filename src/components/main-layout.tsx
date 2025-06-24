@@ -32,6 +32,7 @@ import {
   Banknote,
   ShoppingBag,
   Building2,
+  BookUser,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -76,6 +77,7 @@ const navItems: {
   { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator"], separator: true },
   { path: "/locations", icon: Warehouse, text: "Locations", roles: ["owner", "administrator"] },
   { path: "/manage-users", icon: Users, text: "Manage Users", roles: ["owner", "administrator"] },
+  { path: "/contacts", icon: BookUser, text: "Contacts", roles: ["owner", "administrator"] },
 ];
 
 function Menu({ userRole }: { userRole: string | null }) {

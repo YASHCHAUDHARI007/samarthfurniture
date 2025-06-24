@@ -377,7 +377,7 @@ export default function DirectSalePage() {
                     <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
                 </div>
                 
-                 <div className="flex items-end justify-between gap-4 pt-4">
+                 <div className="flex items-start justify-between gap-4 pt-4">
                     {/* Narration on the left */}
                     <div className="flex-grow space-y-1">
                         <Label htmlFor="narration" className="font-semibold">Narration:</Label>
@@ -385,15 +385,31 @@ export default function DirectSalePage() {
                             id="narration" 
                             value={narration} 
                             onChange={e => setNarration(e.target.value)} 
-                            rows={3} 
+                            rows={4} 
                             className="bg-white mt-1 w-full max-w-md"
                         />
                     </div>
                     {/* Totals on the right */}
-                    <div className="w-full max-w-xs text-right space-y-2">
+                    <div className="w-full max-w-sm space-y-2">
                         <div className="flex justify-between items-center text-sm">
                             <p className="font-semibold">Total Qty:</p>
                             <p className="font-mono font-bold">{totalQuantity.toFixed(2)}</p>
+                        </div>
+                         <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="font-mono">₹{subTotal.toFixed(2)}</span>
+                        </div>
+                         <div className="flex items-center justify-between gap-4 text-sm">
+                            <Label htmlFor="gstRate" className="whitespace-nowrap text-muted-foreground">GST Rate</Label>
+                            <Input id="gstRate" type="number" value={gstRate} onChange={e => setGstRate(parseFloat(e.target.value) || 0)} className="w-24 h-8"/>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">SGST ({(gstRate / 2).toFixed(2)}%)</span>
+                            <span className="font-mono">₹{sgstAmount.toFixed(2)}</span>
+                        </div>
+                         <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">CGST ({(gstRate / 2).toFixed(2)}%)</span>
+                            <span className="font-mono">₹{cgstAmount.toFixed(2)}</span>
                         </div>
                         <Separator className="my-1 bg-gray-300"/>
                         <div className="flex justify-between items-center font-bold text-base">
