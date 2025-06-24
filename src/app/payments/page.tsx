@@ -95,27 +95,29 @@ export default function PaymentsPage() {
   }, [paymentContactId, purchases]);
 
   const handleInvoiceSelect = (invoiceId: string) => {
-    setSelectedInvoiceId(invoiceId);
-    if (invoiceId) {
+    if (invoiceId === 'adhoc') {
+        setSelectedInvoiceId("");
+        setReceiptAmount("");
+    } else {
+        setSelectedInvoiceId(invoiceId);
         const invoice = unpaidInvoices.find(inv => inv.id === invoiceId);
         if (invoice) {
             setReceiptAmount(invoice.balanceDue || 0);
         }
-    } else {
-        setReceiptAmount("");
     }
   };
 
   const handlePurchaseSelect = (purchaseId: string) => {
-      setSelectedPurchaseId(purchaseId);
-      if (purchaseId) {
-          const purchase = unpaidPurchases.find(p => p.id === purchaseId);
-          if (purchase) {
-              setPaymentAmount(purchase.balanceDue || 0);
-          }
-      } else {
-          setPaymentAmount("");
-      }
+    if (purchaseId === 'adhoc') {
+        setSelectedPurchaseId("");
+        setPaymentAmount("");
+    } else {
+        setSelectedPurchaseId(purchaseId);
+        const purchase = unpaidPurchases.find(p => p.id === purchaseId);
+        if (purchase) {
+            setPaymentAmount(purchase.balanceDue || 0);
+        }
+    }
   };
 
   const handleRecordReceipt = () => {
@@ -276,7 +278,7 @@ export default function PaymentsPage() {
                         <Select value={selectedInvoiceId} onValueChange={handleInvoiceSelect} disabled={!receiptContactId || unpaidInvoices.length === 0}>
                             <SelectTrigger id="receiptInvoice"><SelectValue placeholder="Select an unpaid invoice..." /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">None (Ad-hoc receipt)</SelectItem>
+                                <SelectItem value="adhoc">None (Ad-hoc receipt)</SelectItem>
                                 {unpaidInvoices.map(inv => <SelectItem key={inv.id} value={inv.id}>{`#${inv.invoiceNumber} - ₹${inv.balanceDue?.toFixed(2)}`}</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -348,7 +350,7 @@ export default function PaymentsPage() {
                         <Select value={selectedPurchaseId} onValueChange={handlePurchaseSelect} disabled={!paymentContactId || unpaidPurchases.length === 0}>
                             <SelectTrigger id="paymentPurchase"><SelectValue placeholder="Select an unpaid bill..." /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">None (Ad-hoc payment)</SelectItem>
+                                <SelectItem value="adhoc">None (Ad-hoc payment)</SelectItem>
                                 {unpaidPurchases.map(p => <SelectItem key={p.id} value={p.id}>{`#${p.billNumber} - ₹${p.balanceDue?.toFixed(2)}`}</SelectItem>)}
                             </SelectContent>
                         </Select>
