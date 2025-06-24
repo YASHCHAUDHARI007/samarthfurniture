@@ -60,7 +60,13 @@ export default function RawMaterialsPage() {
     if (storedMaterials) {
       setMaterials(JSON.parse(storedMaterials));
     } else {
-      setMaterials([]);
+      const initialMaterials: RawMaterial[] = [
+        { id: 'raw-1', name: 'Plywood 18mm', quantity: 100, unit: 'sheets' },
+        { id: 'raw-2', name: 'Laminate Sheen', quantity: 50, unit: 'sheets' },
+        { id: 'raw-3', name: 'Screws 2-inch', quantity: 2000, unit: 'pieces' },
+      ];
+      localStorage.setItem(materialsKey, JSON.stringify(initialMaterials));
+      setMaterials(initialMaterials);
     }
   }, [activeCompanyId]);
   
@@ -165,7 +171,7 @@ export default function RawMaterialsPage() {
             </CardContent>
             <CardFooter className="gap-4">
               <Button type="submit">Add New Material Type</Button>
-              <Button variant="secondary" onClick={() => router.push('/purchases')}>Go to Purchases</Button>
+              <Button variant="secondary" type="button" onClick={() => router.push('/purchases')}>Go to Purchases</Button>
             </CardFooter>
           </form>
         </Card>

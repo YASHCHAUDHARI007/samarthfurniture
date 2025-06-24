@@ -41,9 +41,11 @@ export default function PurchasesPage() {
   const [allSuppliers, setAllSuppliers] = useState<Contact[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
 
-  const [suggestions, setSuggestions] = useState<Contact[]>([]);
+  // State for supplier autocomplete
+  const [supplierSuggestions, setSupplierSuggestions] = useState<Contact[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
 
+  // Form state
   const [supplierName, setSupplierName] = useState("");
   const [supplierGstin, setSupplierGstin] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -51,8 +53,12 @@ export default function PurchasesPage() {
   const [billNumber, setBillNumber] = useState("");
   const [billDate, setBillDate] = useState("");
 
-  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([{id: '', name: '', hsn: '', quantity: '', price: ''}]);
+  
+  // State for material autocomplete in table rows
   const [activeMaterialInput, setActiveMaterialInput] = useState<number | null>(null);
+  const [materialSuggestions, setMaterialSuggestions] = useState<RawMaterial[]>([]);
+  
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,16 +90,18 @@ export default function PurchasesPage() {
     
   }, [activeCompanyId]);
 
+  // Supplier handlers
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSupplierName(value);
+    setSelectedSupplierId(null); // Clear selected ID when name changes
 
     if (value) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
-      setSuggestions(filtered);
+      setSupplierSuggestions(filtered);
       setIsSuggestionsOpen(true);
     } else {
-      setSuggestions([]);
+      setSupplierSuggestions([]);
       setIsSuggestionsOpen(false);
     }
   };
@@ -102,10 +110,11 @@ export default function PurchasesPage() {
     setSupplierName(supplier.name);
     setSupplierGstin(supplier.gstin || "");
     setSelectedSupplierId(supplier.id);
-    setSuggestions([]);
+    setSupplierSuggestions([]);
     setIsSuggestionsOpen(false);
   };
   
+  // Line item handlers
   const addPurchaseItem = () => {
     setPurchaseItems(current => [...current, {id: '', name: '', hsn: '', quantity: '', price: ''}]);
   };
@@ -119,19 +128,36 @@ export default function PurchasesPage() {
         if (i === index) {
             const updatedItem = { ...item, [field]: value };
             
+            // If name is changed manually, search for suggestions
             if (field === 'name') {
               updatedItem.id = '';
+              const searchVal = String(value).toLowerCase();
+              if(searchVal) {
+                setMaterialSuggestions(allRawMaterials.filter(m => m.name.toLowerCase().includes(searchVal)));
+              } else {
+                setMaterialSuggestions([]);
+              }
             }
             
+            // If a material is selected from suggestions, update name
             if (field === 'id') {
                 const selectedMaterial = allRawMaterials.find(m => m.id === value);
-                updatedItem.name = selectedMaterial?.name || '';
+                if (selectedMaterial) {
+                    updatedItem.name = selectedMaterial.name;
+                }
             }
             return updatedItem;
         }
         return item;
     }));
   };
+
+  const handleSelectMaterial = (index: number, material: RawMaterial) => {
+      handleItemChange(index, 'id', material.id);
+      setMaterialSuggestions([]);
+      setActiveMaterialInput(null);
+  };
+
 
   const totalAmount = useMemo(() => {
     return purchaseItems.reduce((acc, item) => {
@@ -148,9 +174,11 @@ export default function PurchasesPage() {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company."});
         return;
     }
+    
+    const validItems = purchaseItems.filter(item => item.id && (item.quantity || 0) > 0 && (item.price || 0) >= 0);
 
-    if (!supplierName || !billNumber || !billDate || purchaseItems.length === 0 || totalAmount <= 0) {
-        toast({ variant: "destructive", title: "Missing Information", description: "Please fill all supplier, bill and item details."});
+    if (!supplierName || !billNumber || !billDate || validItems.length === 0) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Please fill all supplier, bill and valid item details."});
         return;
     }
 
@@ -159,25 +187,25 @@ export default function PurchasesPage() {
     const materialsKey = getCompanyStorageKey('raw_materials')!;
     const ledgerKey = getCompanyStorageKey('ledger')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+    let storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     let supplier: Contact | undefined = storedContacts.find(
-      (c) => c.type === 'Supplier' && c.name.toLowerCase() === supplierName.toLowerCase()
+      (c) => c.id === selectedSupplierId
     );
     let supplierId: string;
 
     if (supplier) {
         supplierId = supplier.id;
         if(supplier.gstin !== supplierGstin) {
-            const updatedContacts = storedContacts.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
-            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-            setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+            storedContacts = storedContacts.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
+            localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
+            setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
         }
     } else {
         supplierId = `SUPP-${Date.now()}`;
         supplier = { id: supplierId, name: supplierName, type: 'Supplier', gstin: supplierGstin };
-        const updatedContacts = [...storedContacts, supplier];
-        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-        setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+        storedContacts.push(supplier);
+        localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
+        setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
     }
 
     const newPurchase: Purchase = {
@@ -186,7 +214,7 @@ export default function PurchasesPage() {
         supplierName,
         billNumber,
         date: new Date(billDate).toISOString(),
-        items: purchaseItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price), hsn: item.hsn})).filter(item => item.id),
+        items: validItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price), hsn: item.hsn})),
         totalAmount,
         payments: [],
         paidAmount: 0,
@@ -202,6 +230,11 @@ export default function PurchasesPage() {
         const materialIndex = materials.findIndex(m => m.id === item.id);
         if (materialIndex !== -1) {
             materials[materialIndex].quantity += item.quantity;
+        } else {
+            const newMaterial = allRawMaterials.find(m => m.id === item.id);
+            if (newMaterial) {
+                materials.push({ ...newMaterial, quantity: item.quantity });
+            }
         }
     });
     localStorage.setItem(materialsKey, JSON.stringify(materials));
@@ -212,19 +245,20 @@ export default function PurchasesPage() {
         id: `LEDG-${Date.now()}-D`, date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
     };
     const supplierCreditEntry: LedgerEntry = {
-        id: `LEDG-${Date.now()}-C`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
+        id: `LEDG-${Date.now()}-C`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Against Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
     };
     ledgerEntries.push(purchaseDebitEntry, supplierCreditEntry);
     localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
     toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
     
+    // Reset form
     setSupplierName("");
     setSupplierGstin("");
     setSelectedSupplierId(null);
     setBillNumber("");
     setBillDate(new Date().toISOString().split("T")[0]);
-    setPurchaseItems([]);
+    setPurchaseItems([{id: '', name: '', hsn: '', quantity: '', price: ''}]);
   };
 
   if (!activeCompanyId) {
@@ -248,18 +282,17 @@ export default function PurchasesPage() {
         <h2 className="text-3xl font-bold tracking-tight">Record Purchase</h2>
       </div>
       <p className="text-muted-foreground">
-        Create a new purchase entry to update raw material inventory and supplier ledgers.
+        Create a new purchase entry. This updates raw material inventory and supplier ledgers.
       </p>
       <Separator />
       <form onSubmit={handleSubmit}>
         <Card className="mt-6">
             <CardHeader>
-                <CardTitle>Create Purchase Bill</CardTitle>
-                <CardDescription>Enter supplier, bill, and item details. This will update inventory and supplier ledgers.</CardDescription>
+                <CardTitle>Purchase Entry</CardTitle>
+                <CardDescription>Enter supplier, bill, and item details.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-2">
-                    <h3 className="text-lg font-medium">Supplier & Bill Information</h3>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
                         <div className="space-y-2 lg:col-span-1">
                             <Label htmlFor="supplierName">Supplier Name</Label>
@@ -273,10 +306,10 @@ export default function PurchasesPage() {
                                     onBlur={() => setTimeout(() => setIsSuggestionsOpen(false), 150)}
                                     autoComplete="off"
                                 />
-                                {isSuggestionsOpen && suggestions.length > 0 && (
+                                {isSuggestionsOpen && supplierSuggestions.length > 0 && (
                                     <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
                                         <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                            {suggestions.map(supplier => (
+                                            {supplierSuggestions.map(supplier => (
                                                 <div key={supplier.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectSupplier(supplier)}>
                                                     {supplier.name}
                                                 </div>
@@ -321,25 +354,22 @@ export default function PurchasesPage() {
                                         <TableCell>
                                             <div className="relative">
                                                 <Input
-                                                    placeholder="Type or select material"
+                                                    placeholder="Type to search material"
                                                     value={item.name}
                                                     onChange={(e) => handleItemChange(index, 'name', e.target.value)}
                                                     onFocus={() => setActiveMaterialInput(index)}
-                                                    onBlur={() => setTimeout(() => setActiveMaterialInput(null), 150)}
+                                                    onBlur={() => setTimeout(() => { setActiveMaterialInput(null); setMaterialSuggestions([]); }, 150)}
                                                     autoComplete="off"
                                                     required
                                                 />
-                                                {activeMaterialInput === index && (
+                                                {activeMaterialInput === index && materialSuggestions.length > 0 && (
                                                     <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
                                                         <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                                            {allRawMaterials
-                                                                .filter(material => item.name ? material.name.toLowerCase().includes(item.name.toLowerCase()) : true)
-                                                                .map(material => (
-                                                                    <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(index, 'id', material.id); setActiveMaterialInput(null);}}>
-                                                                        {material.name}
-                                                                    </div>
-                                                                ))
-                                                            }
+                                                            {materialSuggestions.map(material => (
+                                                                <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectMaterial(index, material)}>
+                                                                    {material.name} ({material.unit})
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 )}
@@ -373,7 +403,7 @@ export default function PurchasesPage() {
                         </div>
                     </div>
                 </div>
-                <Button type="submit" disabled={totalAmount <= 0}>Record Purchase</Button>
+                <Button type="submit" disabled={purchaseItems.filter(i => i.id).length === 0 || totalAmount <= 0}>Record Purchase</Button>
             </CardFooter>
         </Card>
       </form>
