@@ -104,21 +104,25 @@ body {
     display: none !important;
   }
 
+  /* Hide everything on the page by default */
   body * {
     visibility: hidden;
   }
 
+  /* Make the printable area and everything inside it visible */
   #printable-area,
   #printable-area * {
     visibility: visible;
   }
 
+  /* Position the printable area to take up the whole screen, overriding any other layout constraints */
   #printable-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    height: 100%;
-    overflow: visible !important;
+    /* Let the height be determined by the content, which allows it to flow across pages */
+    height: auto;
+    overflow: visible; /* Ensure nothing is clipped */
   }
 }
