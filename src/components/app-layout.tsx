@@ -9,7 +9,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const noLayoutRoutes = ["/login"];
 
-  if (noLayoutRoutes.includes(pathname) || pathname.startsWith("/ledger/")) {
+  if (noLayoutRoutes.includes(pathname)) {
     return <>{children}</>;
   }
 

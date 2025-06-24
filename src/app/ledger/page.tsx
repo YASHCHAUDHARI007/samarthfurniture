@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ const internalAccounts = [
 ];
 
 export default function LedgerPage() {
+  const router = useRouter();
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -43,7 +45,7 @@ export default function LedgerPage() {
   }, [searchTerm, ledgerAccounts]);
   
   const handleOpenLedger = (accountId: string) => {
-    window.open(`/ledger/${accountId}`, '_blank');
+    router.push(`/ledger/${accountId}`);
   };
 
   return (
@@ -53,7 +55,7 @@ export default function LedgerPage() {
         <h2 className="text-3xl font-bold tracking-tight">Ledger Accounts</h2>
       </div>
       <p className="text-muted-foreground">
-        Search for an account to view its detailed statement in a new tab.
+        Search for an account to view its detailed statement.
       </p>
       <Separator />
 
