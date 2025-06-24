@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   BookText,
   Banknote,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -113,6 +114,26 @@ function Menu({ userRole }: { userRole: string | null }) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </>
+      )}
+
+      {(userRole === "factory" || userRole === "owner" || userRole === "coordinator" || userRole === "administrator") && (
+         <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/direct-sale")}
+              tooltip={{
+                children: "Direct Sale",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/direct-sale">
+                <ShoppingBag />
+                <span>Direct Sale</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
       )}
 
       {(userRole === "factory" || userRole === "owner" || userRole === "administrator") && (
