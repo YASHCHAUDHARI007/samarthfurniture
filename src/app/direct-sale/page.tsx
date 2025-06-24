@@ -230,6 +230,8 @@ export default function DirectSalePage() {
         customerInfo: { id: customerId, name: customerName, address: shippingAddress, },
         invoiceNumber, invoiceDate, lineItems, subTotal, totalGstRate: gstRate, sgstAmount, cgstAmount, totalGstAmount, totalAmount,
         payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
+        irn: `IRN-MOCK-${new Date().getTime()}`,
+        qrCodeUrl: 'https://placehold.co/100x100.png',
     };
     
     const currentStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');

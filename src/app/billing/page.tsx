@@ -166,6 +166,8 @@ export default function BillingPage() {
             balanceDue: totalAmount,
             paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
             reference: reference || undefined,
+            irn: `IRN-MOCK-${new Date().getTime()}`,
+            qrCodeUrl: 'https://placehold.co/100x100.png',
         };
         
         const ordersKey = getCompanyStorageKey('orders')!;

@@ -5,6 +5,7 @@ import type { Order } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Armchair } from "lucide-react";
+import Image from "next/image";
 
 export const Invoice = ({ order }: { order: Order }) => (
     <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
@@ -19,10 +20,29 @@ export const Invoice = ({ order }: { order: Order }) => (
                 </div>
             </div>
             <div className="text-right">
-                <h2 className="text-2xl font-semibold uppercase text-gray-700">Invoice</h2>
-                <p className="text-sm">Invoice #: <span className="font-medium">{order.invoiceNumber}</span></p>
-                <p className="text-sm">Date: <span className="font-medium">{order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</span></p>
-                {order.reference && (<p className="text-sm">Ref: <span className="font-medium">{order.reference}</span></p>)}
+                <div className="flex justify-end items-start gap-4">
+                    <div>
+                        <h2 className="text-2xl font-semibold uppercase text-gray-700">Invoice</h2>
+                        <p className="text-sm">Invoice #: <span className="font-medium">{order.invoiceNumber}</span></p>
+                        <p className="text-sm">Date: <span className="font-medium">{order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</span></p>
+                        {order.reference && (<p className="text-sm">Ref: <span className="font-medium">{order.reference}</span></p>)}
+                    </div>
+                     {order.qrCodeUrl && (
+                        <Image 
+                            src={order.qrCodeUrl} 
+                            alt="E-invoice QR Code"
+                            width={96}
+                            height={96}
+                            data-ai-hint="qr code"
+                        />
+                    )}
+                </div>
+                {order.irn && (
+                    <div className="mt-2 text-left">
+                        <p className="text-xs font-semibold uppercase text-gray-500">IRN</p>
+                        <p className="text-xs break-all font-mono">{order.irn}</p>
+                    </div>
+                )}
             </div>
         </div>
 
