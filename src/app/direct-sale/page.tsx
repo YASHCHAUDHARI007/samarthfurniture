@@ -41,16 +41,6 @@ type SaleItem = {
   available: number;
 };
 
-const TallyButton = ({ shortcut, label, ...props }: { shortcut: string, label: string } & React.ComponentProps<typeof Button>) => (
-    <Button variant="outline" className="w-full justify-between bg-white/80" {...props}>
-      <span className="text-blue-600 font-bold">
-        <span className="underline">{shortcut[0]}</span>
-        {shortcut.slice(1)}
-      </span>
-      <span>{label}</span>
-    </Button>
-  );
-
 export default function DirectSalePage() {
   const { toast } = useToast();
   const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
@@ -260,7 +250,7 @@ export default function DirectSalePage() {
             <p className="font-mono">{voucherNumber ? `No. ${voucherNumber}` : 'No. ...'}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
+        <div className="mt-4">
             <div className="bg-emerald-50 border border-gray-300 p-4 rounded-md space-y-4">
                 <div className="flex justify-end">
                      <Popover>
@@ -344,17 +334,6 @@ export default function DirectSalePage() {
                 <div className="flex justify-end pt-4">
                     <Button onClick={handleSubmit} disabled={saleItems.length === 0 || totalAmount <= 0}>Accept</Button>
                 </div>
-            </div>
-
-            <div className="space-y-2">
-                <TallyButton shortcut="F2:" label="Date" onClick={() => document.getElementById('saleDate')?.focus()}/>
-                <TallyButton shortcut="F5:" label="Payment" disabled/>
-                <TallyButton shortcut="F6:" label="Receipt" disabled/>
-                <TallyButton shortcut="F7:" label="Journal" disabled/>
-                <TallyButton shortcut="F8:" label="Sales" variant="secondary"/>
-                <TallyButton shortcut="F9:" label="Purchase" disabled/>
-                <Separator/>
-                <TallyButton shortcut="H:" label="Change Mode" disabled/>
             </div>
         </div>
       </div>

@@ -43,6 +43,12 @@ import {
 } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
 
+const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
+  <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+    {children}
+  </span>
+);
+
 function Menu({ userRole }: { userRole: string | null }) {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -85,6 +91,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/">
                 <LayoutDashboard />
                 <span>Dashboard</span>
+                <FKeyShortcut>F1</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -102,6 +109,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/customer-orders">
                 <User />
                 <span>Customized Orders</span>
+                <FKeyShortcut>F2</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -119,6 +127,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/dealer-orders">
                 <Building />
                 <span>Dealer Orders</span>
+                <FKeyShortcut>F3</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -140,6 +149,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/direct-sale">
                 <ShoppingBag />
                 <span>Direct Sale</span>
+                <FKeyShortcut>F4</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -160,6 +170,7 @@ function Menu({ userRole }: { userRole: string | null }) {
             <Link href="/factory-dashboard">
               <Factory />
               <span>Factory Dashboard</span>
+              <FKeyShortcut>F5</FKeyShortcut>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -181,6 +192,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/billing">
                 <Receipt />
                 <span>Sales</span>
+                <FKeyShortcut>F6</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -198,6 +210,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/purchases">
                 <ShoppingCart />
                 <span>Purchases</span>
+                <FKeyShortcut>F7</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -215,6 +228,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/payments">
                 <Banknote />
                 <span>Vouchers</span>
+                <FKeyShortcut>F8</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -232,6 +246,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/ledger">
                 <BookText />
                 <span>Ledger</span>
+                <FKeyShortcut>F9</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -254,6 +269,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/billing">
                 <Receipt />
                 <span>Billing</span>
+                <FKeyShortcut>F6</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -274,6 +290,7 @@ function Menu({ userRole }: { userRole: string | null }) {
               <Link href="/transport">
                 <Truck />
                 <span>Transport</span>
+                <FKeyShortcut>F11</FKeyShortcut>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -294,6 +311,7 @@ function Menu({ userRole }: { userRole: string | null }) {
           <Link href="/stock-turnover">
             <Warehouse />
             <span>Stock Levels</span>
+            <FKeyShortcut>F10</FKeyShortcut>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -313,6 +331,7 @@ function Menu({ userRole }: { userRole: string | null }) {
             <Link href="/raw-materials">
               <Wrench />
               <span>Raw Materials</span>
+              <FKeyShortcut>F12</FKeyShortcut>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -368,6 +387,37 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState("U");
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fKeyRoutes: { [key: string]: string } = {
+        'F1': '/',
+        'F2': '/customer-orders',
+        'F3': '/dealer-orders',
+        'F4': '/direct-sale',
+        'F5': '/factory-dashboard',
+        'F6': '/billing',
+        'F7': '/purchases',
+        'F8': '/payments',
+        'F9': '/ledger',
+        'F10': '/stock-turnover',
+        'F11': '/transport',
+        'F12': '/raw-materials',
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+        const route = fKeyRoutes[event.key];
+        if (route) {
+            event.preventDefault();
+            router.push(route);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [router]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
