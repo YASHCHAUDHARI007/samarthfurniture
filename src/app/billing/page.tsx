@@ -331,7 +331,7 @@ export default function BillingPage() {
             </div>
             <p className="text-muted-foreground">
                 Generate invoices and track payments for orders.
-            p>
+            </p>
             <Separator />
 
             <Tabs defaultValue="billing" className="pt-4">
