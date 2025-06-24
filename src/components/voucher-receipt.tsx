@@ -22,7 +22,7 @@ export const VoucherReceipt = ({ voucher }: { voucher: VoucherPrintData }) => {
     const partyLabel = isReceipt ? "Received from" : "Paid to";
 
     return (
-        <div className="bg-white text-black p-8 w-full min-h-[210mm] max-w-[210mm] mx-auto shadow-lg print:shadow-none relative font-sans">
+        <div className="bg-white text-black p-8 print:p-0 w-full min-h-[210mm] max-w-[210mm] mx-auto shadow-lg print:shadow-none relative font-sans">
             {/* Header */}
             <div className="text-center mb-6">
                  <h2 className="text-xl font-bold uppercase tracking-wider">{title}</h2>

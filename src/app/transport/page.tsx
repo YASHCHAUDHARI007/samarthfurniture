@@ -38,7 +38,7 @@ import type { Order } from "@/lib/types";
 
 
 const DeliveryReceipt = ({ order }: { order: Order }) => (
-    <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
+    <div className="bg-white text-black p-8 print:p-0 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div className="flex items-center gap-3">

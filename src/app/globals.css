@@ -105,55 +105,24 @@ body {
     display: none !important;
   }
 
-  /* Default hide everything */
+  /* By default, hide everything */
   body * {
     visibility: hidden;
   }
   
-  /* Reveal the printable area and its parents */
+  /* Then, just show the printable area and its children */
   #printable-area, #printable-area * {
     visibility: visible;
   }
   
-  /* Reset the page layout */
-  body, html {
-    overflow: visible !important;
-  }
-
-  /* Make the printable area a block and position it */
+  /* And position the printable area at the top of the page */
   #printable-area {
-    display: block;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    height: auto;
+    padding: 0;
+    margin: 0;
   }
-
-  /*
-   This is the definitive fix:
-   When printing from a dialog, the dialog's container
-   needs to have its screen-specific styles (fixed position, max-height, etc.)
-   completely reset so the content inside can be printed correctly.
-  */
-  div[data-radix-dialog-content] {
-    visibility: visible !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: auto !important;
-    max-height: none !important;
-    inset: auto !important;
-    transform: none !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    display: block !important;
-    overflow: visible !important;
-  }
-
-  div[data-radix-dialog-overlay] {
-    display: none !important;
-  }
-
 }
