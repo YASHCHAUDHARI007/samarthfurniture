@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { useEffect, useState, useMemo } from "react";
 import {
   SidebarProvider,
   Sidebar,
@@ -42,10 +43,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useEffect, useState, useMemo } from "react";
 import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "./ui/separator";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
