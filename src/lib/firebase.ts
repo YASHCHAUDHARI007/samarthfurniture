@@ -3,8 +3,9 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
-// IMPORTANT: Replace the placeholder values in the .env file
-// with your actual Firebase project's credentials.
+// This configuration is loaded from the .env file.
+// IMPORTANT: Make sure you have created a .env file in the root of your project
+// and filled it with your actual Firebase project's credentials.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
