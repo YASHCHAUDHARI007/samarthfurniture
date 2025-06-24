@@ -30,6 +30,7 @@ import {
   BookText,
   Banknote,
   ShoppingBag,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,6 +43,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
+import { Company } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "./ui/separator";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
@@ -358,27 +362,95 @@ function Menu({ userRole }: { userRole: string | null }) {
           </SidebarMenuItem>
         </>
       )}
-      {canManageUsers && (
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            asChild
-            isActive={isActive("/manage-users")}
-            tooltip={{
-              children: "Manage Users",
-              side: "right",
-              align: "center",
-            }}
-            onClick={handleLinkClick}
-          >
-            <Link href="/manage-users">
-              <Users />
-              <span>Manage Users</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+      {isAdmin && (
+        <>
+          <Separator className="my-2" />
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/manage-companies")}
+              tooltip={{
+                children: "Manage Companies",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/manage-companies">
+                <Building2 />
+                <span>Companies</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/manage-users")}
+              tooltip={{
+                children: "Manage Users",
+                side: "right",
+                align: "center",
+              }}
+              onClick={handleLinkClick}
+            >
+              <Link href="/manage-users">
+                <Users />
+                <span>Manage Users</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </>
       )}
     </SidebarMenu>
   );
+}
+
+function CompanySwitcher() {
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+    const { isMobile, setOpenMobile } = useSidebar();
+    const router = useRouter();
+
+    useEffect(() => {
+        const storedCompanies = JSON.parse(localStorage.getItem('samarth_furniture_companies') || '[]');
+        setCompanies(storedCompanies);
+        const storedActiveId = localStorage.getItem('activeCompanyId');
+        setActiveCompanyId(storedActiveId);
+    }, []);
+
+    const handleCompanyChange = (companyId: string) => {
+        if (companyId) {
+            localStorage.setItem('activeCompanyId', companyId);
+            setActiveCompanyId(companyId);
+            router.refresh();
+            if (isMobile) {
+                setOpenMobile(false);
+            }
+        }
+    };
+
+    if (companies.length === 0) return null;
+
+    return (
+        <div className="p-2 space-y-2">
+            <label className="text-xs font-semibold text-sidebar-foreground/70 px-2">
+                Active Company
+            </label>
+            <Select onValueChange={handleCompanyChange} value={activeCompanyId || ""}>
+                <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select a company..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {companies.map(company => (
+                        <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Separator />
+        </div>
+    )
 }
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
@@ -390,18 +462,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const fKeyRoutes: { [key: string]: string } = {
-        'F1': '/',
-        'F2': '/customer-orders',
-        'F3': '/dealer-orders',
-        'F4': '/direct-sale',
-        'F5': '/factory-dashboard',
-        'F6': '/billing',
-        'F7': '/purchases',
-        'F8': '/payments',
-        'F9': '/ledger',
-        'F10': '/stock-turnover',
-        'F11': '/transport',
-        'F12': '/raw-materials',
+        'F1': '/', 'F2': '/customer-orders', 'F3': '/dealer-orders', 'F4': '/direct-sale', 'F5': '/factory-dashboard', 'F6': '/billing', 'F7': '/purchases', 'F8': '/payments', 'F9': '/ledger', 'F10': '/stock-turnover', 'F11': '/transport', 'F12': '/raw-materials',
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -413,10 +474,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => { window.removeEventListener('keydown', handleKeyDown); };
   }, [router]);
 
   useEffect(() => {
@@ -435,6 +493,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("loggedInUser");
       localStorage.removeItem("userRole");
+      localStorage.removeItem("activeCompanyId");
     }
     router.push("/login");
   };
@@ -462,6 +521,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
+          <CompanySwitcher />
           <Menu userRole={userRole} />
         </SidebarContent>
         <SidebarFooter>

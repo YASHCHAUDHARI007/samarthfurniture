@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee } from "lucide-react";
 import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 type PurchaseItem = {
   id: string; // Raw material ID
@@ -35,6 +36,7 @@ type PurchaseItem = {
 };
 
 export default function PurchasesPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [allSuppliers, setAllSuppliers] = useState<Contact[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
@@ -49,23 +51,38 @@ export default function PurchasesPage() {
   const [billNumber, setBillNumber] = useState("");
   const [billDate, setBillDate] = useState("");
 
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  const [activeMaterialInput, setActiveMaterialInput] = useState<number | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
   useEffect(() => {
     setBillDate(new Date().toISOString().split("T")[0]);
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
   }, []);
 
-
-  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
-  
-  const [activeMaterialInput, setActiveMaterialInput] = useState<number | null>(null);
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    if (!activeCompanyId) {
+        setAllSuppliers([]);
+        setAllRawMaterials([]);
+        return;
+    }
+    
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const materialsKey = getCompanyStorageKey('raw_materials')!;
+
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
     
-    const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
+    const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem(materialsKey) || '[]');
     setAllRawMaterials(storedMaterials);
     
-  }, []);
+  }, [activeCompanyId]);
 
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -127,12 +144,22 @@ export default function PurchasesPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    if (!activeCompanyId) {
+        toast({ variant: "destructive", title: "No Active Company", description: "Please select a company."});
+        return;
+    }
+
     if (!supplierName || !billNumber || !billDate || purchaseItems.length === 0 || totalAmount <= 0) {
         toast({ variant: "destructive", title: "Missing Information", description: "Please fill all supplier, bill and item details."});
         return;
     }
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const purchasesKey = getCompanyStorageKey('purchases')!;
+    const materialsKey = getCompanyStorageKey('raw_materials')!;
+    const ledgerKey = getCompanyStorageKey('ledger')!;
+
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     let supplier: Contact | undefined = storedContacts.find(
       (c) => c.type === 'Supplier' && c.name.toLowerCase() === supplierName.toLowerCase()
     );
@@ -142,14 +169,14 @@ export default function PurchasesPage() {
         supplierId = supplier.id;
         if(supplier.gstin !== supplierGstin) {
             const updatedContacts = storedContacts.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
-            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
             setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
         }
     } else {
         supplierId = `SUPP-${Date.now()}`;
         supplier = { id: supplierId, name: supplierName, type: 'Supplier', gstin: supplierGstin };
         const updatedContacts = [...storedContacts, supplier];
-        localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
         setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
     }
 
@@ -167,20 +194,20 @@ export default function PurchasesPage() {
         paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
     };
 
-    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
-    localStorage.setItem('samarth_furniture_purchases', JSON.stringify([...allPurchases, newPurchase]));
+    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
+    localStorage.setItem(purchasesKey, JSON.stringify([...allPurchases, newPurchase]));
 
-    let materials: RawMaterial[] = JSON.parse(localStorage.getItem('samarth_furniture_raw_materials') || '[]');
+    let materials: RawMaterial[] = JSON.parse(localStorage.getItem(materialsKey) || '[]');
     newPurchase.items.forEach(item => {
         const materialIndex = materials.findIndex(m => m.id === item.id);
         if (materialIndex !== -1) {
             materials[materialIndex].quantity += item.quantity;
         }
     });
-    localStorage.setItem('samarth_furniture_raw_materials', JSON.stringify(materials));
+    localStorage.setItem(materialsKey, JSON.stringify(materials));
     setAllRawMaterials(materials);
 
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
     const purchaseDebitEntry: LedgerEntry = {
         id: `LEDG-${Date.now()}-D`, date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
     };
@@ -188,7 +215,7 @@ export default function PurchasesPage() {
         id: `LEDG-${Date.now()}-C`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
     };
     ledgerEntries.push(purchaseDebitEntry, supplierCreditEntry);
-    localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
     toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
     
@@ -199,6 +226,20 @@ export default function PurchasesPage() {
     setBillDate(new Date().toISOString().split("T")[0]);
     setPurchaseItems([]);
   };
+
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage purchases.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

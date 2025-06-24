@@ -46,6 +46,8 @@ export default function BillingPage() {
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [hasAccess, setHasAccess] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
@@ -57,20 +59,34 @@ export default function BillingPage() {
     const [isReprintView, setIsReprintView] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
 
+    const getCompanyStorageKey = (baseKey: string) => {
+        if (!activeCompanyId) return null;
+        return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+    };
 
     const fetchOrders = () => {
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+        if (!activeCompanyId) return;
+        const ordersKey = getCompanyStorageKey('orders');
+        if (!ordersKey) return;
+        const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
         setAllOrders(storedOrders);
     };
 
     useEffect(() => {
+        const companyId = localStorage.getItem('activeCompanyId');
+        setActiveCompanyId(companyId);
+
         const role = localStorage.getItem("userRole");
         if (role === "owner" || role === "coordinator" || role === "administrator" || role === "factory") {
           setHasAccess(true);
         }
-        fetchOrders();
         setIsLoading(false);
     }, []);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [activeCompanyId]);
+
 
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer') {
@@ -128,7 +144,7 @@ export default function BillingPage() {
     }, [lineItems, totalGstRate]);
 
     const handleGenerateInvoice = () => {
-        if (!selectedOrder || !selectedOrder.customerInfo) return;
+        if (!selectedOrder || !selectedOrder.customerInfo || !activeCompanyId) return;
         
         const invoiceDate = new Date().toISOString();
         const invoiceNumber = `INV-${new Date().getTime()}`;
@@ -152,12 +168,14 @@ export default function BillingPage() {
             reference: reference || undefined,
         };
         
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+        const ordersKey = getCompanyStorageKey('orders')!;
+        const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
         const updatedOrders = storedOrders.map(o => o.id === selectedOrder.id ? updatedOrder : o);
-        localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
+        localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
 
         // Create Ledger Entry for Sale
-        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+        const ledgerKey = getCompanyStorageKey('ledger')!;
+        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
         const customerDebitEntry: LedgerEntry = {
             id: `LEDG-${Date.now()}-D`,
             date: invoiceDate,
@@ -181,7 +199,7 @@ export default function BillingPage() {
             refId: selectedOrder.id,
         };
         ledgerEntries.push(customerDebitEntry, salesCreditEntry);
-        localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+        localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
 
         fetchOrders();
@@ -223,6 +241,20 @@ export default function BillingPage() {
                 </CardHeader>
                 <CardContent><p>You do not have permission to view this page.</p></CardContent>
                 <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
+              </Card>
+            </div>
+        );
+    }
+    
+    if (!activeCompanyId) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+              <Card className="max-w-md">
+                <CardHeader>
+                  <CardTitle>No Company Selected</CardTitle>
+                </CardHeader>
+                <CardContent><p>Please select or create a company to manage billing.</p></CardContent>
+                <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
               </Card>
             </div>
         );

@@ -39,8 +39,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { Contact, LedgerEntry, Order, Purchase, Payment, PaymentStatus } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
+import { useRouter } from "next/navigation";
+
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -65,13 +68,35 @@ export default function PaymentsPage() {
   const [selectedPurchaseId, setSelectedPurchaseId] = useState("");
 
   const [voucherToPrint, setVoucherToPrint] = useState<any | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+  }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setContacts([]);
+        setOrders([]);
+        setPurchases([]);
+        return;
+    }
+
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ordersKey = getCompanyStorageKey('orders')!;
+    const purchasesKey = getCompanyStorageKey('purchases')!;
+
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     setContacts(storedContacts);
-    const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+    const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     setOrders(storedOrders);
-    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
+    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
     const initializedPurchases = storedPurchases.map(p => ({
         ...p,
         paidAmount: p.paidAmount || 0,
@@ -80,7 +105,7 @@ export default function PaymentsPage() {
         payments: p.payments || [],
     }));
     setPurchases(initializedPurchases);
-  }, []);
+  }, [activeCompanyId]);
 
   useEffect(() => {
     if (receiptContactId) {
@@ -133,7 +158,7 @@ export default function PaymentsPage() {
   };
 
   const handleRecordReceipt = () => {
-    if (!receiptContactId || !receiptAmount || receiptAmount <= 0 || !receiptDate) {
+    if (!receiptContactId || !receiptAmount || receiptAmount <= 0 || !receiptDate || !activeCompanyId) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a customer, date and enter a valid amount." });
       return;
     }
@@ -142,8 +167,12 @@ export default function PaymentsPage() {
 
     const paymentDateISO = receiptDate.toISOString();
     const paymentId = `PAY-${Date.now()}`;
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+    
+    const ledgerKey = getCompanyStorageKey('ledger')!;
+    const ordersKey = getCompanyStorageKey('orders')!;
+
+    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     
     const details = `Received via ${receiptMethod}. Ref: ${receiptRef || 'N/A'} ${selectedInvoiceId ? `against INV #${allOrders.find(o => o.id === selectedInvoiceId)?.invoiceNumber}` : ''}`.trim();
     
@@ -171,7 +200,7 @@ export default function PaymentsPage() {
       refId: paymentId,
     });
 
-    localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
     if (selectedInvoiceId) {
         const updatedOrders = allOrders.map(order => {
@@ -187,7 +216,7 @@ export default function PaymentsPage() {
             }
             return order;
         });
-        localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
+        localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
         setOrders(updatedOrders);
     }
     
@@ -213,7 +242,7 @@ export default function PaymentsPage() {
   };
 
   const handleRecordPayment = () => {
-     if (!paymentContactId || !paymentAmount || paymentAmount <= 0 || !paymentDate) {
+     if (!paymentContactId || !paymentAmount || paymentAmount <= 0 || !paymentDate || !activeCompanyId) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a supplier, date and enter a valid amount." });
       return;
     }
@@ -222,8 +251,12 @@ export default function PaymentsPage() {
 
     const paymentDateISO = paymentDate.toISOString();
     const paymentId = `PAY-${Date.now()}`;
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
-    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
+    
+    const ledgerKey = getCompanyStorageKey('ledger')!;
+    const purchasesKey = getCompanyStorageKey('purchases')!;
+
+    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
+    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
 
     const details = `Paid via ${paymentMethod}. Ref: ${paymentRef || 'N/A'} ${selectedPurchaseId ? `against Bill #${allPurchases.find(p => p.id === selectedPurchaseId)?.billNumber}` : ''}`.trim();
 
@@ -235,7 +268,7 @@ export default function PaymentsPage() {
         id: `LEDG-${Date.now()}-C`, date: paymentDateISO, accountId: 'CASH_BANK_ACCOUNT', accountName: 'Cash/Bank Account', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId,
     });
 
-    localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
      if (selectedPurchaseId) {
       const updatedPurchases = allPurchases.map(p => {
@@ -249,7 +282,7 @@ export default function PaymentsPage() {
           }
           return p;
       });
-      localStorage.setItem('samarth_furniture_purchases', JSON.stringify(updatedPurchases));
+      localStorage.setItem(purchasesKey, JSON.stringify(updatedPurchases));
       setPurchases(updatedPurchases);
     }
 
@@ -279,6 +312,20 @@ export default function PaymentsPage() {
 
   const customers = contacts.filter(c => c.type === 'Customer' || c.type === 'Dealer');
   const suppliers = contacts.filter(c => c.type === 'Supplier');
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage vouchers.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <>

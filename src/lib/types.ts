@@ -146,3 +146,10 @@ export type LedgerEntry = {
     credit: number; // Amount out
     refId: string; // The ID of the order, purchase, or payment that generated this entry
 };
+
+export type Company = {
+  id: string;
+  name: string;
+  financialYearStart: string;
+  financialYearEnd:string;
+};

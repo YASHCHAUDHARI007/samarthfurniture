@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,11 +28,22 @@ export default function LedgerPage() {
   const router = useRouter();
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
-    setAllContacts(storedContacts);
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
   }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setAllContacts([]);
+        return;
+    };
+    const contactsKey = `samarth_furniture_${activeCompanyId}_contacts`;
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+    setAllContacts(storedContacts);
+  }, [activeCompanyId]);
 
   const ledgerAccounts = useMemo(() => {
     return [...internalAccounts, ...allContacts].sort((a,b) => a.name.localeCompare(b.name));
@@ -47,6 +59,20 @@ export default function LedgerPage() {
   const handleOpenLedger = (accountId: string) => {
     router.push(`/ledger/${accountId}`);
   };
+
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to view ledger accounts.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

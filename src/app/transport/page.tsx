@@ -109,27 +109,44 @@ export default function TransportPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    const username = localStorage.getItem("loggedInUser");
     setUserRole(role);
+    
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+    
+    setIsLoading(false);
+  }, []);
 
-    const allOrders: Order[] = JSON.parse(
-      localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setOrders([]);
+        return;
+    }
+    const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
+    const ordersKey = getCompanyStorageKey('orders')!;
+
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
     let ordersToDisplay = allOrders.filter(o => o.status === 'Billed');
     
     if (role === "coordinator") {
       ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
     }
     setOrders(ordersToDisplay);
-    setIsLoading(false);
-  }, []);
+  }, [activeCompanyId]);
 
   const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedOrder) return;
+    if (!selectedOrder || !activeCompanyId) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
     const transportDetails = {
@@ -139,9 +156,8 @@ export default function TransportPage() {
       vehicleModel: formData.get("vehicleModel") as string,
     };
     
-    const allOrders: Order[] = JSON.parse(
-        localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
+    const ordersKey = getCompanyStorageKey('orders')!;
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
 
     const deliveredAt = new Date().toISOString();
     let updatedOrder: Order | undefined;
@@ -159,10 +175,7 @@ export default function TransportPage() {
       return o;
     });
 
-    localStorage.setItem(
-      "samarth_furniture_orders",
-      JSON.stringify(updatedOrders)
-    );
+    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
     setOrders(orders.filter((o) => o.id !== selectedOrder.id));
     toast({
       title: "Order Dispatched!",
@@ -198,6 +211,20 @@ export default function TransportPage() {
           </CardFooter>
         </Card>
       </div>
+    );
+  }
+
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage transport.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
     );
   }
 

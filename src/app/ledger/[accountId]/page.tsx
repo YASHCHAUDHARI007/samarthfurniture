@@ -44,23 +44,38 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
   const [account, setAccount] = useState<(Contact | {id: string, name: string, type: string}) | null>(null);
 
   const [billToView, setBillToView] = useState<Order | Purchase | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+  }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) return;
+
+    const getCompanyStorageKey = (baseKey: string) => `samarth_furniture_${activeCompanyId}_${baseKey}`;
+    
+    const ledgerKey = getCompanyStorageKey('ledger');
+    const contactsKey = getCompanyStorageKey('contacts');
+    const ordersKey = getCompanyStorageKey('orders');
+    const purchasesKey = getCompanyStorageKey('purchases');
+
+    const storedEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
     setAllLedgerEntries(storedEntries);
     
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     
-    const storedOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+    const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     setAllOrders(storedOrders);
 
-    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem('samarth_furniture_purchases') || '[]');
+    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
     setAllPurchases(storedPurchases);
 
     const accounts = [...internalAccounts, ...storedContacts];
     const foundAccount = accounts.find(acc => acc.id === accountId);
     setAccount(foundAccount || null);
-  }, [accountId]);
+  }, [accountId, activeCompanyId]);
 
   const displayedEntries = useMemo(() => {
     if (!account) return [];
@@ -99,7 +114,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                 <div className="text-center text-muted-foreground p-8">
                     <BookText className="mx-auto h-12 w-12 mb-4" />
                     <h3 className="text-lg font-semibold">Account not found</h3>
-                    <p>The requested ledger account could not be found.</p>
+                    <p>The requested ledger account could not be found for the active company.</p>
                 </div>
             </div>
         </div>
@@ -230,7 +245,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                         <DialogTitle>Invoice: {billToView.invoiceNumber}</DialogTitle>
                         <DialogDescription>Invoice details for order {billToView.id}.</DialogDescription>
                     </DialogHeader>
-                    <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
+                    <div id="printable-area-dialog" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
                        <Invoice order={billToView} />
                     </div>
                     </>

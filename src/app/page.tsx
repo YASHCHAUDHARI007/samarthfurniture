@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Table,
@@ -31,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+
 
 const chartConfig = {
   sales: {
@@ -46,6 +49,7 @@ export default function Dashboard() {
   const [isClient, setIsClient] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -56,10 +60,24 @@ export default function Dashboard() {
     }
     setIsAuthenticated(true);
     
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+
+    setIsLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+      setOrders([]);
+      setChartData([]);
+      return;
+    }
+
     const role = localStorage.getItem("userRole");
-    let allOrders: Order[] = JSON.parse(
-      localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
+    const username = localStorage.getItem("loggedInUser");
+    const ordersKey = `samarth_furniture_${activeCompanyId}_orders`;
+
+    let allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
 
     let userOrders = allOrders;
     if (role === "coordinator") {
@@ -110,8 +128,7 @@ export default function Dashboard() {
 
     setChartData(newChartData);
 
-    setIsLoading(false);
-  }, [router]);
+  }, [activeCompanyId]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -155,6 +172,25 @@ export default function Dashboard() {
 
   if (!isAuthenticated) {
     return null;
+  }
+  
+  if (isClient && !activeCompanyId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Welcome to Samarth Furniture</CardTitle>
+            <CardDescription>To get started, you need to create or select a company.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>All your data, including orders, customers, and inventory, will be organized by company.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => router.push('/manage-companies')}>Manage Companies</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (

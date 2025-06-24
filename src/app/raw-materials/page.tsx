@@ -35,22 +35,39 @@ export default function RawMaterialsPage() {
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
+  
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
-    
-    const storedMaterials = localStorage.getItem("samarth_furniture_raw_materials");
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+  }, []);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
+  
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setMaterials([]);
+        return;
+    }
+    const materialsKey = getCompanyStorageKey('raw_materials')!;
+    const storedMaterials = localStorage.getItem(materialsKey);
     if (storedMaterials) {
       setMaterials(JSON.parse(storedMaterials));
     } else {
-      // initial seeding handled in purchases for better consistency
       setMaterials([]);
     }
-  }, []);
+  }, [activeCompanyId]);
   
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!activeCompanyId) return;
+
     if (!newItemName || !newItemUnit) {
       toast({
         variant: "destructive",
@@ -78,10 +95,8 @@ export default function RawMaterialsPage() {
 
     const updatedMaterials = [...materials, newItem];
     setMaterials(updatedMaterials);
-    localStorage.setItem(
-      "samarth_furniture_raw_materials",
-      JSON.stringify(updatedMaterials)
-    );
+    const materialsKey = getCompanyStorageKey('raw_materials')!;
+    localStorage.setItem(materialsKey, JSON.stringify(updatedMaterials));
     toast({
       title: "Material Type Added",
       description: `${newItem.name} has been added. Use the Purchases page to add stock.`,
@@ -91,6 +106,20 @@ export default function RawMaterialsPage() {
   };
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
+
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage raw materials.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

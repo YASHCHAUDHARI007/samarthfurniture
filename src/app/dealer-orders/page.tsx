@@ -37,19 +37,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import type { Order, Product, Contact } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 type OrderItem = {
   id: string;
   quantity: number;
 };
 
-const initialProductCatalog: Product[] = [
-    { id: "prod-1", name: "Classic Oak Dining Table", sku: "TBL-OAK-CLS", image: "https://placehold.co/100x100.png", aiHint: "dining table" },
-    { id: "prod-2", name: "Modern Leather Sofa", sku: "SOF-LTH-MOD", image: "https://placehold.co/100x100.png", aiHint: "leather sofa" },
-    { id: "prod-3", name: "Walnut Bookshelf", sku: "BKS-WLN-STD", image: "https://placehold.co/100x100.png", aiHint: "bookshelf" },
-];
-
 export default function DealerOrderPage() {
+  const router = useRouter();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
   
@@ -65,24 +61,40 @@ export default function DealerOrderPage() {
   
   const [dealerName, setDealerName] = useState("");
   const [dealerId, setDealerId] = useState("");
+  
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "factory" || role === "administrator" || role === "owner") {
       setCanEdit(true);
     }
-    const storedCatalog = localStorage.getItem("samarth_furniture_product_catalog");
-    if (storedCatalog) {
-      setProductCatalog(JSON.parse(storedCatalog));
-    } else {
-      setProductCatalog(initialProductCatalog);
-      localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(initialProductCatalog));
-    }
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+  }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+      setProductCatalog([]);
+      setAllDealers([]);
+      return;
+    };
     
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const catalogKey = getCompanyStorageKey('product_catalog')!;
+    const contactsKey = getCompanyStorageKey('contacts')!;
+
+    const storedCatalog = localStorage.getItem(catalogKey);
+    setProductCatalog(storedCatalog ? JSON.parse(storedCatalog) : []);
+    
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     setAllDealers(storedContacts.filter(c => c.type === 'Dealer'));
 
-  }, []);
+  }, [activeCompanyId]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -129,6 +141,11 @@ export default function DealerOrderPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!activeCompanyId) {
+        toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating an order." });
+        return;
+    }
+    
     if (!dealerName || !dealerId) {
         toast({ variant: "destructive", title: "Missing Dealer Info", description: "Please fill in all dealer details."});
         return;
@@ -160,7 +177,10 @@ export default function DealerOrderPage() {
       return;
     }
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ordersKey = getCompanyStorageKey('orders')!;
+
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     let dealer = storedContacts.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.type === 'Dealer');
     let contactId = '';
     
@@ -173,14 +193,14 @@ export default function DealerOrderPage() {
             dealerId: dealerId,
         };
         const updatedContacts = [...storedContacts, dealer];
-        localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
         setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
     } else {
         contactId = dealer.id;
         if (dealer.dealerId !== dealerId) {
             dealer.dealerId = dealerId;
             const updatedContacts = storedContacts.map(c => c.id === dealer!.id ? dealer : c);
-            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
             setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
         }
     }
@@ -205,13 +225,8 @@ export default function DealerOrderPage() {
       },
     };
 
-    const existingOrders: Order[] = JSON.parse(
-      localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
-    localStorage.setItem(
-      "samarth_furniture_orders",
-      JSON.stringify([...existingOrders, newOrder])
-    );
+    const existingOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
+    localStorage.setItem(ordersKey, JSON.stringify([...existingOrders, newOrder]));
     toast({
       title: "Dealer Order Placed!",
       description: "The bulk order has been sent to the factory.",
@@ -227,6 +242,8 @@ export default function DealerOrderPage() {
 
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!activeCompanyId) return;
+
     if (!newItemName || !newItemSku) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a name and SKU." });
       return;
@@ -244,17 +261,21 @@ export default function DealerOrderPage() {
     };
     const updatedCatalog = [...productCatalog, newProduct];
     setProductCatalog(updatedCatalog);
-    localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(updatedCatalog));
+    
+    const catalogKey = getCompanyStorageKey('product_catalog')!;
+    localStorage.setItem(catalogKey, JSON.stringify(updatedCatalog));
     toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
     setNewItemName("");
     setNewItemSku("");
   };
 
   const handleDeleteItem = () => {
-    if (!itemToDelete) return;
+    if (!itemToDelete || !activeCompanyId) return;
     const updatedCatalog = productCatalog.filter((p) => p.id !== itemToDelete.id);
     setProductCatalog(updatedCatalog);
-    localStorage.setItem("samarth_furniture_product_catalog", JSON.stringify(updatedCatalog));
+    
+    const catalogKey = getCompanyStorageKey('product_catalog')!;
+    localStorage.setItem(catalogKey, JSON.stringify(updatedCatalog));
     toast({
       title: "Product Deleted",
       description: `${itemToDelete.name} has been removed from the catalog.`,
@@ -266,6 +287,20 @@ export default function DealerOrderPage() {
   const isProductSelected = (productId: string) => {
     return orderItems.some((item) => item.id === productId);
   };
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage dealer orders.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <>

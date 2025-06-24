@@ -18,8 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, Contact } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export default function CustomerOrderPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   
@@ -29,12 +31,23 @@ export default function CustomerOrderPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
-
+  
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+    if (!companyId) return;
+
+    const contactsKey = `samarth_furniture_${companyId}_contacts`;
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     setAllCustomers(storedContacts.filter(c => c.type === 'Customer'));
   }, []);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+      if (!activeCompanyId) return null;
+      return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -69,6 +82,12 @@ export default function CustomerOrderPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!activeCompanyId) {
+        toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating an order." });
+        return;
+    }
+
     const formData = new FormData(e.target as HTMLFormElement);
     const orderDetails = formData.get("details") as string;
     const height = formData.get("height") as string;
@@ -82,9 +101,11 @@ export default function CustomerOrderPage() {
     }
 
     const loggedInUser = localStorage.getItem("loggedInUser");
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ordersKey = getCompanyStorageKey('orders')!;
 
     // Save or update customer ledger
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     let customer = storedContacts.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.type === 'Customer');
     let customerId = '';
     
@@ -98,7 +119,7 @@ export default function CustomerOrderPage() {
             address: shippingAddress,
         };
         const updatedContacts = [...storedContacts, customer];
-        localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
         setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
     } else {
         customerId = customer.id;
@@ -106,7 +127,7 @@ export default function CustomerOrderPage() {
             customer.email = customerEmail;
             customer.address = shippingAddress;
             const updatedContacts = storedContacts.map(c => c.id === customer!.id ? customer : c);
-            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
             setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
         }
     }
@@ -135,13 +156,8 @@ export default function CustomerOrderPage() {
       },
     };
 
-    const existingOrders: Order[] = JSON.parse(
-      localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
-    localStorage.setItem(
-      "samarth_furniture_orders",
-      JSON.stringify([...existingOrders, newOrder])
-    );
+    const existingOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
+    localStorage.setItem(ordersKey, JSON.stringify([...existingOrders, newOrder]));
 
     toast({
       title: "Customized Order Submitted!",
@@ -155,6 +171,20 @@ export default function CustomerOrderPage() {
     setShippingAddress("");
     (e.target as HTMLFormElement).reset();
   };
+
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage orders.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

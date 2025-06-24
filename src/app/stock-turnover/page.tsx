@@ -36,14 +36,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { StockItem, StockStatus } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
-const initialStock: StockItem[] = [
-  { id: 'stock-1', name: "Modern Sofa", sku: "SOF-MOD-BLU", quantity: 25, reorderLevel: 10, status: "In Stock" },
-  { id: 'stock-2', name: "Oak Bookshelf", sku: "BKS-OAK-LRG", quantity: 8, reorderLevel: 5, status: "Low Stock" },
-  { id: 'stock-3', name: "Coffee Table", sku: "TBL-COF-WHT", quantity: 0, reorderLevel: 8, status: "Out of Stock" },
-];
 
 export default function StockTurnoverPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -54,18 +51,29 @@ export default function StockTurnoverPage() {
   const [newItemQuantity, setNewItemQuantity] = useState("");
   const [newItemReorderLevel, setNewItemReorderLevel] = useState("");
 
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
+
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
-    
-    const storedStock = localStorage.getItem("samarth_furniture_stock_items");
-    if (storedStock) {
-      setStock(JSON.parse(storedStock));
-    } else {
-      setStock(initialStock);
-      localStorage.setItem("samarth_furniture_stock_items", JSON.stringify(initialStock));
-    }
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
   }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setStock([]);
+        return;
+    }
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    const storedStock = localStorage.getItem(stockKey);
+    setStock(storedStock ? JSON.parse(storedStock) : []);
+  }, [activeCompanyId]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity <= 0) return "Out of Stock";
@@ -88,6 +96,8 @@ export default function StockTurnoverPage() {
 
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!activeCompanyId) return;
+
     const quantity = parseInt(newItemQuantity, 10);
     const reorderLevel = parseInt(newItemReorderLevel, 10);
 
@@ -123,7 +133,9 @@ export default function StockTurnoverPage() {
 
     const updatedStock = [...stock, newItem];
     setStock(updatedStock);
-    localStorage.setItem("samarth_furniture_stock_items", JSON.stringify(updatedStock));
+    
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
 
     toast({
       title: "Item Added",
@@ -136,10 +148,12 @@ export default function StockTurnoverPage() {
   };
   
   const handleDeleteItem = () => {
-    if (!itemToDelete) return;
+    if (!itemToDelete || !activeCompanyId) return;
     const updatedStock = stock.filter((s) => s.id !== itemToDelete.id);
     setStock(updatedStock);
-    localStorage.setItem("samarth_furniture_stock_items", JSON.stringify(updatedStock));
+
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
     toast({
       title: "Item Deleted",
       description: `${itemToDelete.name} has been removed from the stock.`,
@@ -152,6 +166,20 @@ export default function StockTurnoverPage() {
   const totalUnits = stock.reduce((acc, item) => acc + item.quantity, 0);
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage stock.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <>

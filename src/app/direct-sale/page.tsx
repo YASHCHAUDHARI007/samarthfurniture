@@ -30,6 +30,7 @@ import { ShoppingBag, IndianRupee, Printer, CalendarIcon, Trash2 } from "lucide-
 import type { Contact, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 type SaleItem = {
   key: string;
@@ -43,6 +44,7 @@ type SaleItem = {
 };
 
 export default function DirectSalePage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -62,16 +64,39 @@ export default function DirectSalePage() {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
   const [voucherNumber, setVoucherNumber] = useState("");
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+
+  const getCompanyStorageKey = (baseKey: string) => {
+      if (!activeCompanyId) return null;
+      return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
-    setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
-    
-    const storedStock: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
-    setStockItems(storedStock);
-    addSaleItem();
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
     setVoucherNumber(new Date().getTime().toString().slice(-5));
   }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+      setAllCustomers([]);
+      setStockItems([]);
+      return;
+    };
+    
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+    setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
+    
+    const storedStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
+    setStockItems(storedStock);
+    addSaleItem();
+
+  }, [activeCompanyId]);
+
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -147,6 +172,10 @@ export default function DirectSalePage() {
 
 
   const handleSubmit = () => {
+    if (!activeCompanyId) {
+        toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating a sale." });
+        return;
+    }
     if (!customerName || !shippingAddress) {
         toast({ variant: "destructive", title: "Missing Customer", description: "Please select or enter customer details."});
         return;
@@ -160,8 +189,13 @@ export default function DirectSalePage() {
         toast({ variant: "destructive", title: "Missing Date", description: "Please select a sale date."});
         return;
     }
+    
+    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ordersKey = getCompanyStorageKey('orders')!;
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    const ledgerKey = getCompanyStorageKey('ledger')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
     let customer = storedContacts.find(c => c.name.toLowerCase() === customerName.toLowerCase() && (c.type === 'Customer' || c.type === 'Dealer'));
     let customerId = selectedCustomerId;
     
@@ -173,7 +207,7 @@ export default function DirectSalePage() {
         customerId = customer.id;
         customer.address = shippingAddress;
     }
-    localStorage.setItem('samarth_furniture_contacts', JSON.stringify(storedContacts));
+    localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
     setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
     
     const invoiceDate = saleDate.toISOString();
@@ -197,7 +231,7 @@ export default function DirectSalePage() {
         payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
     };
     
-    const currentStock: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
+    const currentStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
     const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
         if (quantity <= 0) return "Out of Stock";
         if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
@@ -211,10 +245,10 @@ export default function DirectSalePage() {
         }
         return stockItem;
     });
-    localStorage.setItem('samarth_furniture_stock_items', JSON.stringify(updatedStock));
+    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
     setStockItems(updatedStock);
 
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem('samarth_furniture_ledger') || '[]');
+    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
     ledgerEntries.push({
         id: `LEDG-${Date.now()}-D`, date: invoiceDate, accountId: customerId, accountName: customerName, type: 'Sales',
         details: `Invoice ${invoiceNumber}`, debit: totalAmount, credit: 0, refId: orderId,
@@ -223,10 +257,10 @@ export default function DirectSalePage() {
         id: `LEDG-${Date.now()}-C`, date: invoiceDate, accountId: 'SALES_ACCOUNT', accountName: 'Sales Account', type: 'Sales',
         details: `Against Inv ${invoiceNumber} to ${customerName}`, debit: 0, credit: totalAmount, refId: orderId,
     });
-    localStorage.setItem('samarth_furniture_ledger', JSON.stringify(ledgerEntries));
+    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
 
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
-    localStorage.setItem('samarth_furniture_orders', JSON.stringify([...allOrders, newOrder]));
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+    localStorage.setItem(ordersKey, JSON.stringify([...allOrders, newOrder]));
     
     setInvoiceOrder(newOrder);
     toast({ title: "Sale Recorded!", description: `Invoice ${invoiceNumber} created.` });
@@ -243,6 +277,20 @@ export default function DirectSalePage() {
 
   const handlePrint = () => window.print();
   const totalQuantity = useMemo(() => saleItems.reduce((acc, item) => acc + Number(item.quantity || 0), 0), [saleItems]);
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage sales.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
+    );
+  }
 
   return (
     <>

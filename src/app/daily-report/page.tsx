@@ -33,27 +33,38 @@ export default function DailyReportPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
-    setOrders(allOrders);
-
-    const allStock: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
-    setStockItems(allStock);
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
     
     setIsLoading(false);
-
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     }));
   }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) return;
+    
+    const ordersKey = `samarth_furniture_${activeCompanyId}_orders`;
+    const stockKey = `samarth_furniture_${activeCompanyId}_stock_items`;
+
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+    setOrders(allOrders);
+
+    const allStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
+    setStockItems(allStock);
+
+  }, [activeCompanyId]);
+
 
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
     switch (status) {
@@ -92,6 +103,20 @@ export default function DailyReportPage() {
           </CardFooter>
         </Card>
       </div>
+    );
+  }
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to view reports.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
     );
   }
 

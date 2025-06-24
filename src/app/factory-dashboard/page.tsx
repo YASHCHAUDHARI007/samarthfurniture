@@ -64,10 +64,15 @@ export default function FactoryDashboardPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+
+  const getCompanyStorageKey = (baseKey: string) => {
+    if (!activeCompanyId) return null;
+    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
+  };
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    const username = localStorage.getItem("loggedInUser");
     setUserRole(role);
     
     if (role === "factory" || role === "owner" || role === "coordinator" || role === "administrator") {
@@ -77,15 +82,31 @@ export default function FactoryDashboardPage() {
       setCanEdit(true);
     }
 
-    let allOrders: Order[] = JSON.parse(
-      localStorage.getItem("samarth_furniture_orders") || "[]"
-    );
+    const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+        setOrders([]);
+        setIsLoading(false);
+        return;
+    };
+    
+    setIsLoading(true);
+    const ordersKey = getCompanyStorageKey('orders')!;
+    let allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
+
+    const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
     if (role === "coordinator") {
       allOrders = allOrders.filter(order => order.createdBy === username);
     }
     setOrders(allOrders);
     setIsLoading(false);
-  }, []);
+  }, [activeCompanyId]);
 
   const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity === 0) return "Out of Stock";
@@ -95,10 +116,13 @@ export default function FactoryDashboardPage() {
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     const originalOrder = orders.find(o => o.id === orderId);
-    if (!originalOrder) return;
+    if (!originalOrder || !activeCompanyId) return;
     
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
-    let stockItems: StockItem[] = JSON.parse(localStorage.getItem('samarth_furniture_stock_items') || '[]');
+    const ordersKey = getCompanyStorageKey('orders')!;
+    const stockKey = getCompanyStorageKey('stock_items')!;
+    
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+    let stockItems: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
     let stockUpdated = false;
 
     // Stock deduction logic
@@ -130,10 +154,10 @@ export default function FactoryDashboardPage() {
     );
 
     setOrders(updatedOrders.filter(o => userRole === 'coordinator' ? o.createdBy === localStorage.getItem('loggedInUser') : true));
-    localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
 
     if (stockUpdated) {
-        localStorage.setItem('samarth_furniture_stock_items', JSON.stringify(stockItems));
+        localStorage.setItem(stockKey, JSON.stringify(stockItems));
         toast({ title: 'Stock Updated', description: 'Inventory levels have been automatically adjusted.' });
     }
 
@@ -144,12 +168,13 @@ export default function FactoryDashboardPage() {
   };
 
   const handleDeleteOrder = () => {
-    if (!orderToDelete) return;
+    if (!orderToDelete || !activeCompanyId) return;
     
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('samarth_furniture_orders') || '[]');
+    const ordersKey = getCompanyStorageKey('orders')!;
+    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     const updatedOrders = allOrders.filter((order) => order.id !== orderToDelete.id);
     setOrders(updatedOrders.filter(o => userRole === 'coordinator' ? o.createdBy === localStorage.getItem('loggedInUser') : true));
-    localStorage.setItem('samarth_furniture_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
 
     toast({
       title: "Order Deleted",
@@ -208,6 +233,20 @@ export default function FactoryDashboardPage() {
           </CardFooter>
         </Card>
       </div>
+    );
+  }
+  
+  if (!activeCompanyId) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>No Company Selected</CardTitle>
+            </CardHeader>
+            <CardContent><p>Please select or create a company to manage factory operations.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
+          </Card>
+        </div>
     );
   }
   
