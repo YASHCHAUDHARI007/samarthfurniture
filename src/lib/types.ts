@@ -37,3 +37,11 @@ export type User = {
     password: string;
     role: UserRole;
 };
+
+export type Product = {
+  id: string;
+  name: string;
+  sku: string;
+  image: string;
+  aiHint: string;
+};

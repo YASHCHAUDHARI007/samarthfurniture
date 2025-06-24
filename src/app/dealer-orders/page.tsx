@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -25,11 +25,23 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import type { Order } from "@/lib/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
+import type { Order, Product } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
+const PRODUCT_CATALOG_STORAGE_KEY = "samarth_furniture_product_catalog";
 
-const productCatalog = [
+const initialProductCatalog: Product[] = [
   {
     id: "prod_001",
     name: "Modular 'L' Sofa",
@@ -68,6 +80,35 @@ type OrderItem = {
 export default function DealerOrderPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
+  
+  const [productCatalog, setProductCatalog] = useState<Product[]>([]);
+  const [canEdit, setCanEdit] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<Product | null>(null);
+
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemSku, setNewItemSku] = useState("");
+
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    if (role === "factory" || role === "administrator") {
+      setCanEdit(true);
+    }
+
+    const savedCatalogRaw = localStorage.getItem(PRODUCT_CATALOG_STORAGE_KEY);
+    if (savedCatalogRaw) {
+      setProductCatalog(JSON.parse(savedCatalogRaw));
+    } else {
+      setProductCatalog(initialProductCatalog);
+      localStorage.setItem(PRODUCT_CATALOG_STORAGE_KEY, JSON.stringify(initialProductCatalog));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (productCatalog.length > 0) {
+        localStorage.setItem(PRODUCT_CATALOG_STORAGE_KEY, JSON.stringify(productCatalog));
+    }
+  }, [productCatalog]);
 
   const handleCheckboxChange = (
     productId: string,
@@ -159,17 +200,95 @@ export default function DealerOrderPage() {
     (e.target as HTMLFormElement).reset();
   };
 
+  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!newItemName || !newItemSku) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a name and SKU." });
+      return;
+    }
+    if (productCatalog.some(p => p.sku.toLowerCase() === newItemSku.toLowerCase())) {
+        toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
+        return;
+    }
+
+    const newProduct: Product = {
+      id: `prod_${Date.now()}`,
+      name: newItemName,
+      sku: newItemSku,
+      image: "https://placehold.co/100x100.png",
+      aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
+    };
+
+    setProductCatalog([...productCatalog, newProduct]);
+    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
+    setNewItemName("");
+    setNewItemSku("");
+  };
+
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+    setProductCatalog(productCatalog.filter((p) => p.id !== itemToDelete.id));
+    toast({
+      title: "Product Deleted",
+      description: `${itemToDelete.name} has been removed from the catalog.`,
+      variant: "destructive",
+    });
+    setItemToDelete(null);
+  };
+
   const isProductSelected = (productId: string) => {
     return orderItems.some((item) => item.id === productId);
   };
 
   return (
+    <>
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">New Dealer Order</h2>
       <p className="text-muted-foreground">
         Create a new bulk order for a registered dealer.
       </p>
       <Separator />
+
+      {canEdit && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Manage Product Catalog</CardTitle>
+              <CardDescription>
+                Add or remove products from the catalog. These changes will be reflected for all users creating dealer orders.
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleAddItem}>
+              <CardContent className="space-y-4">
+                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newItemName">Product Name</Label>
+                    <Input
+                      id="newItemName"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder="e.g. Modern Bookshelf"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newItemSku">SKU</Label>
+                    <Input
+                      id="newItemSku"
+                      value={newItemSku}
+                      onChange={(e) => setNewItemSku(e.target.value)}
+                      placeholder="e.g. BKS-MOD-WHT"
+                      required
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit">Add Product to Catalog</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        )}
+
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
@@ -214,6 +333,7 @@ export default function DealerOrderPage() {
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead className="w-[120px]">Quantity</TableHead>
+                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,6 +377,19 @@ export default function DealerOrderPage() {
                           className="w-24"
                         />
                       </TableCell>
+                       {canEdit && (
+                        <TableCell className="text-right">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setItemToDelete(product)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete Item</span>
+                            </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -269,5 +402,28 @@ export default function DealerOrderPage() {
         </Card>
       </form>
     </div>
+
+    <AlertDialog open={!!itemToDelete} onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}>
+    <AlertDialogContent>
+        <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the product
+                <span className="font-semibold"> {itemToDelete?.name} </span>
+                from the catalog.
+            </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={handleDeleteItem}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+                Delete
+            </AlertDialogAction>
+        </AlertDialogFooter>
+    </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
