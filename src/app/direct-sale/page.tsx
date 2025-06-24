@@ -326,17 +326,19 @@ export default function DirectSalePage() {
                     <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
                 </div>
                 
-                 <div className="grid grid-cols-[1fr_auto] items-start gap-y-2 gap-x-4 pt-4">
-                    <div className="space-y-1">
+                 <div className="flex items-start justify-between gap-4 pt-4">
+                    <div className="w-full max-w-md">
                       <Label htmlFor="narration" className="font-semibold">Narration:</Label>
-                      <Textarea id="narration" value={narration} onChange={e => setNarration(e.target.value)} rows={3} className="bg-white"/>
+                      <Textarea id="narration" value={narration} onChange={e => setNarration(e.target.value)} rows={2} className="bg-white mt-1"/>
                     </div>
-                    <div className="text-right font-bold">
-                        <div className="grid grid-cols-[auto_auto] gap-2">
-                            <p className="font-semibold text-sm text-left">Total Qty:</p>
-                            <p className="font-mono">{totalQuantity.toFixed(2)}</p>
-                            <p className="font-semibold text-sm text-left">Total Amt:</p>
-                            <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
+                    <div className="w-full max-w-xs text-right space-y-1 mt-1">
+                        <div className="flex justify-between items-center">
+                            <p className="font-semibold text-sm">Total Qty:</p>
+                            <p className="font-mono font-bold">{totalQuantity.toFixed(2)}</p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <p className="font-semibold text-sm">Total Amt:</p>
+                            <p className="font-mono font-bold">₹{totalAmount.toFixed(2)}</p>
                         </div>
                     </div>
                 </div>
