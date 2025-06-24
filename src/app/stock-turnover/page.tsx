@@ -189,7 +189,7 @@ export default function StockTurnoverPage() {
           <h2 className="text-3xl font-bold tracking-tight">Stock Levels</h2>
         </div>
         <p className="text-muted-foreground">
-          View and manage current inventory levels.
+          View and manage finished goods inventory. Stock is automatically deducted for dealer orders upon completion.
         </p>
         <Separator />
 
@@ -256,8 +256,7 @@ export default function StockTurnoverPage() {
                 <Button type="submit">Add Item</Button>
               </CardFooter>
             </form>
-          </Card>
-        )}
+          )}
 
         <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -278,7 +277,7 @@ export default function StockTurnoverPage() {
           <CardHeader>
             <CardTitle>Current Inventory</CardTitle>
             <CardDescription>
-              A detailed list of all products in stock. Factory workers or admins can add or delete items.
+              A detailed list of all finished products in stock. Factory workers or admins can add or delete items.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -134,7 +134,7 @@ export default function RawMaterialsPage() {
         <h2 className="text-3xl font-bold tracking-tight">Raw Materials</h2>
       </div>
       <p className="text-muted-foreground">
-        View and manage raw material inventory.
+        Define your raw materials here. To add or update stock quantities, use the Purchases page.
       </p>
       <Separator />
       
