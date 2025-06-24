@@ -9,6 +9,7 @@ export type LineItem = {
   description: string;
   quantity: number;
   price: number;
+  hsn?: string;
 };
 
 export type Payment = {
@@ -56,8 +57,10 @@ export type Order = {
   invoiceDate?: string;
   lineItems?: LineItem[];
   subTotal?: number;
-  gstRate?: number;
-  gstAmount?: number;
+  totalGstRate?: number;
+  sgstAmount?: number;
+  cgstAmount?: number;
+  totalGstAmount?: number;
   totalAmount?: number;
   payments?: Payment[];
   paidAmount?: number;

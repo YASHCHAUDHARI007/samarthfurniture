@@ -50,7 +50,7 @@ export default function BillingPage() {
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
-    const [gstRate, setGstRate] = useState(18);
+    const [totalGstRate, setTotalGstRate] = useState(18);
     const [reference, setReference] = useState("");
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -80,13 +80,13 @@ export default function BillingPage() {
                     const quantity = parseInt(match[1], 10);
                     const name = match[2];
                     const sku = match[3];
-                    return { id: `line-${index}`, description: `${name} (${sku})`, quantity, price: 0 };
+                    return { id: `line-${index}`, description: `${name} (${sku})`, quantity, price: 0, hsn: '' };
                 }
                 return null;
             }).filter((item): item is LineItem => item !== null);
             setLineItems(items);
         } else { // Customized order
-            setLineItems([{ id: `line-0`, description: order.item, quantity: 1, price: 0 }]);
+            setLineItems([{ id: `line-0`, description: order.item, quantity: 1, price: 0, hsn: '' }]);
         }
         setSelectedOrder(order);
         setIsCreating(true);
@@ -100,10 +100,10 @@ export default function BillingPage() {
     };
 
 
-    const handleLineItemChange = (id: string, field: 'description' | 'quantity' | 'price', value: string) => {
+    const handleLineItemChange = (id: string, field: 'description' | 'quantity' | 'price' | 'hsn', value: string) => {
         setLineItems(currentItems => currentItems.map(item => {
             if (item.id === id) {
-                const newValue = field === 'description' ? value : parseFloat(value) || 0;
+                const newValue = (field === 'quantity' || field === 'price') ? parseFloat(value) || 0 : value;
                 return { ...item, [field]: newValue };
             }
             return item;
@@ -111,19 +111,21 @@ export default function BillingPage() {
     };
 
     const addLineItem = () => {
-        setLineItems(current => [...current, {id: `line-${Date.now()}`, description: '', quantity: 1, price: 0}]);
+        setLineItems(current => [...current, {id: `line-${Date.now()}`, description: '', quantity: 1, price: 0, hsn: ''}]);
     };
 
     const removeLineItem = (id: string) => {
         setLineItems(current => current.filter(item => item.id !== id));
     };
 
-    const { subTotal, gstAmount, totalAmount } = useMemo(() => {
+    const { subTotal, sgstAmount, cgstAmount, totalGstAmount, totalAmount } = useMemo(() => {
         const subTotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-        const gstAmount = subTotal * (gstRate / 100);
-        const totalAmount = subTotal + gstAmount;
-        return { subTotal, gstAmount, totalAmount };
-    }, [lineItems, gstRate]);
+        const totalGstAmount = subTotal * (totalGstRate / 100);
+        const sgstAmount = totalGstAmount / 2;
+        const cgstAmount = totalGstAmount / 2;
+        const totalAmount = subTotal + totalGstAmount;
+        return { subTotal, sgstAmount, cgstAmount, totalGstAmount, totalAmount };
+    }, [lineItems, totalGstRate]);
 
     const handleGenerateInvoice = () => {
         if (!selectedOrder || !selectedOrder.customerInfo) return;
@@ -136,8 +138,10 @@ export default function BillingPage() {
             status: "Billed",
             lineItems,
             subTotal,
-            gstRate,
-            gstAmount,
+            totalGstRate,
+            sgstAmount,
+            cgstAmount,
+            totalGstAmount,
             totalAmount,
             invoiceNumber,
             invoiceDate,
@@ -247,6 +251,7 @@ export default function BillingPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Description</TableHead>
+                                        <TableHead className="w-32">HSN/SAC</TableHead>
                                         <TableHead className="w-24">Quantity</TableHead>
                                         <TableHead className="w-32">Price/Unit</TableHead>
                                         <TableHead className="w-32 text-right">Total</TableHead>
@@ -260,6 +265,9 @@ export default function BillingPage() {
                                                 {selectedOrder.type === 'Customized' ? (
                                                     <Input value={item.description} onChange={e => handleLineItemChange(item.id, 'description', e.target.value)} />
                                                 ) : item.description}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input value={item.hsn || ''} onChange={e => handleLineItemChange(item.id, 'hsn', e.target.value)} placeholder="e.g. 9403"/>
                                             </TableCell>
                                             <TableCell>
                                                 <Input type="number" value={item.quantity} onChange={e => handleLineItemChange(item.id, 'quantity', e.target.value)} min="1"/>
@@ -291,16 +299,20 @@ export default function BillingPage() {
                             </div>
                             <div className="w-full max-w-sm space-y-4">
                                 <div className="flex items-center justify-between gap-4">
-                                    <Label htmlFor="gstRate" className="whitespace-nowrap">GST Rate (%)</Label>
-                                    <Input id="gstRate" type="number" value={gstRate} onChange={e => setGstRate(parseFloat(e.target.value) || 0)} className="w-24"/>
+                                    <Label htmlFor="totalGstRate" className="whitespace-nowrap">Total GST Rate (%)</Label>
+                                    <Input id="totalGstRate" type="number" value={totalGstRate} onChange={e => setTotalGstRate(parseFloat(e.target.value) || 0)} className="w-24"/>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="font-medium">Subtotal</span>
                                     <span>{subTotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="font-medium">GST ({gstRate}%)</span>
-                                    <span>{gstAmount.toFixed(2)}</span>
+                                    <span className="font-medium">SGST ({(totalGstRate / 2).toFixed(2)}%)</span>
+                                    <span>{sgstAmount.toFixed(2)}</span>
+                                </div>
+                                 <div className="flex justify-between">
+                                    <span className="font-medium">CGST ({(totalGstRate / 2).toFixed(2)}%)</span>
+                                    <span>{cgstAmount.toFixed(2)}</span>
                                 </div>
                                 <Separator />
                                 <div className="flex justify-between text-lg font-bold">

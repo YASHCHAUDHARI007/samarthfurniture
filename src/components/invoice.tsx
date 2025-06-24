@@ -42,6 +42,7 @@ export const Invoice = ({ order }: { order: Order }) => (
                 <TableHeader className="bg-gray-50 print:bg-gray-50">
                     <TableRow>
                         <TableHead className="w-[50%]">Item Description</TableHead>
+                        <TableHead className="text-center w-[120px]">HSN/SAC</TableHead>
                         <TableHead className="text-center">Qty</TableHead>
                         <TableHead className="text-right">Rate</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
@@ -51,6 +52,7 @@ export const Invoice = ({ order }: { order: Order }) => (
                     {order.lineItems?.map(item => (
                         <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.description}</TableCell>
+                            <TableCell className="text-center">{item.hsn || ''}</TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
                             <TableCell className="text-right">₹{item.price.toFixed(2)}</TableCell>
                             <TableCell className="text-right">₹{(item.quantity * item.price).toFixed(2)}</TableCell>
@@ -68,8 +70,12 @@ export const Invoice = ({ order }: { order: Order }) => (
                     <span className="font-medium">₹{order.subTotal?.toFixed(2) || '0.00'}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-600">GST ({order.gstRate}%)</span>
-                    <span className="font-medium">₹{order.gstAmount?.toFixed(2) || '0.00'}</span>
+                    <span className="text-gray-600">SGST ({((order.totalGstRate || 0) / 2).toFixed(2)}%)</span>
+                    <span className="font-medium">₹{order.sgstAmount?.toFixed(2) || '0.00'}</span>
+                </div>
+                 <div className="flex justify-between">
+                    <span className="text-gray-600">CGST ({((order.totalGstRate || 0) / 2).toFixed(2)}%)</span>
+                    <span className="font-medium">₹{order.cgstAmount?.toFixed(2) || '0.00'}</span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-base">

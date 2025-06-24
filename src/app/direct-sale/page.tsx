@@ -36,6 +36,7 @@ type SaleItem = {
   stockItemId: string;
   sku: string;
   name: string;
+  hsn: string;
   quantity: number | "";
   price: number | "";
   available: number;
@@ -92,7 +93,7 @@ export default function DirectSalePage() {
   };
 
   const addSaleItem = () => {
-    setSaleItems(current => [...current, { key: `item-${Date.now()}`, stockItemId: '', sku: '', name: '', quantity: '', price: '', available: 0 }]);
+    setSaleItems(current => [...current, { key: `item-${Date.now()}`, stockItemId: '', sku: '', name: '', hsn: '', quantity: '', price: '', available: 0 }]);
   };
   
   const removeSaleItem = (key: string) => {
@@ -133,7 +134,7 @@ export default function DirectSalePage() {
     }));
   };
 
-  const { subTotal, gstAmount, totalAmount } = useMemo(() => {
+  const { subTotal, sgstAmount, cgstAmount, totalGstAmount, totalAmount } = useMemo(() => {
     const sub = saleItems.reduce((acc, item) => {
         const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
         const price = typeof item.price === 'number' ? item.price : 0;
@@ -141,7 +142,7 @@ export default function DirectSalePage() {
     }, 0);
     const gst = sub * (gstRate / 100);
     const total = sub + gst;
-    return { subTotal: sub, gstAmount: gst, totalAmount: total };
+    return { subTotal: sub, sgstAmount: gst / 2, cgstAmount: gst / 2, totalGstAmount: gst, totalAmount: total };
   }, [saleItems, gstRate]);
 
 
@@ -183,7 +184,8 @@ export default function DirectSalePage() {
         id: item.stockItemId,
         description: `${item.name} (${item.sku})`,
         quantity: Number(item.quantity),
-        price: Number(item.price)
+        price: Number(item.price),
+        hsn: item.hsn,
     }));
 
     const orderDetails = lineItems.map(item => `${item.quantity}x ${item.description}`).join('\n');
@@ -191,7 +193,7 @@ export default function DirectSalePage() {
     const newOrder: Order = {
         id: orderId, customer: customerName, item: "Direct Stock Sale", status: "Billed", type: "Dealer", details: orderDetails, createdBy: localStorage.getItem("loggedInUser") || undefined, createdAt: invoiceDate,
         customerInfo: { id: customerId, name: customerName, address: shippingAddress, },
-        invoiceNumber, invoiceDate, lineItems, subTotal, gstRate, gstAmount, totalAmount,
+        invoiceNumber, invoiceDate, lineItems, subTotal, totalGstRate: gstRate, sgstAmount, cgstAmount, totalGstAmount, totalAmount,
         payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
     };
     
@@ -281,15 +283,16 @@ export default function DirectSalePage() {
                 </div>
                 
                 <div className="space-y-1 bg-amber-50 p-2 rounded">
-                    <div className="grid grid-cols-[1fr_100px_120px_140px_40px] gap-2 text-sm font-bold text-center">
+                    <div className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 text-sm font-bold text-center">
                         <Label className="text-left">Name of Item</Label>
+                        <Label>HSN/SAC</Label>
                         <Label>Quantity</Label>
                         <Label>Rate</Label>
                         <Label>Amount</Label>
                         <div></div>
                     </div>
                     {saleItems.map((item, index) => (
-                        <div key={item.key} className="grid grid-cols-[1fr_100px_120px_140px_40px] gap-2 items-start">
+                        <div key={item.key} className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 items-start">
                              <div className="relative">
                                 <Input
                                     placeholder="Type to search item"
@@ -313,6 +316,7 @@ export default function DirectSalePage() {
                                     </div>
                                 )}
                              </div>
+                             <Input placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.key, 'hsn', e.target.value)} className="bg-white h-9" />
                              <Input type="number" value={item.quantity} onChange={e => handleItemChange(item.key, 'quantity', parseFloat(e.target.value) || "")} min="1" max={item.available || undefined} className="text-right bg-white h-9" placeholder="0" />
                              <Input type="number" value={item.price} onChange={e => handleItemChange(item.key, 'price', parseFloat(e.target.value) || "")} min="0" className="text-right bg-white h-9" placeholder="0.00" />
                              <Input value={((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)} className="text-right bg-gray-100 h-9" readOnly />
