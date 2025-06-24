@@ -231,7 +231,7 @@ export default function FactoryDashboardPage() {
       order.item.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const canDelete = userRole === "owner" || userRole === "administrator";
+  const canDelete = userRole === "administrator";
 
   return (
     <>
