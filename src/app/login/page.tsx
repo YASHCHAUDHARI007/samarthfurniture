@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, limit, writeBatch } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, writeBatch, doc } from "firebase/firestore";
 
 const initialUsers: Omit<User, "id">[] = [
   { username: "owner", password: "password123", role: "owner" },
@@ -57,13 +57,24 @@ export default function LoginPage() {
       await seedInitialUsers();
 
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("username", "==", username), where("password", "==", password));
+      // Query for the user by username first to avoid needing a composite index
+      const q = query(usersRef, where("username", "==", username));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        const user = userDoc.data() as User;
-        
+      if (querySnapshot.empty) {
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "Invalid username or password. Please try again.",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const userDoc = querySnapshot.docs[0];
+      const user = userDoc.data() as User;
+
+      if (user.password === password) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('loggedInUser', user.username);
           localStorage.setItem('userRole', user.role);
@@ -85,15 +96,15 @@ export default function LoginPage() {
           title: "Login Failed",
           description: "Invalid username or password. Please try again.",
         });
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error("Login Error: ", error);
       toast({
         variant: "destructive",
         title: "Login Error",
-        description: "An error occurred during login. Please check the console.",
+        description: "An error occurred. Please check your Firestore security rules in the Firebase console.",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
