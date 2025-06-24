@@ -29,11 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee } from "lucide-react";
 import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
@@ -244,35 +239,34 @@ export default function PurchasesPage() {
             <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="supplierName">Supplier Name</Label>
-                    <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
-                    <PopoverTrigger asChild>
+                    <div className="relative">
                         <Input
-                        id="supplierName"
-                        placeholder="e.g. Royal Hardware"
-                        required
-                        value={supplierName}
-                        onChange={handleSupplierNameChange}
-                        autoComplete="off"
+                            id="supplierName"
+                            placeholder="e.g. Royal Hardware"
+                            required
+                            value={supplierName}
+                            onChange={handleSupplierNameChange}
+                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                            autoComplete="off"
                         />
-                    </PopoverTrigger>
-                        <PopoverContent 
-                            className="w-[--radix-popover-trigger-width] p-0"
-                            onOpenAutoFocus={(e) => e.preventDefault()}
-                        >
-                        <div className="flex flex-col gap-1 p-1">
-                            {suggestions.map(supplier => (
-                                <Button
-                                    key={supplier.id}
-                                    variant="ghost"
-                                    className="justify-start"
-                                    onClick={() => handleSelectSupplier(supplier)}
-                                >
-                                    {supplier.name}
-                                </Button>
-                            ))}
-                        </div>
-                        </PopoverContent>
-                    </Popover>
+                        {suggestions.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                    {suggestions.map(supplier => (
+                                        <Button
+                                            key={supplier.id}
+                                            type="button"
+                                            variant="ghost"
+                                            className="justify-start"
+                                            onClick={() => handleSelectSupplier(supplier)}
+                                        >
+                                            {supplier.name}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="supplierGstin">Supplier GSTIN (Optional)</Label>

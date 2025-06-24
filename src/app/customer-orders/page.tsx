@@ -17,11 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import type { Order, Contact } from "@/lib/types";
 
 export default function CustomerOrderPage() {
@@ -181,33 +176,35 @@ export default function CustomerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Customer Name</Label>
-                 <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
-                  <PopoverTrigger asChild>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="e.g. Jane Doe"
-                      required
-                      value={customerName}
-                      onChange={handleNameChange}
-                      autoComplete="off"
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-                     <div className="flex flex-col gap-1 p-1">
+                <div className="relative">
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="e.g. Jane Doe"
+                    required
+                    value={customerName}
+                    onChange={handleNameChange}
+                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                    autoComplete="off"
+                  />
+                  {suggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                      <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                         {suggestions.map(customer => (
-                            <Button
-                                key={customer.id}
-                                variant="ghost"
-                                className="justify-start"
-                                onClick={() => handleSelectCustomer(customer)}
-                            >
-                                {customer.name}
-                            </Button>
+                          <Button
+                            key={customer.id}
+                            type="button"
+                            variant="ghost"
+                            className="justify-start"
+                            onClick={() => handleSelectCustomer(customer)}
+                          >
+                            {customer.name}
+                          </Button>
                         ))}
-                     </div>
-                  </PopoverContent>
-                </Popover>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Customer Email</Label>

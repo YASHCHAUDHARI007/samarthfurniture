@@ -24,11 +24,6 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -440,16 +435,34 @@ export default function DirectSalePage() {
                     <CardContent className="space-y-4">
                          <div className="space-y-2">
                             <Label htmlFor="name">Customer Name</Label>
-                            <Popover open={customerSuggestions.length > 0} onOpenChange={(open) => {if(!open) setCustomerSuggestions([])}}>
-                            <PopoverTrigger asChild>
-                                <Input id="name" name="name" placeholder="e.g. Jane Doe" required value={customerName} onChange={handleNameChange} autoComplete="off"/>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                <div className="flex flex-col gap-1 p-1">
-                                    {customerSuggestions.map(c => ( <Button key={c.id} variant="ghost" className="justify-start" onClick={() => handleSelectCustomer(c)}>{c.name}</Button>))}
-                                </div>
-                            </PopoverContent>
-                            </Popover>
+                            <div className="relative">
+                                <Input 
+                                    id="name" 
+                                    name="name" 
+                                    placeholder="e.g. Jane Doe" 
+                                    required 
+                                    value={customerName} 
+                                    onChange={handleNameChange} 
+                                    onBlur={() => setTimeout(() => setCustomerSuggestions([]), 150)}
+                                    autoComplete="off"
+                                />
+                                {customerSuggestions.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                        <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                            {customerSuggestions.map(c => ( 
+                                                <Button 
+                                                    key={c.id} 
+                                                    type="button"
+                                                    variant="ghost" 
+                                                    className="justify-start" 
+                                                    onClick={() => handleSelectCustomer(c)}>
+                                                        {c.name}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="email">Customer Email</Label>

@@ -35,11 +35,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
 import type { Order, Product, Contact } from "@/lib/types";
 
@@ -333,33 +328,35 @@ export default function DealerOrderPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="dealerName">Dealer Name</Label>
-                <Popover open={suggestions.length > 0} onOpenChange={(open) => {if(!open) setSuggestions([])}}>
-                  <PopoverTrigger asChild>
-                    <Input
-                      id="dealerName"
-                      name="dealerName"
-                      placeholder="e.g. Modern Furnishings Co."
-                      required
-                      value={dealerName}
-                      onChange={handleNameChange}
-                      autoComplete="off"
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-                     <div className="flex flex-col gap-1 p-1">
+                <div className="relative">
+                  <Input
+                    id="dealerName"
+                    name="dealerName"
+                    placeholder="e.g. Modern Furnishings Co."
+                    required
+                    value={dealerName}
+                    onChange={handleNameChange}
+                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                    autoComplete="off"
+                  />
+                  {suggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                      <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
                         {suggestions.map(dealer => (
-                            <Button
-                                key={dealer.id}
-                                variant="ghost"
-                                className="justify-start"
-                                onClick={() => handleSelectDealer(dealer)}
-                            >
-                                {dealer.name}
-                            </Button>
+                          <Button
+                            key={dealer.id}
+                            type="button"
+                            variant="ghost"
+                            className="justify-start"
+                            onClick={() => handleSelectDealer(dealer)}
+                          >
+                            {dealer.name}
+                          </Button>
                         ))}
-                     </div>
-                  </PopoverContent>
-                </Popover>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dealerId">Dealer ID</Label>
