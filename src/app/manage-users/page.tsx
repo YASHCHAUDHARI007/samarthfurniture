@@ -30,11 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, ShieldAlert } from "lucide-react";
+import { Users, ShieldAlert, Trash2 } from "lucide-react";
 import type { User, UserRole } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, query, where, doc, deleteDoc } from "firebase/firestore";
 
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -53,9 +63,17 @@ export default function ManageUsersPage() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("coordinator");
+  
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
+    const username = localStorage.getItem("loggedInUser");
+    setCurrentUserRole(role);
+    setCurrentUsername(username);
+
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
@@ -121,6 +139,30 @@ export default function ManageUsersPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    if (userToDelete.username === currentUsername || ['owner', 'admin'].includes(userToDelete.username)) {
+      toast({ variant: "destructive", title: "Action Not Allowed" });
+      setUserToDelete(null);
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "users", userToDelete.id));
+      setUsers(users.filter((user) => user.id !== userToDelete.id));
+      toast({
+        title: "User Deleted",
+        description: `User account for ${userToDelete.username} has been removed.`,
+        variant: "destructive"
+      });
+      setUserToDelete(null);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not remove user account." });
+    }
+  };
+
   if (isLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
@@ -149,101 +191,145 @@ export default function ManageUsersPage() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center gap-2">
-        <Users className="h-7 w-7" />
-        <h2 className="text-3xl font-bold tracking-tight">Manage Users</h2>
-      </div>
-      <p className="text-muted-foreground">
-        Add or remove users from the application.
-      </p>
-      <Separator />
+    <>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center gap-2">
+          <Users className="h-7 w-7" />
+          <h2 className="text-3xl font-bold tracking-tight">Manage Users</h2>
+        </div>
+        <p className="text-muted-foreground">
+          Add or remove users from the application.
+        </p>
+        <Separator />
 
-      <div className="grid md:grid-cols-2 gap-8 pt-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Add New User</CardTitle>
-            <CardDescription>
-              Create a new user account with a specific role.
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleAddUser}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newUserName">Username</Label>
-                <Input
-                  id="newUserName"
-                  type="text"
-                  placeholder="e.g. new_coordinator"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newUserPassword">Password</Label>
-                <Input
-                  id="newUserPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newUserRole">Role</Label>
-                <Select
-                  value={newUserRole}
-                  onValueChange={(value) => setNewUserRole(value as UserRole)}
-                >
-                  <SelectTrigger id="newUserRole">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="coordinator">Coordinator</SelectItem>
-                    <SelectItem value="factory">Factory Worker</SelectItem>
-                    <SelectItem value="owner">Owner</SelectItem>
-                    <SelectItem value="administrator">Administrator</SelectItem>
-                  </SelectContent>
-                </Select>
+        <div className="grid md:grid-cols-2 gap-8 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New User</CardTitle>
+              <CardDescription>
+                Create a new user account with a specific role.
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleAddUser}>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newUserName">Username</Label>
+                  <Input
+                    id="newUserName"
+                    type="text"
+                    placeholder="e.g. new_coordinator"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserPassword">Password</Label>
+                  <Input
+                    id="newUserPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserRole">Role</Label>
+                  <Select
+                    value={newUserRole}
+                    onValueChange={(value) => setNewUserRole(value as UserRole)}
+                  >
+                    <SelectTrigger id="newUserRole">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coordinator">Coordinator</SelectItem>
+                      <SelectItem value="factory">Factory Worker</SelectItem>
+                      <SelectItem value="owner">Owner</SelectItem>
+                      <SelectItem value="administrator">Administrator</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit">Add User</Button>
+              </CardFooter>
+            </form>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Existing Users</CardTitle>
+              <CardDescription>
+                A list of all users in the system.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Role</TableHead>
+                      {currentUserRole === 'administrator' && <TableHead className="text-right">Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const isSelf = user.username === currentUsername;
+                      const isProtected = ['owner', 'admin'].includes(user.username);
+                      const canDelete = currentUserRole === 'administrator' && !isSelf && !isProtected;
+
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.username}</TableCell>
+                          <TableCell>{roleDisplayNames[user.role]}</TableCell>
+                          {currentUserRole === 'administrator' && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setUserToDelete(user)}
+                                disabled={!canDelete}
+                                className={!canDelete ? "cursor-not-allowed text-muted-foreground/50" : "text-muted-foreground hover:text-destructive"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete user</span>
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit">Add User</Button>
-            </CardFooter>
-          </form>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Existing Users</CardTitle>
-            <CardDescription>
-              A list of all users in the system.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.username}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{roleDisplayNames[user.role]}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
-    </div>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the user account for
+                    <span className="font-semibold"> {userToDelete?.username}</span>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteUser}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                    Delete User
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
