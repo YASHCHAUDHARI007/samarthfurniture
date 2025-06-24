@@ -45,7 +45,12 @@ export default function PurchasesPage() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   
   const [billNumber, setBillNumber] = useState("");
-  const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
+  const [billDate, setBillDate] = useState("");
+
+  useEffect(() => {
+    setBillDate(new Date().toISOString().split("T")[0]);
+  }, []);
+
 
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   
@@ -202,121 +207,121 @@ export default function PurchasesPage() {
       <Separator />
       <form onSubmit={handleSubmit}>
         <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
-            <CardDescription>Enter supplier and bill information.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-2 lg:col-span-1">
-                    <Label htmlFor="supplierName">Supplier Name</Label>
-                    <div className="relative">
-                        <Input
-                            id="supplierName"
-                            placeholder="e.g. Royal Hardware"
-                            required
-                            value={supplierName}
-                            onChange={handleSupplierNameChange}
-                            onFocus={() => setSuggestions(allSuppliers.filter(s => supplierName ? s.name.toLowerCase().includes(supplierName.toLowerCase()) : true))}
-                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
-                            autoComplete="off"
-                        />
-                        {suggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
-                                <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                    {suggestions.map(supplier => (
-                                        <div key={supplier.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectSupplier(supplier)}>
-                                            {supplier.name}
+            <CardHeader>
+                <CardTitle>Create Purchase Bill</CardTitle>
+                <CardDescription>Enter supplier, bill, and item details. This will update inventory and supplier ledgers.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <h3 className="text-lg font-medium">Supplier & Bill Information</h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
+                        <div className="space-y-2 lg:col-span-1">
+                            <Label htmlFor="supplierName">Supplier Name</Label>
+                            <div className="relative">
+                                <Input
+                                    id="supplierName"
+                                    placeholder="e.g. Royal Hardware"
+                                    required
+                                    value={supplierName}
+                                    onChange={handleSupplierNameChange}
+                                    onFocus={() => setSuggestions(allSuppliers.filter(s => supplierName ? s.name.toLowerCase().includes(supplierName.toLowerCase()) : true))}
+                                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                                    autoComplete="off"
+                                />
+                                {suggestions.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                        <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                            {suggestions.map(supplier => (
+                                                <div key={supplier.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => handleSelectSupplier(supplier)}>
+                                                    {supplier.name}
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="supplierGstin">Supplier GSTIN (Optional)</Label>
+                            <Input id="supplierGstin" placeholder="e.g. 29ABCDE1234F1Z5" value={supplierGstin} onChange={(e) => setSupplierGstin(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="billNumber">Bill Number</Label>
+                            <Input id="billNumber" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="billDate">Bill Date</Label>
+                            <Input id="billDate" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} required />
+                        </div>
                     </div>
                 </div>
+                <Separator />
                 <div className="space-y-2">
-                    <Label htmlFor="supplierGstin">Supplier GSTIN (Optional)</Label>
-                    <Input id="supplierGstin" placeholder="e.g. 29ABCDE1234F1Z5" value={supplierGstin} onChange={(e) => setSupplierGstin(e.target.value)} />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="billNumber">Bill Number</Label>
-                    <Input id="billNumber" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="billDate">Bill Date</Label>
-                    <Input id="billDate" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} required />
-                </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-            <CardHeader>
-                <CardTitle>Purchased Items</CardTitle>
-                <CardDescription>Add the raw materials purchased in this bill.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[40%]">Material</TableHead>
-                                <TableHead>Quantity</TableHead>
-                                <TableHead>Price/Unit</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                                <TableHead className="w-12"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {purchaseItems.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        <div className="relative">
-                                            <Input
-                                                placeholder="Type or select material"
-                                                value={item.name}
-                                                onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                                                onFocus={() => setActiveMaterialInput(index)}
-                                                onBlur={() => setTimeout(() => setActiveMaterialInput(null), 150)}
-                                                autoComplete="off"
-                                                required
-                                            />
-                                            {activeMaterialInput === index && (
-                                                <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
-                                                    <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                                        {allRawMaterials
-                                                            .filter(material => item.name ? material.name.toLowerCase().includes(item.name.toLowerCase()) : true)
-                                                            .map(material => (
-                                                                <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(index, 'id', material.id); setActiveMaterialInput(null);}}>
-                                                                    {material.name}
-                                                                </div>
-                                                            ))
-                                                        }
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/></TableCell>
-                                    <TableCell><Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/></TableCell>
-                                    <TableCell className="text-right font-medium">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</TableCell>
-                                    <TableCell><Button variant="ghost" size="icon" onClick={() => removePurchaseItem(index)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button></TableCell>
+                    <h3 className="text-lg font-medium">Purchased Items</h3>
+                     <div className="rounded-md border mt-2">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[40%]">Material</TableHead>
+                                    <TableHead>Quantity</TableHead>
+                                    <TableHead>Price/Unit</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="w-12"></TableHead>
                                 </TableRow>
-                            ))}
-                            {purchaseItems.length === 0 && (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No items added.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {purchaseItems.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            <div className="relative">
+                                                <Input
+                                                    placeholder="Type or select material"
+                                                    value={item.name}
+                                                    onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                                                    onFocus={() => setActiveMaterialInput(index)}
+                                                    onBlur={() => setTimeout(() => setActiveMaterialInput(null), 150)}
+                                                    autoComplete="off"
+                                                    required
+                                                />
+                                                {activeMaterialInput === index && (
+                                                    <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                                        <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                                            {allRawMaterials
+                                                                .filter(material => item.name ? material.name.toLowerCase().includes(item.name.toLowerCase()) : true)
+                                                                .map(material => (
+                                                                    <div key={material.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(index, 'id', material.id); setActiveMaterialInput(null);}}>
+                                                                        {material.name}
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell><Input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || "")} min="0" placeholder="0"/></TableCell>
+                                        <TableCell><Input type="number" value={item.price} onChange={e => handleItemChange(index, 'price', parseFloat(e.target.value) || "")} min="0" placeholder="0.00"/></TableCell>
+                                        <TableCell className="text-right font-medium">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</TableCell>
+                                        <TableCell><Button variant="ghost" size="icon" onClick={() => removePurchaseItem(index)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                                {purchaseItems.length === 0 && (
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24">No items added.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={addPurchaseItem} className="mt-4">Add Item</Button>
                 </div>
-                 <Button variant="outline" size="sm" onClick={addPurchaseItem} className="mt-4">Add Item</Button>
             </CardContent>
-            <CardFooter className="flex-col items-end space-y-2">
-                 <div className="flex w-full max-w-xs justify-between text-lg font-bold">
-                    <span>Total Amount</span>
-                    <div className="flex items-center">
-                        <IndianRupee className="h-5 w-5 mr-1" />
-                        <span>{totalAmount.toFixed(2)}</span>
+            <CardFooter className="flex-col items-end space-y-4 border-t pt-6">
+                <div className="w-full max-w-sm space-y-2">
+                     <div className="flex justify-between text-lg font-bold">
+                        <span>Total Amount</span>
+                        <div className="flex items-center">
+                            <IndianRupee className="h-5 w-5 mr-1" />
+                            <span>{totalAmount.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
                 <Button type="submit" disabled={totalAmount <= 0}>Record Purchase</Button>
