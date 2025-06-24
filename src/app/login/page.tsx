@@ -15,14 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-type UserRole = "owner" | "coordinator" | "factory";
-
-type User = {
-  username: string;
-  password: string;
-  role: UserRole;
-};
+import type { User } from "@/lib/types";
 
 const USERS_STORAGE_KEY = "samarth_furniture_users";
 
@@ -30,6 +23,7 @@ const initialUsers: User[] = [
   { username: "owner", password: "password123", role: "owner" },
   { username: "coordinator", password: "password456", role: "coordinator" },
   { username: "factory", password: "password789", role: "factory" },
+  { username: "admin", password: "password", role: "administrator" },
 ];
 
 export default function LoginPage() {

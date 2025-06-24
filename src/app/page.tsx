@@ -29,17 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Order, OrderStatus } from "@/lib/types";
 
-type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
-type Order = {
-  id: string;
-  customer: string;
-  item: string;
-  status: OrderStatus;
-  type: "Customized" | "Dealer";
-  details: string;
-  createdBy?: string;
-};
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
 const chartData = [

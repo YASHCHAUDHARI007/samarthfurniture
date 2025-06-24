@@ -17,38 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { Order } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
-
-type Order = {
-  id: string;
-  customer: string;
-  item: string;
-  status: OrderStatus;
-  type: "Customized" | "Dealer";
-  details: string;
-  createdBy?: string;
-  dimensions?: {
-    height?: string;
-    width?: string;
-    depth?: string;
-  };
-  dimensionDetails?: string;
-  photoDataUrl?: string;
-  customerInfo: {
-    name: string;
-    email?: string;
-    address?: string;
-    dealerId?: string;
-  };
-  transportDetails?: {
-    driverName: string;
-    driverContact: string;
-    vehicleNumber: string;
-    vehicleModel: string;
-  };
-};
 
 export default function CustomerOrderPage() {
   const { toast } = useToast();

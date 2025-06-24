@@ -34,38 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer } from "lucide-react";
-
-type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
-
-type Order = {
-  id: string;
-  customer: string;
-  item: string;
-  status: OrderStatus;
-  type: "Customized" | "Dealer";
-  details: string;
-  createdBy?: string;
-  dimensions?: {
-    height?: string;
-    width?: string;
-    depth?: string;
-  };
-  dimensionDetails?: string;
-  photoDataUrl?: string;
-  customerInfo?: {
-    name: string;
-    email?: string;
-    address?: string;
-    dealerId?: string;
-  };
-  transportDetails?: {
-    driverName: string;
-    driverContact: string;
-
-    vehicleNumber: string;
-    vehicleModel: string;
-  };
-};
+import type { Order } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
@@ -188,7 +157,7 @@ export default function TransportPage() {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
-  if (userRole !== "owner" && userRole !== "factory" && userRole !== "coordinator") {
+  if (userRole !== "owner" && userRole !== "factory" && userRole !== "coordinator" && userRole !== "administrator") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -211,6 +180,8 @@ export default function TransportPage() {
   const ordersForTransport = orders.filter(
     (order) => order.status === "Completed"
   );
+  
+  const canDispatch = userRole === "factory" || userRole === "owner" || userRole === "administrator";
 
   return (
     <>
@@ -242,7 +213,7 @@ export default function TransportPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Shipping Address</TableHead>
-                    {(userRole === "factory" || userRole === "owner") && (
+                    {canDispatch && (
                       <TableHead className="w-[200px] text-right">
                         Action
                       </TableHead>
@@ -260,7 +231,7 @@ export default function TransportPage() {
                         <TableCell>
                           {order.customerInfo?.address || "N/A"}
                         </TableCell>
-                        {(userRole === "factory" || userRole === "owner") && (
+                        {canDispatch && (
                           <TableCell className="text-right">
                             <Button
                               size="sm"
@@ -275,7 +246,7 @@ export default function TransportPage() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={(userRole === "factory" || userRole === "owner") ? 4 : 3}
+                        colSpan={canDispatch ? 4 : 3}
                         className="h-24 text-center"
                       >
                         No orders are currently awaiting transport.

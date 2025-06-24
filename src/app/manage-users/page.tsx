@@ -32,25 +32,20 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Users, ShieldAlert } from "lucide-react";
-
-type UserRole = "owner" | "coordinator" | "factory";
-
-type User = {
-  username: string;
-  password: string;
-  role: UserRole;
-};
+import type { User, UserRole } from "@/lib/types";
 
 const initialUsers: User[] = [
   { username: "owner", password: "password123", role: "owner" },
   { username: "coordinator", password: "password456", role: "coordinator" },
   { username: "factory", password: "password789", role: "factory" },
+  { username: "admin", password: "password", role: "administrator" },
 ];
 
 const roleDisplayNames: Record<UserRole, string> = {
   owner: "Owner",
   coordinator: "Coordinator",
   factory: "Factory Worker",
+  administrator: "Administrator",
 };
 
 const USERS_STORAGE_KEY = "samarth_furniture_users";
@@ -58,7 +53,7 @@ const USERS_STORAGE_KEY = "samarth_furniture_users";
 export default function ManageUsersPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isOwner, setIsOwner] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [newUserName, setNewUserName] = useState("");
@@ -67,10 +62,8 @@ export default function ManageUsersPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    if (role === "owner") {
-      setIsOwner(true);
-    } else {
-      setIsOwner(false);
+    if (role === "owner" || role === "administrator") {
+      setHasAccess(true);
     }
     
     const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
@@ -129,7 +122,7 @@ export default function ManageUsersPage() {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
-  if (!isOwner) {
+  if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -208,6 +201,7 @@ export default function ManageUsersPage() {
                     <SelectItem value="coordinator">Coordinator</SelectItem>
                     <SelectItem value="factory">Factory Worker</SelectItem>
                     <SelectItem value="owner">Owner</SelectItem>
+                    <SelectItem value="administrator">Administrator</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

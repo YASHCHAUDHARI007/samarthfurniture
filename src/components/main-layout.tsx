@@ -52,7 +52,7 @@ function Menu({ userRole }: { userRole: string | null }) {
 
   return (
     <SidebarMenu>
-      {(userRole === "owner" || userRole === "coordinator") && (
+      {(userRole === "owner" || userRole === "coordinator" || userRole === "administrator") && (
         <>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -108,7 +108,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </>
       )}
 
-      {userRole === "factory" && (
+      {(userRole === "factory" || userRole === "owner" || userRole === "administrator") && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -128,7 +128,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuItem>
       )}
 
-      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator") && (
+      {(userRole === "owner" || userRole === "factory" || userRole === "coordinator" || userRole === "administrator") && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -166,7 +166,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuButton>
       </SidebarMenuItem>
 
-      {(userRole === "owner" || userRole === "factory") && (
+      {(userRole === "owner" || userRole === "factory" || userRole === "administrator") && (
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -186,7 +186,7 @@ function Menu({ userRole }: { userRole: string | null }) {
         </SidebarMenuItem>
       )}
 
-      {userRole === "owner" && (
+      {(userRole === "owner" || userRole === "administrator") && (
         <>
           <SidebarMenuItem>
             <SidebarMenuButton

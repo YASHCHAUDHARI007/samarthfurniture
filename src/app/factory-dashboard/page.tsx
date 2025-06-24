@@ -28,6 +28,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -37,41 +47,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Factory, ShieldAlert, History, Search } from "lucide-react";
+import { Factory, ShieldAlert, History, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-
-type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
-
-type Order = {
-  id: string;
-  customer: string;
-  item: string;
-  status: OrderStatus;
-  type: "Customized" | "Dealer";
-  details: string;
-  createdBy?: string;
-  dimensions?: {
-    height?: string;
-    width?: string;
-    depth?: string;
-  };
-  dimensionDetails?: string;
-  photoDataUrl?: string;
-  customerInfo?: {
-    name: string;
-    email?: string;
-    address?: string;
-    dealerId?: string;
-  };
-  transportDetails?: {
-    driverName: string;
-    driverContact: string;
-    vehicleNumber: string;
-    vehicleModel: string;
-  };
-};
+import type { Order, OrderStatus } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
@@ -113,19 +93,22 @@ export default function FactoryDashboardPage() {
   const { toast } = useToast();
   const [hasAccess, setHasAccess] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     const username = localStorage.getItem("loggedInUser");
+    setUserRole(role);
     
-    if (role === "factory" || role === "owner" || role === "coordinator") {
+    if (role === "factory" || role === "owner" || role === "coordinator" || role === "administrator") {
       setHasAccess(true);
     }
-    if (role === "factory" || role === "owner") {
+    if (role === "factory" || role === "owner" || role === "administrator") {
       setCanEdit(true);
     }
 
@@ -167,6 +150,27 @@ export default function FactoryDashboardPage() {
       title: "Status Updated",
       description: `Order ${orderId} status changed to ${newStatus}.`,
     });
+  };
+
+  const handleDeleteOrder = () => {
+    if (!orderToDelete) return;
+
+    const updatedOrders = orders.filter((order) => order.id !== orderToDelete.id);
+    setOrders(updatedOrders);
+
+    // Also update the master list in localStorage
+    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
+    const updatedAllOrders = allOrders.filter((order: Order) => order.id !== orderToDelete.id);
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
+
+    toast({
+      title: "Order Deleted",
+      description: `Order ${orderToDelete.id} has been permanently deleted.`,
+      variant: "destructive"
+    });
+    
+    setOrderToDelete(null);
   };
 
   const getStatusBadgeVariant = (
@@ -226,6 +230,8 @@ export default function FactoryDashboardPage() {
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.item.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const canDelete = userRole === "owner" || userRole === "administrator";
 
   return (
     <>
@@ -269,7 +275,8 @@ export default function FactoryDashboardPage() {
                         <TableHead className="hidden md:table-cell">Item Summary</TableHead>
                         <TableHead>Current Status</TableHead>
                         {canEdit && <TableHead className="w-[180px]">Change Status</TableHead>}
-                        <TableHead className="w-[140px]">Actions</TableHead>
+                        <TableHead>Details</TableHead>
+                        {canDelete && <TableHead className="text-right">Delete</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -317,6 +324,19 @@ export default function FactoryDashboardPage() {
                               View Details
                             </Button>
                           </TableCell>
+                          {canDelete && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setOrderToDelete(order)}
+                              >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete Order</span>
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -351,7 +371,8 @@ export default function FactoryDashboardPage() {
                                     <TableHead className="hidden md:table-cell">Customer</TableHead>
                                     <TableHead className="hidden md:table-cell">Item Summary</TableHead>
                                     <TableHead>Final Status</TableHead>
-                                    <TableHead className="w-[140px]">Actions</TableHead>
+                                    <TableHead>Details</TableHead>
+                                    {canDelete && <TableHead className="text-right">Delete</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -374,6 +395,19 @@ export default function FactoryDashboardPage() {
                                             View Details
                                             </Button>
                                         </TableCell>
+                                        {canDelete && (
+                                          <TableCell className="text-right">
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="text-muted-foreground hover:text-destructive"
+                                              onClick={() => setOrderToDelete(order)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                <span className="sr-only">Delete Order</span>
+                                            </Button>
+                                          </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -500,6 +534,28 @@ export default function FactoryDashboardPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={(isOpen) => !isOpen && setOrderToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete order
+                    <span className="font-semibold"> {orderToDelete?.id} </span>
+                    and all of its data.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteOrder}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

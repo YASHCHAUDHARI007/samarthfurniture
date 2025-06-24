@@ -147,6 +147,7 @@ export default function StockTurnoverPage() {
 
   const totalUnits = stock.reduce((acc, item) => acc + item.quantity, 0);
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
+  const canEdit = userRole === "factory" || userRole === "administrator";
 
   return (
     <>
@@ -160,7 +161,7 @@ export default function StockTurnoverPage() {
         </p>
         <Separator />
 
-        {userRole === "factory" && (
+        {canEdit && (
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Add New Stock Item</CardTitle>
@@ -245,7 +246,7 @@ export default function StockTurnoverPage() {
           <CardHeader>
             <CardTitle>Current Inventory</CardTitle>
             <CardDescription>
-              A detailed list of all products in stock. Factory workers can add or delete items.
+              A detailed list of all products in stock. Factory workers or admins can add or delete items.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -258,7 +259,7 @@ export default function StockTurnoverPage() {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Reorder Level</TableHead>
                     <TableHead>Status</TableHead>
-                    {userRole === "factory" && <TableHead className="text-right">Actions</TableHead>}
+                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -273,7 +274,7 @@ export default function StockTurnoverPage() {
                           {item.status}
                         </Badge>
                       </TableCell>
-                      {userRole === "factory" && (
+                      {canEdit && (
                         <TableCell className="text-right">
                             <Button
                                 variant="ghost"

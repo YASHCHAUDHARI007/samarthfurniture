@@ -131,6 +131,8 @@ export default function RawMaterialsPage() {
     setNewItemQuantity("");
     setNewItemUnit("");
   };
+  
+  const canEdit = userRole === "factory" || userRole === "administrator";
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -143,7 +145,7 @@ export default function RawMaterialsPage() {
       </p>
       <Separator />
       
-      {userRole === "factory" && (
+      {canEdit && (
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Add New Raw Material</CardTitle>
@@ -199,7 +201,7 @@ export default function RawMaterialsPage() {
         <CardHeader>
           <CardTitle>Current Material Stock</CardTitle>
           <CardDescription>
-            A detailed list of all raw materials. Factory workers can update quantities directly in the table.
+            A detailed list of all raw materials. Factory workers or admins can update quantities directly in the table.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -210,7 +212,7 @@ export default function RawMaterialsPage() {
                   <TableHead>Material</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Unit</TableHead>
-                  {userRole === "factory" && <TableHead className="w-[150px]">Update Quantity</TableHead>}
+                  {canEdit && <TableHead className="w-[150px]">Update Quantity</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -219,7 +221,7 @@ export default function RawMaterialsPage() {
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell>{item.unit}</TableCell>
-                    {userRole === "factory" && (
+                    {canEdit && (
                         <TableCell>
                             <Input
                                 type="number"

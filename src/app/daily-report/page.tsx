@@ -50,16 +50,14 @@ const recentActivities = [
 
 export default function DailyReportPage() {
   const router = useRouter();
-  const [isOwner, setIsOwner] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    if (role === "owner") {
-      setIsOwner(true);
-    } else {
-      setIsOwner(false);
+    if (role === "owner" || role === "administrator") {
+      setHasAccess(true);
     }
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -86,7 +84,7 @@ export default function DailyReportPage() {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
-  if (!isOwner) {
+  if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -98,7 +96,7 @@ export default function DailyReportPage() {
           <CardContent>
             <p>
               You do not have permission to view this page. This page is for
-              owners only.
+              owners and administrators only.
             </p>
           </CardContent>
           <CardFooter>

@@ -25,38 +25,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import type { Order } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-type OrderStatus = "Pending" | "Working" | "Completed" | "Delivered";
-
-type Order = {
-  id: string;
-  customer: string;
-  item: string;
-  status: OrderStatus;
-  type: "Customized" | "Dealer";
-  details: string;
-  createdBy?: string;
-  dimensions?: {
-    height?: string;
-    width?: string;
-    depth?: string;
-  };
-  dimensionDetails?: string;
-  photoDataUrl?: string;
-  customerInfo: {
-    name: string;
-    email?: string;
-    address?: string;
-    dealerId?: string;
-  };
-  transportDetails?: {
-    driverName: string;
-    driverContact: string;
-    vehicleNumber: string;
-    vehicleModel: string;
-  };
-};
 
 const productCatalog = [
   {
