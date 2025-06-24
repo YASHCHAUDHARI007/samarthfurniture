@@ -73,6 +73,7 @@ export default function PurchasesPage() {
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSupplierName(value);
+    setSelectedSupplierId(null); // Clear selected ID when name is manually changed
 
     if (value.length > 1) {
       const filtered = allSuppliers.filter(s => s.name.toLowerCase().includes(value.toLowerCase()));
@@ -131,8 +132,11 @@ export default function PurchasesPage() {
     }
 
     // Save or update supplier
-    let supplierId = selectedSupplierId;
-    if (!supplierId) {
+    const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
+    let supplier = storedContacts.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierName.toLowerCase() && s.type === 'Supplier');
+    let supplierId: string;
+
+    if (!supplier) {
         supplierId = `SUPP-${Date.now()}`;
         const newSupplier: Contact = {
             id: supplierId,
@@ -140,10 +144,18 @@ export default function PurchasesPage() {
             type: 'Supplier',
             gstin: supplierGstin,
         };
-        const storedContacts: Contact[] = JSON.parse(localStorage.getItem('samarth_furniture_contacts') || '[]');
         const updatedContacts = [...storedContacts, newSupplier];
         localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
         setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+    } else {
+        supplierId = supplier.id;
+        // Check if details have been updated
+        if (supplier.gstin !== supplierGstin) {
+            supplier.gstin = supplierGstin;
+            const updatedContacts = storedContacts.map(c => c.id === supplier!.id ? supplier : c);
+            localStorage.setItem('samarth_furniture_contacts', JSON.stringify(updatedContacts));
+            setAllSuppliers(updatedContacts.filter(c => c.type === 'Supplier'));
+        }
     }
 
     // Create Purchase Record
@@ -347,4 +359,3 @@ export default function PurchasesPage() {
     </div>
   );
 }
-
