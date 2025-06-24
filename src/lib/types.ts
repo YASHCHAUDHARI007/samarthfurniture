@@ -36,6 +36,7 @@ export type Order = {
 };
 
 export type User = {
+    id: string;
     username: string;
     password: string;
     role: UserRole;
@@ -59,3 +60,10 @@ export type StockItem = {
   reorderLevel: number;
   status: StockStatus;
 };
+
+export type RawMaterial = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+}

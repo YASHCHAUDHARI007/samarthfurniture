@@ -52,9 +52,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, StockItem, StockStatus } from "@/lib/types";
-
-const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, writeBatch } from "firebase/firestore";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -80,17 +79,26 @@ export default function FactoryDashboardPage() {
       setCanEdit(true);
     }
 
-    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
-    
-    let filteredOrders = allOrders;
-    if (role === "coordinator") {
-        filteredOrders = allOrders.filter(order => order.createdBy === username);
-    }
+    const fetchOrders = async () => {
+      try {
+        const ordersSnapshot = await getDocs(collection(db, "orders"));
+        let allOrders = ordersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
+        
+        if (role === "coordinator") {
+          allOrders = allOrders.filter(order => order.createdBy === username);
+        }
+        
+        setOrders(allOrders);
+      } catch (error) {
+        console.error("Error fetching orders: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not fetch orders." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setOrders(filteredOrders);
-    setIsLoading(false);
-  }, []);
+    fetchOrders();
+  }, [toast]);
 
   const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity === 0) return "Out of Stock";
@@ -98,76 +106,83 @@ export default function FactoryDashboardPage() {
     return "In Stock";
   };
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const originalOrder = orders.find(o => o.id === orderId);
     if (!originalOrder) return;
 
-    // Stock deduction logic
-    if (newStatus === 'Completed' && originalOrder.type === 'Dealer' && !originalOrder.stockDeducted) {
-        const stockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
-        const stock: StockItem[] = stockRaw ? JSON.parse(stockRaw) : [];
+    try {
+      // Stock deduction logic
+      if (newStatus === 'Completed' && originalOrder.type === 'Dealer' && !originalOrder.stockDeducted) {
+        const stockItemsRef = collection(db, "stockItems");
+        const batch = writeBatch(db);
         let stockUpdated = false;
 
         const orderLines = originalOrder.details.split('\n');
-        orderLines.forEach(line => {
+        for (const line of orderLines) {
             const match = line.match(/(\d+)x\s.*?\((.*?)\)/);
             if (match) {
-                const quantity = parseInt(match[1], 10);
+                const quantityToDeduct = parseInt(match[1], 10);
                 const sku = match[2];
-                const stockItemIndex = stock.findIndex(item => item.sku === sku);
-                if (stockItemIndex !== -1) {
-                    stock[stockItemIndex].quantity -= quantity;
-                    if (stock[stockItemIndex].quantity < 0) stock[stockItemIndex].quantity = 0; // Prevent negative stock
-                    stock[stockItemIndex].status = getStockStatus(stock[stockItemIndex].quantity, stock[stockItemIndex].reorderLevel);
+                const q = query(stockItemsRef, where("sku", "==", sku));
+                const stockSnapshot = await getDocs(q);
+
+                if (!stockSnapshot.empty) {
+                    const stockDoc = stockSnapshot.docs[0];
+                    const stockItem = stockDoc.data() as StockItem;
+                    const newQuantity = Math.max(0, stockItem.quantity - quantityToDeduct);
+                    const newStockStatus = getStockStatus(newQuantity, stockItem.reorderLevel);
+                    
+                    batch.update(stockDoc.ref, { quantity: newQuantity, status: newStockStatus });
                     stockUpdated = true;
                 }
             }
-        });
+        }
 
         if (stockUpdated) {
-            localStorage.setItem(STOCK_ITEMS_STORAGE_KEY, JSON.stringify(stock));
+            await batch.commit();
             toast({ title: 'Stock Updated', description: 'Inventory levels have been automatically adjusted.' });
         }
+      }
+      
+      const stockDeducted = newStatus === 'Completed' ? true : originalOrder.stockDeducted;
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, { status: newStatus, stockDeducted });
+
+      const updatedOrders = orders.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus, stockDeducted } : order
+      );
+      setOrders(updatedOrders);
+
+      toast({
+        title: "Status Updated",
+        description: `Order ${orderId} status changed to ${newStatus}.`,
+      });
+
+    } catch (error) {
+       console.error("Error updating status: ", error);
+       toast({ variant: "destructive", title: "Error", description: "Could not update order status." });
     }
-    
-    const stockDeducted = newStatus === 'Completed' ? true : originalOrder.stockDeducted;
-
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: newStatus, stockDeducted } : order
-    );
-    setOrders(updatedOrders);
-    
-    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
-    const updatedAllOrders = allOrders.map((order: Order) =>
-      order.id === orderId ? { ...order, status: newStatus, stockDeducted } : order
-    );
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
-
-    toast({
-      title: "Status Updated",
-      description: `Order ${orderId} status changed to ${newStatus}.`,
-    });
   };
 
-  const handleDeleteOrder = () => {
+  const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
+    try {
+      await deleteDoc(doc(db, "orders", orderToDelete.id));
+      
+      const updatedOrders = orders.filter((order) => order.id !== orderToDelete.id);
+      setOrders(updatedOrders);
 
-    const updatedOrders = orders.filter((order) => order.id !== orderToDelete.id);
-    setOrders(updatedOrders);
-
-    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
-    const updatedAllOrders = allOrders.filter((order: Order) => order.id !== orderToDelete.id);
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
-
-    toast({
-      title: "Order Deleted",
-      description: `Order ${orderToDelete.id} has been permanently deleted.`,
-      variant: "destructive"
-    });
-    
-    setOrderToDelete(null);
+      toast({
+        title: "Order Deleted",
+        description: `Order ${orderToDelete.id} has been permanently deleted.`,
+        variant: "destructive"
+      });
+      
+      setOrderToDelete(null);
+    } catch (error) {
+      console.error("Error deleting order: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not delete the order." });
+    }
   };
 
   const getStatusBadgeVariant = (

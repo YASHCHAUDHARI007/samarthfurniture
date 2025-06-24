@@ -35,8 +35,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer } from "lucide-react";
 import type { Order } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 
-const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 
 const DeliveryReceipt = ({ order }: { order: Order }) => (
     <div className="border p-4 rounded-lg space-y-4">
@@ -93,19 +94,29 @@ export default function TransportPage() {
     const username = localStorage.getItem("loggedInUser");
     setUserRole(role);
 
-    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
+    const fetchOrders = async () => {
+      try {
+        const q = query(collection(db, "orders"), where("status", "==", "Completed"));
+        const querySnapshot = await getDocs(q);
+        let ordersToDisplay = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
+        
+        if (role === "coordinator") {
+          ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
+        }
+        
+        setOrders(ordersToDisplay);
+      } catch (error) {
+        console.error("Error fetching orders for transport: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not fetch orders." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    let ordersToDisplay = savedOrders;
-    if (role === "coordinator") {
-        ordersToDisplay = savedOrders.filter(order => order.createdBy === username);
-    }
-    
-    setOrders(ordersToDisplay);
-    setIsLoading(false);
-  }, []);
+    fetchOrders();
+  }, [toast]);
 
-  const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedOrder) return;
 
@@ -120,32 +131,29 @@ export default function TransportPage() {
     const deliveredAt = new Date().toISOString();
     let updatedOrder: Order | undefined;
     
-    const updatedLocalOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        updatedOrder = { ...order, status: "Delivered", transportDetails, deliveredAt };
-        return updatedOrder;
-      }
-      return order;
-    });
-    setOrders(updatedLocalOrders);
+    try {
+      const orderRef = doc(db, "orders", selectedOrder.id);
+      await updateDoc(orderRef, {
+        status: "Delivered",
+        transportDetails,
+        deliveredAt,
+      });
 
-    const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
-    const updatedAllOrders = allOrders.map((order: Order) => {
-        if (order.id === selectedOrder.id) {
-            return { ...order, status: "Delivered", transportDetails, deliveredAt };
-        }
-        return order;
-    });
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
-    
-    toast({
-      title: "Order Dispatched!",
-      description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
-    });
+      updatedOrder = { ...selectedOrder, status: "Delivered", transportDetails, deliveredAt };
 
-    setReceiptOrder(updatedOrder || null);
-    setSelectedOrder(null);
+      setOrders(orders.filter((o) => o.id !== selectedOrder.id));
+      
+      toast({
+        title: "Order Dispatched!",
+        description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
+      });
+
+      setReceiptOrder(updatedOrder || null);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error("Error dispatching order: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not dispatch the order." });
+    }
   };
   
   const handlePrint = () => {
@@ -176,10 +184,7 @@ export default function TransportPage() {
     );
   }
 
-  const ordersForTransport = orders.filter(
-    (order) => order.status === "Completed"
-  );
-  
+  const ordersForTransport = orders;
   const canDispatch = userRole === "factory" || userRole === "owner" || userRole === "administrator";
 
   return (

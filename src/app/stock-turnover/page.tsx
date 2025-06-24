@@ -36,8 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { StockItem, StockStatus } from "@/lib/types";
-
-const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
 
 export default function StockTurnoverPage() {
   const { toast } = useToast();
@@ -54,19 +54,18 @@ export default function StockTurnoverPage() {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     
-    const savedStockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
-    if (savedStockRaw) {
-        setStock(JSON.parse(savedStockRaw));
-    } else {
-        setStock([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (stock.length > 0 || localStorage.getItem(STOCK_ITEMS_STORAGE_KEY)) {
-      localStorage.setItem(STOCK_ITEMS_STORAGE_KEY, JSON.stringify(stock));
-    }
-  }, [stock]);
+    const fetchStock = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "stockItems"));
+            const fetchedStock = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as StockItem[];
+            setStock(fetchedStock);
+        } catch (error) {
+            console.error("Error fetching stock items: ", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not fetch stock levels."})
+        }
+    };
+    fetchStock();
+  }, [toast]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity <= 0) return "Out of Stock";
@@ -87,7 +86,7 @@ export default function StockTurnoverPage() {
     }
   };
 
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const quantity = parseInt(newItemQuantity, 10);
     const reorderLevel = parseInt(newItemReorderLevel, 10);
@@ -108,42 +107,57 @@ export default function StockTurnoverPage() {
       return;
     }
 
-    if (stock.some(item => item.sku.toLowerCase() === newItemSku.toLowerCase())) {
-        toast({ variant: "destructive", title: "SKU already exists", description: "An item with this SKU is already in the inventory."});
-        return;
+    try {
+        const q = query(collection(db, "stockItems"), where("sku", "==", newItemSku.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            toast({ variant: "destructive", title: "SKU already exists", description: "An item with this SKU is already in the inventory."});
+            return;
+        }
+
+        const newItem: Omit<StockItem, "id"> = {
+          name: newItemName,
+          sku: newItemSku,
+          quantity,
+          reorderLevel,
+          status: getStatus(quantity, reorderLevel),
+        };
+
+        const docRef = await addDoc(collection(db, "stockItems"), newItem);
+        await updateDoc(docRef, { id: docRef.id });
+        setStock([...stock, {...newItem, id: docRef.id}]);
+
+        toast({
+          title: "Item Added",
+          description: `${newItem.name} has been added to the stock.`,
+        });
+
+        setNewItemName("");
+        setNewItemSku("");
+        setNewItemQuantity("");
+        setNewItemReorderLevel("");
+    } catch (error) {
+        console.error("Error adding stock item: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not add stock item." });
     }
-
-    const newItem: StockItem = {
-      id: `prod_${Date.now()}`,
-      name: newItemName,
-      sku: newItemSku,
-      quantity,
-      reorderLevel,
-      status: getStatus(quantity, reorderLevel),
-    };
-
-    setStock([...stock, newItem]);
-    toast({
-      title: "Item Added",
-      description: `${newItem.name} has been added to the stock.`,
-    });
-
-    setNewItemName("");
-    setNewItemSku("");
-    setNewItemQuantity("");
-    setNewItemReorderLevel("");
   };
   
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-    const item = stock.find((s) => s.id === itemToDelete.id);
-    setStock(stock.filter((s) => s.id !== itemToDelete.id));
-    toast({
-      title: "Item Deleted",
-      description: `${item?.name} has been removed from the stock.`,
-      variant: "destructive",
-    });
-    setItemToDelete(null);
+    try {
+        await deleteDoc(doc(db, "stockItems", itemToDelete.id));
+        setStock(stock.filter((s) => s.id !== itemToDelete.id));
+        toast({
+          title: "Item Deleted",
+          description: `${itemToDelete.name} has been removed from the stock.`,
+          variant: "destructive",
+        });
+        setItemToDelete(null);
+    } catch (error) {
+        console.error("Error deleting item: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not delete stock item." });
+    }
   };
 
 

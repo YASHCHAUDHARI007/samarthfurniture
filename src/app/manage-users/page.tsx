@@ -33,13 +33,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Users, ShieldAlert } from "lucide-react";
 import type { User, UserRole } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, query, where } from "firebase/firestore";
 
-const initialUsers: User[] = [
-  { username: "owner", password: "password123", role: "owner" },
-  { username: "coordinator", password: "password456", role: "coordinator" },
-  { username: "factory", password: "password789", role: "factory" },
-  { username: "admin", password: "password", role: "administrator" },
-];
 
 const roleDisplayNames: Record<UserRole, string> = {
   owner: "Owner",
@@ -47,8 +43,6 @@ const roleDisplayNames: Record<UserRole, string> = {
   factory: "Factory Worker",
   administrator: "Administrator",
 };
-
-const USERS_STORAGE_KEY = "samarth_furniture_users";
 
 export default function ManageUsersPage() {
   const router = useRouter();
@@ -65,25 +59,24 @@ export default function ManageUsersPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    
-    const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    } else {
-      setUsers(initialUsers);
-    }
-    
-    setIsLoading(false);
-  }, []);
-  
-  useEffect(() => {
-    if (users.length > 0) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    }
-  }, [users]);
 
+    const fetchUsers = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "users"));
+            const fetchedUsers = querySnapshot.docs.map(doc => doc.data() as User);
+            setUsers(fetchedUsers);
+        } catch (error) {
+            console.error("Error fetching users: ", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not fetch user list."});
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    fetchUsers();
+  }, [toast]);
 
-  const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newUserName || !newUserPassword) {
       toast({
@@ -94,28 +87,38 @@ export default function ManageUsersPage() {
       return;
     }
 
-    if (users.some((user) => user.username === newUserName)) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "A user with this username already exists.",
-      });
-      return;
+    try {
+        const q = query(collection(db, "users"), where("username", "==", newUserName));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "A user with this username already exists.",
+            });
+            return;
+        }
+
+        const newUser: Omit<User, "id"> = { username: newUserName, password: newUserPassword, role: newUserRole };
+        const docRef = await addDoc(collection(db, "users"), newUser);
+        await updateDoc(docRef, { id: docRef.id });
+
+        setUsers([...users, { ...newUser, id: docRef.id }]);
+
+        toast({
+        title: "User Added",
+        description: `User ${newUserName} has been added and can now log in.`,
+        });
+
+        setNewUserName("");
+        setNewUserPassword("");
+        setNewUserRole("coordinator");
+
+    } catch (error) {
+        console.error("Error adding user: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not add user."});
     }
-
-    setUsers([
-      ...users,
-      { username: newUserName, password: newUserPassword, role: newUserRole },
-    ]);
-
-    toast({
-      title: "User Added",
-      description: `User ${newUserName} has been added and can now log in.`,
-    });
-
-    setNewUserName("");
-    setNewUserPassword("");
-    setNewUserRole("coordinator");
   };
 
   if (isLoading) {

@@ -24,9 +24,8 @@ import {
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
 import type { Order, StockItem, StockStatus } from "@/lib/types";
-
-const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function DailyReportPage() {
   const router = useRouter();
@@ -43,20 +42,29 @@ export default function DailyReportPage() {
       setHasAccess(true);
     }
 
-    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
-    setOrders(allOrders);
+    const fetchData = async () => {
+      try {
+        const ordersSnapshot = await getDocs(collection(db, "orders"));
+        const allOrders = ordersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
+        setOrders(allOrders);
 
-    const savedStockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
-    const allStock: StockItem[] = savedStockRaw ? JSON.parse(savedStockRaw) : [];
-    setStockItems(allStock);
+        const stockSnapshot = await getDocs(collection(db, "stockItems"));
+        const allStock = stockSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as StockItem[];
+        setStockItems(allStock);
+      } catch (error) {
+        console.error("Error fetching daily report data: ", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
 
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     }));
-    setIsLoading(false);
   }, []);
 
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
@@ -107,7 +115,7 @@ export default function DailyReportPage() {
   const lowStockAlertsCount = lowStockItems.length;
   
   const recentOrders = orders
-    .sort((a, b) => b.id.localeCompare(a.id))
+    .sort((a, b) => (b.createdAt && a.createdAt) ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0)
     .slice(0, 5);
 
   return (

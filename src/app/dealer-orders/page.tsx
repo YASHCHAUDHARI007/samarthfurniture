@@ -37,9 +37,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import type { Order, Product } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
 
-const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-const PRODUCT_CATALOG_STORAGE_KEY = "samarth_furniture_product_catalog";
 
 type OrderItem = {
   id: string;
@@ -64,21 +64,18 @@ export default function DealerOrderPage() {
       setCanEdit(true);
     }
 
-    const savedCatalogRaw = localStorage.getItem(PRODUCT_CATALOG_STORAGE_KEY);
-    if (savedCatalogRaw) {
-      setProductCatalog(JSON.parse(savedCatalogRaw));
-    } else {
-      setProductCatalog([]);
+    const fetchCatalog = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "productCatalog"));
+            const catalog = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id })) as Product[];
+            setProductCatalog(catalog);
+        } catch (error) {
+            console.error("Error fetching product catalog: ", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not fetch product catalog."})
+        }
     }
+    fetchCatalog();
   }, []);
-
-  useEffect(() => {
-    // This effect runs only when productCatalog changes, to save it.
-    // It avoids running on initial render if the catalog is empty.
-    if (productCatalog.length > 0 || localStorage.getItem(PRODUCT_CATALOG_STORAGE_KEY)) {
-        localStorage.setItem(PRODUCT_CATALOG_STORAGE_KEY, JSON.stringify(productCatalog));
-    }
-  }, [productCatalog]);
 
   const handleCheckboxChange = (
     productId: string,
@@ -104,7 +101,7 @@ export default function DealerOrderPage() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const dealerName = formData.get("dealerName") as string;
@@ -140,8 +137,7 @@ export default function DealerOrderPage() {
     
     const loggedInUser = localStorage.getItem("loggedInUser");
 
-    const newOrder: Order = {
-      id: `ORD-D${Date.now().toString().slice(-4)}`,
+    const newOrder: Omit<Order, 'id'> = {
       customer: dealerName,
       item: `Bulk Order: ${summary}`,
       status: "Pending",
@@ -155,56 +151,72 @@ export default function DealerOrderPage() {
       },
     };
 
-    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const savedOrders: Order[] = savedOrdersRaw
-      ? JSON.parse(savedOrdersRaw)
-      : [];
-    const updatedOrders = [...savedOrders, newOrder];
-
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedOrders));
-
-    toast({
-      title: "Dealer Order Placed!",
-      description: "The bulk order has been sent to the factory.",
-    });
-    setOrderItems([]);
-    (e.target as HTMLFormElement).reset();
+    try {
+        const docRef = await addDoc(collection(db, "orders"), newOrder);
+        await updateDoc(docRef, { id: docRef.id });
+        toast({
+            title: "Dealer Order Placed!",
+            description: "The bulk order has been sent to the factory.",
+        });
+        setOrderItems([]);
+        (e.target as HTMLFormElement).reset();
+    } catch (error) {
+        console.error("Error placing order: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not place the order." });
+    }
   };
 
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newItemName || !newItemSku) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a name and SKU." });
       return;
     }
-    if (productCatalog.some(p => p.sku.toLowerCase() === newItemSku.toLowerCase())) {
-        toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
-        return;
+
+    try {
+        const q = query(collection(db, "productCatalog"), where("sku", "==", newItemSku.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
+            return;
+        }
+
+        const newProduct: Omit<Product, "id"> = {
+          name: newItemName,
+          sku: newItemSku,
+          image: "https://placehold.co/100x100.png",
+          aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
+        };
+
+        const docRef = await addDoc(collection(db, "productCatalog"), newProduct);
+        const productWithId = {...newProduct, id: docRef.id};
+        await updateDoc(docRef, { id: docRef.id });
+
+        setProductCatalog([...productCatalog, productWithId]);
+        toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
+        setNewItemName("");
+        setNewItemSku("");
+    } catch (error) {
+        console.error("Error adding product: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not add product." });
     }
-
-    const newProduct: Product = {
-      id: `prod_${Date.now()}`,
-      name: newItemName,
-      sku: newItemSku,
-      image: "https://placehold.co/100x100.png",
-      aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
-    };
-
-    setProductCatalog([...productCatalog, newProduct]);
-    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
-    setNewItemName("");
-    setNewItemSku("");
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-    setProductCatalog(productCatalog.filter((p) => p.id !== itemToDelete.id));
-    toast({
-      title: "Product Deleted",
-      description: `${itemToDelete.name} has been removed from the catalog.`,
-      variant: "destructive",
-    });
-    setItemToDelete(null);
+    try {
+        await deleteDoc(doc(db, "productCatalog", itemToDelete.id));
+        setProductCatalog(productCatalog.filter((p) => p.id !== itemToDelete.id));
+        toast({
+          title: "Product Deleted",
+          description: `${itemToDelete.name} has been removed from the catalog.`,
+          variant: "destructive",
+        });
+        setItemToDelete(null);
+    } catch (error) {
+        console.error("Error deleting product: ", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not delete product." });
+    }
   };
 
   const isProductSelected = (productId: string) => {

@@ -31,8 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
-
-const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const chartConfig = {
   sales: {
@@ -56,64 +56,78 @@ export default function Dashboard() {
       router.push("/login");
       return;
     }
-
     setIsAuthenticated(true);
+    
     const role = localStorage.getItem("userRole");
-    const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
 
-    let filteredOrders = allOrders;
-    if (role === "coordinator") {
-      filteredOrders = allOrders.filter(
-        (order) => order.createdBy === username
-      );
-    }
-
-    setOrders(filteredOrders);
-
-    // Generate dynamic chart data
-    const now = new Date();
-    const last6Months: string[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = subMonths(now, i);
-      last6Months.push(format(d, "MMMM"));
-    }
-
-    const salesByMonth = last6Months.reduce((acc, month) => {
-      acc[month] = 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const deliveredOrdersWithDate = allOrders.filter(
-      (o) => o.status === "Delivered" && o.deliveredAt
-    );
-
-    deliveredOrdersWithDate.forEach((order) => {
-      const month = format(new Date(order.deliveredAt!), "MMMM");
-      if (salesByMonth.hasOwnProperty(month)) {
-        let units = 0;
-        if (order.type === "Customized") {
-          units = 1;
-        } else if (order.details) {
-          const quantities = order.details
-            .split("\n")
-            .map((line) => {
-              const match = line.match(/^(\d+)x/);
-              return match ? parseInt(match[1], 10) : 0;
-            });
-          units = quantities.reduce((sum, q) => sum + q, 0);
+    const fetchOrders = async () => {
+      try {
+        let ordersQuery = query(collection(db, "orders"));
+        if (role === "coordinator") {
+          ordersQuery = query(collection(db, "orders"), where("createdBy", "==", username));
         }
-        salesByMonth[month] += units;
+
+        const ordersSnapshot = await getDocs(ordersQuery);
+        const allOrders = ordersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
+        setOrders(allOrders);
+
+        // This needs to fetch all orders for the chart, not just filtered ones
+        let allOrdersForChart = allOrders;
+        if(role === 'coordinator') {
+            const allOrdersSnapshot = await getDocs(collection(db, "orders"));
+            allOrdersForChart = allOrdersSnapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Order[];
+        }
+
+        // Generate dynamic chart data
+        const now = new Date();
+        const last6Months: string[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = subMonths(now, i);
+          last6Months.push(format(d, "MMMM"));
+        }
+
+        const salesByMonth = last6Months.reduce((acc, month) => {
+          acc[month] = 0;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const deliveredOrdersWithDate = allOrdersForChart.filter(
+          (o) => o.status === "Delivered" && o.deliveredAt
+        );
+
+        deliveredOrdersWithDate.forEach((order) => {
+          const month = format(new Date(order.deliveredAt!), "MMMM");
+          if (salesByMonth.hasOwnProperty(month)) {
+            let units = 0;
+            if (order.type === "Customized") {
+              units = 1;
+            } else if (order.details) {
+              const quantities = order.details
+                .split("\n")
+                .map((line) => {
+                  const match = line.match(/^(\d+)x/);
+                  return match ? parseInt(match[1], 10) : 0;
+                });
+              units = quantities.reduce((sum, q) => sum + q, 0);
+            }
+            salesByMonth[month] += units;
+          }
+        });
+
+        const newChartData = last6Months.map((month) => ({
+          month: month.slice(0, 3),
+          sales: salesByMonth[month],
+        }));
+
+        setChartData(newChartData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
       }
-    });
-
-    const newChartData = last6Months.map((month) => ({
-      month: month.slice(0, 3),
-      sales: salesByMonth[month],
-    }));
-
-    setChartData(newChartData);
-    setIsLoading(false);
+    };
+    
+    fetchOrders();
   }, [router]);
 
   const getBadgeVariant = (status: OrderStatus) => {
@@ -129,7 +143,7 @@ export default function Dashboard() {
     }
   };
 
-  const recentOrders = [...orders].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()).slice(0, 4);
+  const recentOrders = [...orders].sort((a,b) => (b.createdAt && a.createdAt) ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0).slice(0, 4);
 
   const totalCustomizedOrders = orders.filter(
     (o) => o.type === "Customized"
@@ -225,7 +239,7 @@ export default function Dashboard() {
             <CardDescription>Total units delivered each month.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {isClient ? (
+            {isClient && !isLoading ? (
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <BarChart data={chartData}>
                   <CartesianGrid vertical={false} />
