@@ -109,6 +109,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
   return (
     <>
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div id="printable-area">
         <Card>
             <CardHeader>
                 <div className="flex justify-between items-start">
@@ -130,7 +131,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                         <TableHead className="w-[120px] text-right">Debit</TableHead>
                         <TableHead className="w-[120px] text-right">Credit</TableHead>
                         <TableHead className="w-[150px] text-right">Running Balance</TableHead>
-                        <TableHead className="w-[100px] text-center">Action</TableHead>
+                        <TableHead className="w-[100px] text-center no-print">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -144,7 +145,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                                 <TableCell className="text-right font-mono">
                                     {Math.abs(entry.runningBalance).toFixed(2)} {entry.runningBalance >= 0 ? 'Dr' : 'Cr'}
                                 </TableCell>
-                                <TableCell className="text-center">
+                                <TableCell className="text-center no-print">
                                     {(entry.type === 'Sales' || entry.type === 'Purchase') && (
                                         <Button variant="outline" size="sm" onClick={() => handleViewBill(entry)}>View Bill</Button>
                                     )}
@@ -173,6 +174,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                     )}
             </CardContent>
         </Card>
+      </div>
     </div>
 
     <Dialog open={!!billToView} onOpenChange={(isOpen) => !isOpen && setBillToView(null)}>
