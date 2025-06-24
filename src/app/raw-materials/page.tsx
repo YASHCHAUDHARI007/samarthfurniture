@@ -32,17 +32,11 @@ type RawMaterial = {
   unit: string;
 };
 
-const initialMaterials: RawMaterial[] = [
-  { id: "mat_001", name: "Oak Wood Planks", quantity: 200, unit: "planks" },
-  { id: "mat_002", name: "Pine Wood Planks", quantity: 350, unit: "planks" },
-  { id: "mat_003", name: "Steel Screws", quantity: 5000, unit: "units" },
-  { id: "mat_004", name: "Wood Varnish", quantity: 50, unit: "liters" },
-  { id: "mat_005", name: "Fabric Upholstery", quantity: 100, unit: "meters" },
-];
+const MATERIALS_STORAGE_KEY = "samarth_furniture_raw_materials";
 
 export default function RawMaterialsPage() {
   const { toast } = useToast();
-  const [materials, setMaterials] = useState<RawMaterial[]>(initialMaterials);
+  const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [newItemName, setNewItemName] = useState("");
@@ -52,7 +46,19 @@ export default function RawMaterialsPage() {
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
+    const savedMaterialsRaw = localStorage.getItem(MATERIALS_STORAGE_KEY);
+    if (savedMaterialsRaw) {
+        setMaterials(JSON.parse(savedMaterialsRaw));
+    } else {
+        setMaterials([]);
+    }
   }, []);
+
+  useEffect(() => {
+    if (materials.length > 0 || localStorage.getItem(MATERIALS_STORAGE_KEY)) {
+        localStorage.setItem(MATERIALS_STORAGE_KEY, JSON.stringify(materials));
+    }
+  }, [materials]);
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (isNaN(newQuantity) || newQuantity < 0) {
@@ -216,7 +222,7 @@ export default function RawMaterialsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {materials.map((item) => (
+                {materials.length > 0 ? materials.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.quantity}</TableCell>
@@ -233,7 +239,11 @@ export default function RawMaterialsPage() {
                         </TableCell>
                     )}
                   </TableRow>
-                ))}
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={canEdit ? 4 : 3} className="h-24 text-center">No raw materials found.</TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>

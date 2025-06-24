@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format, subMonths } from "date-fns";
 import {
   Card,
   CardContent,
@@ -23,24 +24,15 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  type ChartConfig,
 } from "@/components/ui/chart";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
-import type { ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-
-const chartData = [
-  { month: "January", sales: 18623 },
-  { month: "February", sales: 30543 },
-  { month: "March", sales: 23721 },
-  { month: "April", sales: 73234 },
-  { month: "May", sales: 55490 },
-  { month: "June", sales: 68322 },
-];
 
 const chartConfig = {
   sales: {
@@ -55,6 +47,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -63,18 +56,63 @@ export default function Dashboard() {
       router.push("/login");
       return;
     }
-    
+
     setIsAuthenticated(true);
     const role = localStorage.getItem("userRole");
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
-    
+
     let filteredOrders = allOrders;
     if (role === "coordinator") {
-        filteredOrders = allOrders.filter(order => order.createdBy === username);
+      filteredOrders = allOrders.filter(
+        (order) => order.createdBy === username
+      );
     }
-    
+
     setOrders(filteredOrders);
+
+    // Generate dynamic chart data
+    const now = new Date();
+    const last6Months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(now, i);
+      last6Months.push(format(d, "MMMM"));
+    }
+
+    const salesByMonth = last6Months.reduce((acc, month) => {
+      acc[month] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const deliveredOrdersWithDate = allOrders.filter(
+      (o) => o.status === "Delivered" && o.deliveredAt
+    );
+
+    deliveredOrdersWithDate.forEach((order) => {
+      const month = format(new Date(order.deliveredAt!), "MMMM");
+      if (salesByMonth.hasOwnProperty(month)) {
+        let units = 0;
+        if (order.type === "Customized") {
+          units = 1;
+        } else if (order.details) {
+          const quantities = order.details
+            .split("\n")
+            .map((line) => {
+              const match = line.match(/^(\d+)x/);
+              return match ? parseInt(match[1], 10) : 0;
+            });
+          units = quantities.reduce((sum, q) => sum + q, 0);
+        }
+        salesByMonth[month] += units;
+      }
+    });
+
+    const newChartData = last6Months.map((month) => ({
+      month: month.slice(0, 3),
+      sales: salesByMonth[month],
+    }));
+
+    setChartData(newChartData);
     setIsLoading(false);
   }, [router]);
 
@@ -91,12 +129,16 @@ export default function Dashboard() {
     }
   };
 
-  const recentOrders = orders.slice(0, 4);
+  const recentOrders = [...orders].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()).slice(0, 4);
 
-  const totalCustomizedOrders = orders.filter(o => o.type === 'Customized').length;
-  const activeProductions = orders.filter(o => o.status === 'Working' || o.status === 'Pending').length;
-  
-  const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+  const totalCustomizedOrders = orders.filter(
+    (o) => o.type === "Customized"
+  ).length;
+  const activeProductions = orders.filter(
+    (o) => o.status === "Working" || o.status === "Pending"
+  ).length;
+
+  const deliveredOrders = orders.filter((o) => o.status === "Delivered");
   const unitsSold = deliveredOrders.reduce((acc, order) => {
     if (order.type === "Customized") {
       return acc + 1;
@@ -129,7 +171,11 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{totalCustomizedOrders}</div>}
+            {isLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">{totalCustomizedOrders}</div>
+            )}
             <p className="text-xs text-muted-foreground">
               Total customized orders created.
             </p>
@@ -137,11 +183,17 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Units Delivered</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Units Delivered
+            </CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{unitsSold}</div>}
+            {isLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">{unitsSold}</div>
+            )}
             <p className="text-xs text-muted-foreground">
               Total units in delivered orders.
             </p>
@@ -155,7 +207,11 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{activeProductions}</div>}
+            {isLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">{activeProductions}</div>
+            )}
             <p className="text-xs text-muted-foreground">
               Orders currently in pending or working state.
             </p>
@@ -165,7 +221,8 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Sales Overview</CardTitle>
+            <CardTitle>Sales Overview (Last 6 Months)</CardTitle>
+            <CardDescription>Total units delivered each month.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             {isClient ? (
@@ -177,7 +234,6 @@ export default function Dashboard() {
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
                   />
                   <ChartTooltip
                     cursor={false}
@@ -187,16 +243,14 @@ export default function Dashboard() {
                 </BarChart>
               </ChartContainer>
             ) : (
-               <Skeleton className="h-[300px] w-full" />
+              <Skeleton className="h-[300px] w-full" />
             )}
           </CardContent>
         </Card>
         <Card className="col-span-4 lg:col-span-3">
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>
-              Your most recent orders.
-            </CardDescription>
+            <CardDescription>Your most recent orders.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -211,9 +265,15 @@ export default function Dashboard() {
                 {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-10 w-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-10 w-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-10 w-full" />
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : recentOrders.length > 0 ? (
@@ -222,8 +282,14 @@ export default function Dashboard() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="hidden h-9 w-9 sm:flex">
-                            <AvatarImage src={`https://placehold.co/100x100.png`} alt="Avatar" data-ai-hint="person" />
-                            <AvatarFallback>{order.customer.substring(0,2).toUpperCase()}</AvatarFallback>
+                            <AvatarImage
+                              src={`https://placehold.co/100x100.png`}
+                              alt="Avatar"
+                              data-ai-hint="person"
+                            />
+                            <AvatarFallback>
+                              {order.customer.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="grid gap-0.5">
                             <p className="font-medium">{order.customer}</p>
@@ -235,14 +301,18 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell>{order.type}</TableCell>
                       <TableCell>
-                        <Badge variant={getBadgeVariant(order.status)}>{order.status}</Badge>
+                        <Badge variant={getBadgeVariant(order.status)}>
+                          {order.status}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                    <TableRow>
-                        <TableCell colSpan={3} className="text-center h-24">No recent orders found.</TableCell>
-                    </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center h-24">
+                      No recent orders found.
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>

@@ -60,6 +60,7 @@ export default function CustomerOrderPage() {
       type: "Customized",
       details: orderDetails,
       createdBy: loggedInUser || undefined,
+      createdAt: new Date().toISOString(),
       dimensions: {
         height: height || undefined,
         width: width || undefined,

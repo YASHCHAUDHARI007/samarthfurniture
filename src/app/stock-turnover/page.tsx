@@ -39,14 +39,6 @@ import type { StockItem, StockStatus } from "@/lib/types";
 
 const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
 
-const initialStock: StockItem[] = [
-  { id: "prod_001", name: "Modular 'L' Sofa", sku: "SOF-MOD-L-GRY", quantity: 25, reorderLevel: 10, status: "In Stock" },
-  { id: "prod_002", name: "Minimalist Oak Desk", sku: "DSK-OAK-MIN-150", quantity: 8, reorderLevel: 15, status: "Low Stock" },
-  { id: "prod_003", name: "Floating Wall Shelf", sku: "SHL-WAL-FLT-WHT", quantity: 120, reorderLevel: 50, status: "In Stock" },
-  { id: "prod_004", name: "Upholstered Dining Chair", sku: "CHR-DIN-UPH-BGE", quantity: 0, reorderLevel: 20, status: "Out of Stock" },
-  { id: "prod_005", name: "Velvet Upholstered Armchair", sku: "CHR-ARM-VLT-BLU", quantity: 12, reorderLevel: 10, status: "In Stock" },
-];
-
 export default function StockTurnoverPage() {
   const { toast } = useToast();
   const [stock, setStock] = useState<StockItem[]>([]);
@@ -66,18 +58,18 @@ export default function StockTurnoverPage() {
     if (savedStockRaw) {
         setStock(JSON.parse(savedStockRaw));
     } else {
-        setStock(initialStock);
+        setStock([]);
     }
   }, []);
 
   useEffect(() => {
-    if (stock.length > 0) {
+    if (stock.length > 0 || localStorage.getItem(STOCK_ITEMS_STORAGE_KEY)) {
       localStorage.setItem(STOCK_ITEMS_STORAGE_KEY, JSON.stringify(stock));
     }
   }, [stock]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
-    if (quantity === 0) return "Out of Stock";
+    if (quantity <= 0) return "Out of Stock";
     if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
     return "In Stock";
   };
@@ -114,6 +106,11 @@ export default function StockTurnoverPage() {
         description: "Please fill out all fields with valid information.",
       });
       return;
+    }
+
+    if (stock.some(item => item.sku.toLowerCase() === newItemSku.toLowerCase())) {
+        toast({ variant: "destructive", title: "SKU already exists", description: "An item with this SKU is already in the inventory."});
+        return;
     }
 
     const newItem: StockItem = {
@@ -268,7 +265,7 @@ export default function StockTurnoverPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stock.map((item) => (
+                  {stock.length > 0 ? stock.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.sku}</TableCell>
@@ -293,7 +290,11 @@ export default function StockTurnoverPage() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                  )) : (
+                    <TableRow>
+                        <TableCell colSpan={canEdit ? 6: 5} className="h-24 text-center">No stock items found.</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

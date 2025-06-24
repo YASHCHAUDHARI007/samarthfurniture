@@ -41,37 +41,6 @@ import type { Order, Product } from "@/lib/types";
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
 const PRODUCT_CATALOG_STORAGE_KEY = "samarth_furniture_product_catalog";
 
-const initialProductCatalog: Product[] = [
-  {
-    id: "prod_001",
-    name: "Modular 'L' Sofa",
-    sku: "SOF-MOD-L-GRY",
-    image: "https://placehold.co/100x100.png",
-    aiHint: "sofa couch",
-  },
-  {
-    id: "prod_002",
-    name: "Minimalist Oak Desk",
-    sku: "DSK-OAK-MIN-150",
-    image: "https://placehold.co/100x100.png",
-    aiHint: "desk office",
-  },
-  {
-    id: "prod_003",
-    name: "Floating Wall Shelf",
-    sku: "SHL-WAL-FLT-WHT",
-    image: "https://placehold.co/100x100.png",
-    aiHint: "shelf wall",
-  },
-  {
-    id: "prod_004",
-    name: "Upholstered Dining Chair",
-    sku: "CHR-DIN-UPH-BGE",
-    image: "https://placehold.co/100x100.png",
-    aiHint: "chair dining",
-  },
-];
-
 type OrderItem = {
   id: string;
   quantity: number;
@@ -99,13 +68,14 @@ export default function DealerOrderPage() {
     if (savedCatalogRaw) {
       setProductCatalog(JSON.parse(savedCatalogRaw));
     } else {
-      setProductCatalog(initialProductCatalog);
-      localStorage.setItem(PRODUCT_CATALOG_STORAGE_KEY, JSON.stringify(initialProductCatalog));
+      setProductCatalog([]);
     }
   }, []);
 
   useEffect(() => {
-    if (productCatalog.length > 0) {
+    // This effect runs only when productCatalog changes, to save it.
+    // It avoids running on initial render if the catalog is empty.
+    if (productCatalog.length > 0 || localStorage.getItem(PRODUCT_CATALOG_STORAGE_KEY)) {
         localStorage.setItem(PRODUCT_CATALOG_STORAGE_KEY, JSON.stringify(productCatalog));
     }
   }, [productCatalog]);
@@ -178,6 +148,7 @@ export default function DealerOrderPage() {
       type: "Dealer",
       details: orderDescription,
       createdBy: loggedInUser || undefined,
+      createdAt: new Date().toISOString(),
       customerInfo: {
         name: dealerName,
         dealerId: dealerId,
@@ -290,7 +261,7 @@ export default function DealerOrderPage() {
         )}
 
       <form onSubmit={handleSubmit}>
-        <Card>
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle>Dealer Information</CardTitle>
             <CardDescription>
@@ -337,7 +308,7 @@ export default function DealerOrderPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productCatalog.map((product) => (
+                  {productCatalog.length > 0 ? productCatalog.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
                         <Checkbox
@@ -383,7 +354,7 @@ export default function DealerOrderPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="text-muted-foreground hover:text-destructive"
-                                onClick={() => setItemToDelete(product)}
+                                onClick={(e) => { e.preventDefault(); setItemToDelete(product); }}
                             >
                                 <Trash2 className="h-4 w-4" />
                                 <span className="sr-only">Delete Item</span>
@@ -391,7 +362,11 @@ export default function DealerOrderPage() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                  )) : (
+                    <TableRow>
+                        <TableCell colSpan={canEdit ? 5: 4} className="h-24 text-center">No products in catalog. Add one above.</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

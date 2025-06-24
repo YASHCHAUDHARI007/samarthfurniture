@@ -51,42 +51,10 @@ import { Factory, ShieldAlert, History, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, StockItem, StockStatus } from "@/lib/types";
 
 const ORDERS_STORAGE_KEY = "samarth_furniture_orders";
-
-const initialOrders: Order[] = [
-  {
-    id: "ORD-001",
-    customer: "Olivia Martin",
-    item: "Custom Oak Bookshelf",
-    status: "Working",
-    type: "Customized",
-    details:
-      "A custom-built bookshelf made from solid oak, with a dark walnut stain. Features 5 shelves, with the top two having a smaller depth.",
-    createdBy: "coordinator",
-    dimensions: { height: "84", width: "40", depth: "12" },
-    dimensionDetails: "Top two shelves should be 10in deep, bottom three should be 12in deep. Back panel should have a 2in diameter hole for cables, centered, 6in from the bottom.",
-    customerInfo: {
-      name: "Olivia Martin",
-      email: "olivia.martin@email.com",
-      address: "456 Oak Avenue, Springfield, IL 62704",
-    },
-  },
-  {
-    id: "ORD-003",
-    customer: "FineNests Inc.",
-    item: "Bulk Order: 50x Dining Chairs",
-    status: "Delivered",
-    type: "Dealer",
-    details: "50x Upholstered Dining Chair (CHR-DIN-UPH-BGE)",
-    createdBy: "owner",
-    customerInfo: {
-      name: "FineNests Inc.",
-      dealerId: "DEALER-FN-458",
-    },
-  },
-];
+const STOCK_ITEMS_STORAGE_KEY = "samarth_furniture_stock_items";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -112,16 +80,8 @@ export default function FactoryDashboardPage() {
       setCanEdit(true);
     }
 
-    let allOrders: Order[] = [];
     const savedOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    if (savedOrdersRaw) {
-      allOrders = JSON.parse(savedOrdersRaw);
-    }
-
-    if (allOrders.length === 0) {
-        allOrders = initialOrders;
-        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initialOrders));
-    }
+    const allOrders: Order[] = savedOrdersRaw ? JSON.parse(savedOrdersRaw) : [];
     
     let filteredOrders = allOrders;
     if (role === "coordinator") {
@@ -132,17 +92,55 @@ export default function FactoryDashboardPage() {
     setIsLoading(false);
   }, []);
 
+  const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
+    if (quantity === 0) return "Out of Stock";
+    if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
+    return "In Stock";
+  };
+
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    const originalOrder = orders.find(o => o.id === orderId);
+    if (!originalOrder) return;
+
+    // Stock deduction logic
+    if (newStatus === 'Completed' && originalOrder.type === 'Dealer' && !originalOrder.stockDeducted) {
+        const stockRaw = localStorage.getItem(STOCK_ITEMS_STORAGE_KEY);
+        const stock: StockItem[] = stockRaw ? JSON.parse(stockRaw) : [];
+        let stockUpdated = false;
+
+        const orderLines = originalOrder.details.split('\n');
+        orderLines.forEach(line => {
+            const match = line.match(/(\d+)x\s.*?\((.*?)\)/);
+            if (match) {
+                const quantity = parseInt(match[1], 10);
+                const sku = match[2];
+                const stockItemIndex = stock.findIndex(item => item.sku === sku);
+                if (stockItemIndex !== -1) {
+                    stock[stockItemIndex].quantity -= quantity;
+                    if (stock[stockItemIndex].quantity < 0) stock[stockItemIndex].quantity = 0; // Prevent negative stock
+                    stock[stockItemIndex].status = getStockStatus(stock[stockItemIndex].quantity, stock[stockItemIndex].reorderLevel);
+                    stockUpdated = true;
+                }
+            }
+        });
+
+        if (stockUpdated) {
+            localStorage.setItem(STOCK_ITEMS_STORAGE_KEY, JSON.stringify(stock));
+            toast({ title: 'Stock Updated', description: 'Inventory levels have been automatically adjusted.' });
+        }
+    }
+    
+    const stockDeducted = newStatus === 'Completed' ? true : originalOrder.stockDeducted;
+
     const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: newStatus } : order
+      order.id === orderId ? { ...order, status: newStatus, stockDeducted } : order
     );
     setOrders(updatedOrders);
     
-    // Also update the master list in localStorage
     const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
     const updatedAllOrders = allOrders.map((order: Order) =>
-      order.id === orderId ? { ...order, status: newStatus } : order
+      order.id === orderId ? { ...order, status: newStatus, stockDeducted } : order
     );
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updatedAllOrders));
 
@@ -158,7 +156,6 @@ export default function FactoryDashboardPage() {
     const updatedOrders = orders.filter((order) => order.id !== orderToDelete.id);
     setOrders(updatedOrders);
 
-    // Also update the master list in localStorage
     const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
     const updatedAllOrders = allOrders.filter((order: Order) => order.id !== orderToDelete.id);
@@ -221,11 +218,15 @@ export default function FactoryDashboardPage() {
     (order) => order.status === "Pending" || order.status === "Working"
   );
   
+  const completedOrders = orders.filter(
+    (order) => order.status === "Completed"
+  );
+
   const deliveredOrders = orders.filter(
     (order) => order.status === "Delivered"
   );
 
-  const filteredDeliveredOrders = deliveredOrders.filter(order => 
+  const filteredHistoryOrders = [...completedOrders, ...deliveredOrders].filter(order => 
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.item.toLowerCase().includes(searchTerm.toLowerCase())
@@ -276,11 +277,10 @@ export default function FactoryDashboardPage() {
                         <TableHead>Current Status</TableHead>
                         {canEdit && <TableHead className="w-[180px]">Change Status</TableHead>}
                         <TableHead>Details</TableHead>
-                        {canDelete && <TableHead className="text-right">Delete</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activeOrders.map((order) => (
+                     {activeOrders.length > 0 ? activeOrders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">
                             {order.id}
@@ -324,21 +324,12 @@ export default function FactoryDashboardPage() {
                               View Details
                             </Button>
                           </TableCell>
-                          {canDelete && (
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-destructive"
-                                onClick={() => setOrderToDelete(order)}
-                              >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Delete Order</span>
-                              </Button>
-                            </TableCell>
-                          )}
                         </TableRow>
-                      ))}
+                      )) : (
+                        <TableRow>
+                            <TableCell colSpan={canEdit ? 6 : 5} className="h-24 text-center">No active production orders.</TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -348,8 +339,8 @@ export default function FactoryDashboardPage() {
           <TabsContent value="history">
             <Card>
                 <CardHeader>
-                    <CardTitle>Delivered Order History</CardTitle>
-                    <CardDescription>A searchable archive of all delivered orders.</CardDescription>
+                    <CardTitle>Completed & Delivered Order History</CardTitle>
+                    <CardDescription>A searchable archive of all completed and delivered orders.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center py-4">
@@ -376,7 +367,7 @@ export default function FactoryDashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredDeliveredOrders.map((order) => (
+                                {filteredHistoryOrders.length > 0 ? filteredHistoryOrders.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell className="font-medium">{order.id}</TableCell>
                                         <TableCell className="hidden md:table-cell">{order.customer}</TableCell>
@@ -409,7 +400,11 @@ export default function FactoryDashboardPage() {
                                           </TableCell>
                                         )}
                                     </TableRow>
-                                ))}
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={canDelete ? 6 : 5} className="h-24 text-center">No historical orders found.</TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </div>

@@ -11,6 +11,9 @@ export type Order = {
   type: "Customized" | "Dealer";
   details: string;
   createdBy?: string;
+  createdAt?: string;
+  deliveredAt?: string;
+  stockDeducted?: boolean;
   dimensions?: {
     height?: string;
     width?: string;

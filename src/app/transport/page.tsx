@@ -117,24 +117,23 @@ export default function TransportPage() {
       vehicleModel: formData.get("vehicleModel") as string,
     };
 
+    const deliveredAt = new Date().toISOString();
     let updatedOrder: Order | undefined;
     
-    // Update local state for immediate UI feedback
     const updatedLocalOrders = orders.map((order) => {
       if (order.id === selectedOrder.id) {
-        updatedOrder = { ...order, status: "Delivered", transportDetails };
+        updatedOrder = { ...order, status: "Delivered", transportDetails, deliveredAt };
         return updatedOrder;
       }
       return order;
     });
     setOrders(updatedLocalOrders);
 
-    // Update master list in localStorage
     const allOrdersRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const allOrders = allOrdersRaw ? JSON.parse(allOrdersRaw) : [];
     const updatedAllOrders = allOrders.map((order: Order) => {
         if (order.id === selectedOrder.id) {
-            return { ...order, status: "Delivered", transportDetails };
+            return { ...order, status: "Delivered", transportDetails, deliveredAt };
         }
         return order;
     });
