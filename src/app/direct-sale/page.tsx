@@ -326,19 +326,28 @@ export default function DirectSalePage() {
                     <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
                 </div>
                 
-                 <div className="flex items-start justify-between gap-4 pt-4">
-                    <div className="w-full max-w-md">
-                      <Label htmlFor="narration" className="font-semibold">Narration:</Label>
-                      <Textarea id="narration" value={narration} onChange={e => setNarration(e.target.value)} rows={2} className="bg-white mt-1"/>
+                 <div className="flex items-end justify-between gap-4 pt-4">
+                    {/* Narration on the left */}
+                    <div className="flex-grow space-y-1">
+                        <Label htmlFor="narration" className="font-semibold">Narration:</Label>
+                        <Textarea 
+                            id="narration" 
+                            value={narration} 
+                            onChange={e => setNarration(e.target.value)} 
+                            rows={3} 
+                            className="bg-white mt-1 w-full max-w-md"
+                        />
                     </div>
-                    <div className="w-full max-w-xs text-right space-y-1 mt-1">
-                        <div className="flex justify-between items-center">
-                            <p className="font-semibold text-sm">Total Qty:</p>
+                    {/* Totals on the right */}
+                    <div className="w-full max-w-xs text-right space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                            <p className="font-semibold">Total Qty:</p>
                             <p className="font-mono font-bold">{totalQuantity.toFixed(2)}</p>
                         </div>
-                        <div className="flex justify-between items-center">
-                            <p className="font-semibold text-sm">Total Amt:</p>
-                            <p className="font-mono font-bold">₹{totalAmount.toFixed(2)}</p>
+                        <Separator className="my-1 bg-gray-300"/>
+                        <div className="flex justify-between items-center font-bold text-base">
+                            <p>Total Amt:</p>
+                            <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
                         </div>
                     </div>
                 </div>
