@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -19,8 +18,8 @@ export function TallyLeftPanel() {
     setCurrentDate(format(new Date(), 'eeee, d-MMM-yyyy'));
   }, []);
 
-  const fyStart = company ? format(parseISO(company.financialYearStart), 'd-Apr-yy') : '';
-  const fyEnd = company ? format(parseISO(company.financialYearEnd), 'd-Mar-yy') : '';
+  const fyStart = company ? format(parseISO(company.financialYearStart), 'd-MMM-yy') : '';
+  const fyEnd = company ? format(parseISO(company.financialYearEnd), 'd-MMM-yy') : '';
   
   return (
     <aside className="w-64 bg-tally-bg border-r-2 border-r-gray-400 p-2 flex flex-col gap-4">
