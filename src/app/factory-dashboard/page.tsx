@@ -101,12 +101,12 @@ export default function FactoryDashboardPage() {
 
     const username = localStorage.getItem("loggedInUser");
     const role = localStorage.getItem("userRole");
-    if (role === "coordinator") {
+    if (role === "coordinator" && username) {
       allOrders = allOrders.filter(order => order.createdBy === username);
     }
     setOrders(allOrders);
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompanyId, userRole]);
 
   const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity === 0) return "Out of Stock";
@@ -153,7 +153,12 @@ export default function FactoryDashboardPage() {
       order.id === orderId ? { ...order, status: newStatus, stockDeducted: newStatus === 'Completed' ? true : order.stockDeducted } : order
     );
 
-    setOrders(updatedOrders.filter(o => userRole === 'coordinator' ? o.createdBy === localStorage.getItem('loggedInUser') : true));
+    let userOrders = updatedOrders;
+    if (userRole === "coordinator") {
+      const username = localStorage.getItem("loggedInUser");
+      userOrders = updatedOrders.filter(order => order.createdBy === username);
+    }
+    setOrders(userOrders);
     localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
 
     if (stockUpdated) {
@@ -173,7 +178,13 @@ export default function FactoryDashboardPage() {
     const ordersKey = getCompanyStorageKey('orders')!;
     const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     const updatedOrders = allOrders.filter((order) => order.id !== orderToDelete.id);
-    setOrders(updatedOrders.filter(o => userRole === 'coordinator' ? o.createdBy === localStorage.getItem('loggedInUser') : true));
+    
+    let userOrders = updatedOrders;
+    if (userRole === "coordinator") {
+      const username = localStorage.getItem("loggedInUser");
+      userOrders = updatedOrders.filter(order => order.createdBy === username);
+    }
+    setOrders(userOrders);
     localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
 
     toast({

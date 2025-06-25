@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Banknote, IndianRupee, CalendarIcon, Printer } from "lucide-react";
+import { Banknote, IndianRupee, CalendarIcon, Printer, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,8 @@ export default function PaymentsPage() {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // States for Receipt Voucher
   const [receiptContactId, setReceiptContactId] = useState("");
@@ -76,8 +78,13 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    if (role === "owner" || role === "administrator") {
+      setHasAccess(true);
+    }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -313,6 +320,26 @@ export default function PaymentsPage() {
   const customers = ledgers.filter(c => c.group === 'Sundry Debtors');
   const suppliers = ledgers.filter(c => c.group === 'Sundry Creditors');
   
+  if (isLoading) {
+    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="text-destructive" /> Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent><p>You do not have permission to view this page.</p></CardContent>
+          <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   if (!activeCompanyId) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
@@ -499,7 +526,7 @@ export default function PaymentsPage() {
                     The transaction has been recorded. You can print the voucher below.
                 </DialogDescription>
             </DialogHeader>
-            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4">
                 {voucherToPrint && <VoucherReceipt voucher={voucherToPrint} />}
             </div>
             <DialogFooter className="no-print">

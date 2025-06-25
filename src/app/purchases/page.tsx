@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ShoppingCart, Trash2, IndianRupee } from "lucide-react";
+import { ShoppingCart, Trash2, IndianRupee, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Ledger, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +40,8 @@ export default function PurchasesPage() {
   const { toast } = useToast();
   const [allSuppliers, setAllSuppliers] = useState<Ledger[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // State for supplier autocomplete
   const [supplierSuggestions, setSupplierSuggestions] = useState<Ledger[]>([]);
@@ -62,9 +64,14 @@ export default function PurchasesPage() {
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    if (role === "owner" || role === "administrator") {
+      setHasAccess(true);
+    }
     setBillDate(new Date().toISOString().split("T")[0]);
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
+    setIsLoading(false);
   }, []);
 
   const getCompanyStorageKey = (baseKey: string) => {
@@ -257,6 +264,26 @@ export default function PurchasesPage() {
     setBillDate(new Date().toISOString().split("T")[0]);
     setPurchaseItems([{id: '', name: '', hsn: '', quantity: '', price: ''}]);
   };
+
+  if (isLoading) {
+    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="text-destructive" /> Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent><p>You do not have permission to view this page.</p></CardContent>
+          <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   if (!activeCompanyId) {
     return (

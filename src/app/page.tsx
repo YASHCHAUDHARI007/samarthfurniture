@@ -80,7 +80,7 @@ export default function Dashboard() {
     let allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
 
     let userOrders = allOrders;
-    if (role === "coordinator") {
+    if (role === "coordinator" && username) {
       userOrders = allOrders.filter(order => order.createdBy === username);
     }
     setOrders(userOrders);
@@ -229,7 +229,7 @@ export default function Dashboard() {
               <div className="text-2xl font-bold">{unitsSold}</div>
             )}
             <p className="text-xs text-muted-foreground">
-              Total units in delivered orders.
+              Total units in your delivered orders.
             </p>
           </CardContent>
         </Card>
@@ -247,7 +247,7 @@ export default function Dashboard() {
               <div className="text-2xl font-bold">{activeProductions}</div>
             )}
             <p className="text-xs text-muted-foreground">
-              Orders currently in pending or working state.
+              Your orders in pending or working state.
             </p>
           </CardContent>
         </Card>
@@ -256,7 +256,7 @@ export default function Dashboard() {
         <Card className="col-span-4">
           <CardHeader>
             <CardTitle>Sales Overview (Last 6 Months)</CardTitle>
-            <CardDescription>Total units delivered each month.</CardDescription>
+            <CardDescription>Total units delivered each month across the company.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             {isClient && !isLoading ? (

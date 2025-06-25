@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -68,7 +69,15 @@ export default function BillingPage() {
         if (!activeCompanyId) return;
         const ordersKey = getCompanyStorageKey('orders');
         if (!ordersKey) return;
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+
+        let storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+        
+        const role = localStorage.getItem("userRole");
+        const username = localStorage.getItem("loggedInUser");
+        if (role === 'coordinator' && username) {
+            storedOrders = storedOrders.filter(o => o.createdBy === username);
+        }
+
         setAllOrders(storedOrders);
     };
 
@@ -77,7 +86,7 @@ export default function BillingPage() {
         setActiveCompanyId(companyId);
 
         const role = localStorage.getItem("userRole");
-        if (role === "owner" || role === "coordinator" || role === "administrator" || role === "factory") {
+        if (role === "owner" || role === "coordinator" || role === "administrator") {
           setHasAccess(true);
         }
         setIsLoading(false);
@@ -478,7 +487,7 @@ export default function BillingPage() {
                     <DialogTitle>{isReprintView ? `Invoice: ${invoiceOrder?.invoiceNumber}` : 'Invoice Generated'}</DialogTitle>
                     <DialogDescription>{isReprintView ? 'View or reprint the invoice for this order.' : "You can view or print the invoice. It is now available in the 'Bill History' tab."}</DialogDescription>
                 </DialogHeader>
-                <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
+                <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4">
                     {invoiceOrder && <Invoice order={invoiceOrder} />}
                 </div>
                 <DialogFooter className="no-print">

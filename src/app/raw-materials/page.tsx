@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Wrench } from "lucide-react";
+import { Wrench, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +34,8 @@ export default function RawMaterialsPage() {
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
@@ -45,8 +47,12 @@ export default function RawMaterialsPage() {
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
+    if (role === "owner" || role === "factory" || role === "administrator") {
+      setHasAccess(true);
+    }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
+    setIsLoading(false);
   }, []);
 
   const getCompanyStorageKey = (baseKey: string) => {
@@ -118,6 +124,26 @@ export default function RawMaterialsPage() {
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
 
+  if (isLoading) {
+    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="text-destructive" /> Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent><p>You do not have permission to view this page.</p></CardContent>
+          <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
+        </Card>
+      </div>
+    );
+  }
+  
   if (!activeCompanyId) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">

@@ -142,11 +142,11 @@ export default function TransportPage() {
     const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
     let ordersToDisplay = allOrders.filter(o => o.status === 'Billed');
     
-    if (role === "coordinator") {
+    if (role === "coordinator" && username) {
       ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
     }
     setOrders(ordersToDisplay);
-  }, [activeCompanyId]);
+  }, [activeCompanyId, userRole]);
 
   const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -358,7 +358,7 @@ export default function TransportPage() {
                     Printing two copies: one for the customer and one for the driver.
                 </DialogDescription>
             </DialogHeader>
-            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white print:space-y-0">
+            <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white">
                 {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
                 {receiptOrder && <DeliveryReceipt order={receiptOrder} addPageBreakBefore={true} />}
             </div>
