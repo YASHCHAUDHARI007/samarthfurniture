@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Order, Contact } from "@/lib/types";
+import type { Order, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 export default function CustomerOrderPage() {
@@ -25,8 +25,8 @@ export default function CustomerOrderPage() {
   const { toast } = useToast();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   
-  const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
-  const [suggestions, setSuggestions] = useState<Contact[]>([]);
+  const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
+  const [suggestions, setSuggestions] = useState<Ledger[]>([]);
   
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -39,9 +39,9 @@ export default function CustomerOrderPage() {
     setActiveCompanyId(companyId);
     if (!companyId) return;
 
-    const contactsKey = `samarth_furniture_${companyId}_contacts`;
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setAllCustomers(storedContacts.filter(c => c.type === 'Customer'));
+    const ledgersKey = `samarth_furniture_${companyId}_ledgers`;
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
   }, []);
 
   const getCompanyStorageKey = (baseKey: string) => {
@@ -54,14 +54,14 @@ export default function CustomerOrderPage() {
     setCustomerName(value);
 
     if (value.length > 1) {
-      const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
+      const filtered = allDebtors.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
       setSuggestions(filtered);
     } else {
       setSuggestions([]);
     }
   };
 
-  const handleSelectCustomer = (customer: Contact) => {
+  const handleSelectCustomer = (customer: Ledger) => {
     setCustomerName(customer.name);
     setCustomerEmail(customer.email || "");
     setShippingAddress(customer.address || "");
@@ -101,34 +101,34 @@ export default function CustomerOrderPage() {
     }
 
     const loggedInUser = localStorage.getItem("loggedInUser");
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const ordersKey = getCompanyStorageKey('orders')!;
 
     // Save or update customer ledger
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    let customer = storedContacts.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.type === 'Customer');
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    let customer = storedLedgers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.group === 'Sundry Debtors');
     let customerId = '';
     
     if (!customer) {
-        customerId = `CUST-${Date.now()}`;
+        customerId = `LEDG-${Date.now()}`;
         customer = {
             id: customerId,
             name: customerName,
-            type: 'Customer',
+            group: 'Sundry Debtors',
             email: customerEmail,
             address: shippingAddress,
         };
-        const updatedContacts = [...storedContacts, customer];
-        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-        setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
+        const updatedLedgers = [...storedLedgers, customer];
+        localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
+        setAllDebtors(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
     } else {
         customerId = customer.id;
         if (customer.email !== customerEmail || customer.address !== shippingAddress) {
             customer.email = customerEmail;
             customer.address = shippingAddress;
-            const updatedContacts = storedContacts.map(c => c.id === customer!.id ? customer : c);
-            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-            setAllCustomers(updatedContacts.filter(c => c.type === 'Customer'));
+            const updatedLedgers = storedLedgers.map(c => c.id === customer!.id ? customer : c);
+            localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
+            setAllDebtors(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
         }
     }
 

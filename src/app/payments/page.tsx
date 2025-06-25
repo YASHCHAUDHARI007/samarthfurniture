@@ -37,7 +37,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { Contact, LedgerEntry, Order, Purchase, Payment, PaymentStatus } from "@/lib/types";
+import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
 import { useRouter } from "next/navigation";
 
@@ -45,7 +45,7 @@ import { useRouter } from "next/navigation";
 export default function PaymentsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   
@@ -82,18 +82,18 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     if (!activeCompanyId) {
-        setContacts([]);
+        setLedgers([]);
         setOrders([]);
         setPurchases([]);
         return;
     }
 
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const ordersKey = getCompanyStorageKey('orders')!;
     const purchasesKey = getCompanyStorageKey('purchases')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setContacts(storedContacts);
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setLedgers(storedLedgers);
     const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     setOrders(storedOrders);
     const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
@@ -162,7 +162,7 @@ export default function PaymentsPage() {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a customer, date and enter a valid amount." });
       return;
     }
-    const customer = contacts.find(c => c.id === receiptContactId);
+    const customer = ledgers.find(c => c.id === receiptContactId);
     if (!customer) return;
 
     const paymentDateISO = receiptDate.toISOString();
@@ -191,8 +191,8 @@ export default function PaymentsPage() {
     ledgerEntries.push({
       id: `LEDG-${Date.now()}-D`,
       date: paymentDateISO,
-      accountId: 'CASH_BANK_ACCOUNT',
-      accountName: 'Cash/Bank Account',
+      accountId: 'CASH_ACCOUNT',
+      accountName: 'Cash',
       type: 'Receipt',
       details: `From ${customer.name}`,
       debit: receiptAmount,
@@ -246,7 +246,7 @@ export default function PaymentsPage() {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a supplier, date and enter a valid amount." });
       return;
     }
-    const supplier = contacts.find(c => c.id === paymentContactId);
+    const supplier = ledgers.find(c => c.id === paymentContactId);
     if (!supplier) return;
 
     const paymentDateISO = paymentDate.toISOString();
@@ -265,7 +265,7 @@ export default function PaymentsPage() {
     });
 
     ledgerEntries.push({
-        id: `LEDG-${Date.now()}-C`, date: paymentDateISO, accountId: 'CASH_BANK_ACCOUNT', accountName: 'Cash/Bank Account', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId,
+        id: `LEDG-${Date.now()}-C`, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId,
     });
 
     localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
@@ -310,8 +310,8 @@ export default function PaymentsPage() {
 
   const handlePrint = () => window.print();
 
-  const customers = contacts.filter(c => c.type === 'Customer' || c.type === 'Dealer');
-  const suppliers = contacts.filter(c => c.type === 'Supplier');
+  const customers = ledgers.filter(c => c.group === 'Sundry Debtors');
+  const suppliers = ledgers.filter(c => c.group === 'Sundry Creditors');
   
   if (!activeCompanyId) {
     return (

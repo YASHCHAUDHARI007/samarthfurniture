@@ -1,5 +1,4 @@
 
-
 export type UserRole = "owner" | "coordinator" | "factory" | "administrator";
 
 export type OrderStatus = "Pending" | "Working" | "Completed" | "Billed" | "Delivered";
@@ -108,14 +107,35 @@ export type RawMaterial = {
   locationName?: string;
 }
 
-export type Contact = {
+export type LedgerGroup = 
+  | 'Sundry Debtors'   // Customers, Dealers
+  | 'Sundry Creditors' // Suppliers
+  | 'Bank Accounts'
+  | 'Capital Account'
+  | 'Direct Expenses'
+  | 'Indirect Expenses'
+  | 'Direct Incomes'
+  | 'Indirect Incomes'
+  | 'Fixed Assets'
+  | 'Current Assets'
+  | 'Cash-in-hand'
+  | 'Loans (Liability)'
+  | 'Current Liabilities'
+  | 'Sales Accounts'
+  | 'Purchase Accounts'
+  | 'Duties & Taxes'
+  | 'Stock-in-Hand'
+  | 'Primary'; // For P&L account
+
+export type Ledger = {
   id: string;
   name: string;
-  type: 'Customer' | 'Dealer' | 'Supplier';
+  group: LedgerGroup;
   email?: string;
   address?: string;
-  dealerId?: string; // For Dealers
-  gstin?: string; // For Suppliers/Dealers
+  dealerId?: string;
+  gstin?: string;
+  openingBalance?: number;
 };
 
 export type Purchase = {

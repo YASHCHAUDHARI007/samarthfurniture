@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
-import type { Order, Product, Contact } from "@/lib/types";
+import type { Order, Product, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 type OrderItem = {
@@ -56,8 +56,8 @@ export default function DealerOrderPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
 
-  const [allDealers, setAllDealers] = useState<Contact[]>([]);
-  const [suggestions, setSuggestions] = useState<Contact[]>([]);
+  const [allDealers, setAllDealers] = useState<Ledger[]>([]);
+  const [suggestions, setSuggestions] = useState<Ledger[]>([]);
   
   const [dealerName, setDealerName] = useState("");
   const [dealerId, setDealerId] = useState("");
@@ -86,13 +86,13 @@ export default function DealerOrderPage() {
     };
     
     const catalogKey = getCompanyStorageKey('product_catalog')!;
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
 
     const storedCatalog = localStorage.getItem(catalogKey);
     setProductCatalog(storedCatalog ? JSON.parse(storedCatalog) : []);
     
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setAllDealers(storedContacts.filter(c => c.type === 'Dealer'));
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setAllDealers(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
 
   }, [activeCompanyId]);
 
@@ -108,7 +108,7 @@ export default function DealerOrderPage() {
     }
   };
 
-  const handleSelectDealer = (dealer: Contact) => {
+  const handleSelectDealer = (dealer: Ledger) => {
     setDealerName(dealer.name);
     setDealerId(dealer.dealerId || "");
     setSuggestions([]);
@@ -177,31 +177,31 @@ export default function DealerOrderPage() {
       return;
     }
 
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const ordersKey = getCompanyStorageKey('orders')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    let dealer = storedContacts.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.type === 'Dealer');
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    let dealer = storedLedgers.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.group === 'Sundry Debtors');
     let contactId = '';
     
     if (!dealer) {
-        contactId = `CONT-${Date.now()}`;
+        contactId = `LEDG-${Date.now()}`;
         dealer = {
             id: contactId,
             name: dealerName,
-            type: 'Dealer',
+            group: 'Sundry Debtors',
             dealerId: dealerId,
         };
-        const updatedContacts = [...storedContacts, dealer];
-        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-        setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
+        const updatedLedgers = [...storedLedgers, dealer];
+        localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
+        setAllDealers(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
     } else {
         contactId = dealer.id;
         if (dealer.dealerId !== dealerId) {
             dealer.dealerId = dealerId;
-            const updatedContacts = storedContacts.map(c => c.id === dealer!.id ? dealer : c);
-            localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
-            setAllDealers(updatedContacts.filter(c => c.type === 'Dealer'));
+            const updatedLedgers = storedLedgers.map(c => c.id === dealer!.id ? dealer : c);
+            localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
+            setAllDealers(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
         }
     }
 

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, Printer, IndianRupee, ShieldAlert } from "lucide-react";
-import type { Order, Purchase, Contact } from "@/lib/types";
+import type { Order, Purchase, Ledger } from "@/lib/types";
 
 export default function GstReportsPage() {
   const router = useRouter();
@@ -33,7 +33,7 @@ export default function GstReportsPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -52,30 +52,30 @@ export default function GstReportsPage() {
     
     const ordersKey = getCompanyStorageKey('orders');
     const purchasesKey = getCompanyStorageKey('purchases');
-    const contactsKey = getCompanyStorageKey('contacts');
+    const ledgersKey = getCompanyStorageKey('ledgers');
 
     setOrders(JSON.parse(localStorage.getItem(ordersKey) || '[]'));
     setPurchases(JSON.parse(localStorage.getItem(purchasesKey) || '[]'));
-    setContacts(JSON.parse(localStorage.getItem(contactsKey) || '[]'));
+    setLedgers(JSON.parse(localStorage.getItem(ledgersKey) || '[]'));
   }, [activeCompanyId]);
 
   const { gstr1Data, gstr2Data, gstr3bSummary } = useMemo(() => {
     // GSTR-1 Data (Sales)
     const billedOrders = orders.filter(o => o.status === 'Billed' || o.status === 'Delivered');
     const gstr1Data = billedOrders.map(order => {
-        const contact = contacts.find(c => c.id === order.customerInfo?.id);
+        const ledger = ledgers.find(c => c.id === order.customerInfo?.id);
         return {
             ...order,
-            gstin: contact?.gstin || 'N/A'
+            gstin: ledger?.gstin || 'N/A'
         };
     });
 
     // GSTR-2 Data (Purchases)
     const gstr2Data = purchases.map(purchase => {
-        const contact = contacts.find(c => c.id === purchase.supplierId);
+        const ledger = ledgers.find(c => c.id === purchase.supplierId);
         return {
             ...purchase,
-            gstin: contact?.gstin || 'N/A'
+            gstin: ledger?.gstin || 'N/A'
         };
     });
 
@@ -100,7 +100,7 @@ export default function GstReportsPage() {
     };
 
     return { gstr1Data, gstr2Data, gstr3bSummary };
-  }, [orders, purchases, contacts]);
+  }, [orders, purchases, ledgers]);
 
   const handlePrint = () => window.print();
 

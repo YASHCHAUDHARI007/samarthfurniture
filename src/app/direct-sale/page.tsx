@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingBag, IndianRupee, Printer, CalendarIcon, Trash2 } from "lucide-react";
-import type { Contact, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
+import type { Ledger, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -47,10 +47,10 @@ type SaleItem = {
 export default function DirectSalePage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [allCustomers, setAllCustomers] = useState<Contact[]>([]);
+  const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   
-  const [customerSuggestions, setCustomerSuggestions] = useState<Contact[]>([]);
+  const [customerSuggestions, setCustomerSuggestions] = useState<Ledger[]>([]);
   const [itemSuggestions, setItemSuggestions] = useState<StockItem[]>([]);
   
   const [customerName, setCustomerName] = useState("");
@@ -81,16 +81,16 @@ export default function DirectSalePage() {
 
   useEffect(() => {
     if (!activeCompanyId) {
-      setAllCustomers([]);
+      setAllDebtors([]);
       setStockItems([]);
       return;
     };
     
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const stockKey = getCompanyStorageKey('stock_items')!;
     
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
     
     const storedStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
     setStockItems(storedStock);
@@ -104,14 +104,14 @@ export default function DirectSalePage() {
     setCustomerName(value);
 
     if (value.length > 1) {
-      const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
+      const filtered = allDebtors.filter(c => c.name.toLowerCase().includes(value.toLowerCase()));
       setCustomerSuggestions(filtered);
     } else {
       setCustomerSuggestions([]);
     }
   };
 
-  const handleSelectCustomer = (customer: Contact) => {
+  const handleSelectCustomer = (customer: Ledger) => {
     setCustomerName(customer.name);
     setShippingAddress(customer.address || "");
     setSelectedCustomerId(customer.id);
@@ -191,25 +191,25 @@ export default function DirectSalePage() {
         return;
     }
     
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const ordersKey = getCompanyStorageKey('orders')!;
     const stockKey = getCompanyStorageKey('stock_items')!;
     const ledgerKey = getCompanyStorageKey('ledger')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    let customer = storedContacts.find(c => c.name.toLowerCase() === customerName.toLowerCase() && (c.type === 'Customer' || c.type === 'Dealer'));
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    let customer = storedLedgers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.group === 'Sundry Debtors');
     let customerId = selectedCustomerId;
     
     if (!customer) {
-        customerId = `CUST-${Date.now()}`;
-        customer = { id: customerId, name: customerName, type: 'Customer', address: shippingAddress, };
-        storedContacts.push(customer);
+        customerId = `LEDG-${Date.now()}`;
+        customer = { id: customerId, name: customerName, group: 'Sundry Debtors', address: shippingAddress, };
+        storedLedgers.push(customer);
     } else {
         customerId = customer.id;
         customer.address = shippingAddress;
     }
-    localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
-    setAllCustomers(storedContacts.filter(c => c.type === 'Customer' || c.type === 'Dealer'));
+    localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
+    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
     
     const invoiceDate = saleDate.toISOString();
     const invoiceNumber = `INV-${new Date().getTime()}`;
@@ -227,7 +227,7 @@ export default function DirectSalePage() {
 
     const newOrder: Order = {
         id: orderId, customer: customerName, item: "Direct Stock Sale", status: "Billed", type: "Dealer", details: orderDetails, createdBy: localStorage.getItem("loggedInUser") || undefined, createdAt: invoiceDate,
-        customerInfo: { id: customerId, name: customerName, address: shippingAddress, },
+        customerInfo: { id: customerId!, name: customerName, address: shippingAddress, },
         invoiceNumber, invoiceDate, lineItems, subTotal, totalGstRate: gstRate, sgstAmount, cgstAmount, totalGstAmount, totalAmount,
         payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
         irn: `IRN-MOCK-${new Date().getTime()}`,
@@ -253,7 +253,7 @@ export default function DirectSalePage() {
 
     const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
     ledgerEntries.push({
-        id: `LEDG-${Date.now()}-D`, date: invoiceDate, accountId: customerId, accountName: customerName, type: 'Sales',
+        id: `LEDG-${Date.now()}-D`, date: invoiceDate, accountId: customerId!, accountName: customerName, type: 'Sales',
         details: `Invoice ${invoiceNumber}`, debit: totalAmount, credit: 0, refId: orderId,
     });
     ledgerEntries.push({

@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ShieldAlert, Trash2, Edit } from "lucide-react";
-import type { Company } from "@/lib/types";
+import type { Company, Ledger } from "@/lib/types";
 
 const initialProductCatalog = [
     { id: "prod-1", name: "Classic Oak Dining Table", sku: "TBL-OAK-CLS", image: "https://placehold.co/100x100.png", aiHint: "dining table" },
@@ -61,6 +61,13 @@ const initialStock = [
 
 const initialLocations = [
     { id: 'loc-default', name: 'Main Warehouse', address: 'Default Location' }
+];
+
+const initialLedgers: Ledger[] = [
+    { id: 'PROFIT_LOSS', name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
+    { id: 'SALES_ACCOUNT', name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
+    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
+    { id: 'CASH_ACCOUNT', name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
 ];
 
 export default function ManageCompaniesPage() {
@@ -109,10 +116,12 @@ export default function ManageCompaniesPage() {
 
     // Seed initial data for the new company
     const companyId = newCompany.id;
-    const dataKeys = ['orders', 'contacts', 'purchases', 'ledger', 'raw_materials'];
+    const dataKeys = ['orders', 'purchases', 'raw_materials'];
     dataKeys.forEach(key => {
         localStorage.setItem(`samarth_furniture_${companyId}_${key}`, '[]');
     });
+    localStorage.setItem(`samarth_furniture_${companyId}_ledgers`, JSON.stringify(initialLedgers));
+    localStorage.setItem(`samarth_furniture_${companyId}_ledger`, '[]'); // Main transaction ledger
     localStorage.setItem(`samarth_furniture_${companyId}_product_catalog`, JSON.stringify(initialProductCatalog));
     localStorage.setItem(`samarth_furniture_${companyId}_stock_items`, JSON.stringify(initialStock));
     localStorage.setItem(`samarth_furniture_${companyId}_locations`, JSON.stringify(initialLocations));
@@ -149,7 +158,7 @@ export default function ManageCompaniesPage() {
     localStorage.setItem('samarth_furniture_companies', JSON.stringify(updatedCompanies));
     
     // Clean up company-specific data
-    const dataKeys = ['orders', 'contacts', 'purchases', 'ledger', 'raw_materials', 'product_catalog', 'stock_items', 'locations'];
+    const dataKeys = ['orders', 'ledgers', 'purchases', 'ledger', 'raw_materials', 'product_catalog', 'stock_items', 'locations'];
     dataKeys.forEach(key => {
         localStorage.removeItem(`samarth_furniture_${companyToDelete.id}_${key}`);
     });

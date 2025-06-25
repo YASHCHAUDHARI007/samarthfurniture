@@ -27,21 +27,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BookText, IndianRupee } from "lucide-react";
-import type { Contact, LedgerEntry, Order, Purchase } from "@/lib/types";
+import type { Ledger, LedgerEntry, Order, Purchase } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
-
-const internalAccounts = [
-    { id: 'SALES_ACCOUNT', name: 'Sales Account', type: 'Internal' },
-    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', type: 'Internal' },
-    { id: 'CASH_BANK_ACCOUNT', name: 'Cash/Bank Account', type: 'Internal' },
-];
 
 export default function LedgerDetailPage({ params }: { params: { accountId: string } }) {
   const { accountId } = params;
   const [allLedgerEntries, setAllLedgerEntries] = useState<LedgerEntry[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allPurchases, setAllPurchases] = useState<Purchase[]>([]);
-  const [account, setAccount] = useState<(Contact | {id: string, name: string, type: string}) | null>(null);
+  const [account, setAccount] = useState<Ledger | null>(null);
 
   const [billToView, setBillToView] = useState<Order | Purchase | null>(null);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
@@ -56,15 +50,15 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
 
     const getCompanyStorageKey = (baseKey: string) => `samarth_furniture_${activeCompanyId}_${baseKey}`;
     
-    const ledgerKey = getCompanyStorageKey('ledger');
-    const contactsKey = getCompanyStorageKey('contacts');
+    const ledgerEntriesKey = getCompanyStorageKey('ledger');
+    const ledgersKey = getCompanyStorageKey('ledgers');
     const ordersKey = getCompanyStorageKey('orders');
     const purchasesKey = getCompanyStorageKey('purchases');
 
-    const storedEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
+    const storedEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerEntriesKey) || '[]');
     setAllLedgerEntries(storedEntries);
     
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
     
     const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
     setAllOrders(storedOrders);
@@ -72,8 +66,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
     const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
     setAllPurchases(storedPurchases);
 
-    const accounts = [...internalAccounts, ...storedContacts];
-    const foundAccount = accounts.find(acc => acc.id === accountId);
+    const foundAccount = storedLedgers.find(acc => acc.id === accountId);
     setAccount(foundAccount || null);
   }, [accountId, activeCompanyId]);
 
@@ -84,14 +77,14 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
       .filter(entry => entry.accountId === account.id)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    let runningBalance = 0;
+    let runningBalance = account.openingBalance || 0;
     return filtered.map(entry => {
         runningBalance += entry.debit - entry.credit;
         return { ...entry, runningBalance };
     });
   }, [account, allLedgerEntries]);
   
-  const finalBalance = displayedEntries.length > 0 ? displayedEntries[displayedEntries.length - 1].runningBalance : 0;
+  const finalBalance = displayedEntries.length > 0 ? displayedEntries[displayedEntries.length - 1].runningBalance : (account?.openingBalance || 0);
   const balanceType = finalBalance >= 0 ? "Dr" : "Cr";
 
   const handleViewBill = (entry: LedgerEntry) => {
@@ -150,6 +143,19 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                         </TableRow>
                     </TableHeader>
                     <TableBody>
+                        {account.openingBalance && account.openingBalance !== 0 ? (
+                            <TableRow>
+                                <TableCell>{/* Assuming FY start date */}</TableCell>
+                                <TableCell className="font-semibold">Opening Balance</TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className="text-right font-mono">{account.openingBalance > 0 ? account.openingBalance.toFixed(2) : ''}</TableCell>
+                                <TableCell className="text-right font-mono">{account.openingBalance < 0 ? Math.abs(account.openingBalance).toFixed(2) : ''}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                    {Math.abs(account.openingBalance).toFixed(2)} {account.openingBalance >= 0 ? 'Dr' : 'Cr'}
+                                </TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                        ) : null}
                         {displayedEntries.length > 0 ? displayedEntries.map((entry) => (
                             <TableRow key={entry.id}>
                                 <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
@@ -167,14 +173,16 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                                 </TableCell>
                             </TableRow>
                         )) : (
+                           !account.openingBalance && (
                             <TableRow>
                                 <TableCell colSpan={7} className="text-center h-24">No transactions for this account.</TableCell>
                             </TableRow>
+                           )
                         )}
                     </TableBody>
                     </Table>
                 </div>
-                {displayedEntries.length > 0 && (
+                {(displayedEntries.length > 0 || account.openingBalance) && (
                         <div className="flex justify-end mt-4">
                             <div className="w-full max-w-xs space-y-2 text-right">
                                 <div className="flex justify-between font-bold text-base">

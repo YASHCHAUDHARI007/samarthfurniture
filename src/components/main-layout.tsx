@@ -79,7 +79,7 @@ const navItems: {
   { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator"], separator: true },
   { path: "/locations", icon: Warehouse, text: "Locations", roles: ["owner", "administrator"] },
   { path: "/manage-users", icon: Users, text: "Manage Users", roles: ["owner", "administrator"] },
-  { path: "/contacts", icon: BookUser, text: "Contacts", roles: ["owner", "administrator"] },
+  { path: "/chart-of-accounts", icon: BookUser, text: "Chart of Accounts", roles: ["owner", "administrator"] },
 ];
 
 function Menu({ userRole }: { userRole: string | null }) {

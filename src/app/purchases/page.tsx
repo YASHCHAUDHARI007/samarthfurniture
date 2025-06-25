@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee } from "lucide-react";
-import type { RawMaterial, Contact, Purchase, LedgerEntry } from "@/lib/types";
+import type { RawMaterial, Ledger, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 type PurchaseItem = {
@@ -38,11 +38,11 @@ type PurchaseItem = {
 export default function PurchasesPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [allSuppliers, setAllSuppliers] = useState<Contact[]>([]);
+  const [allSuppliers, setAllSuppliers] = useState<Ledger[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
 
   // State for supplier autocomplete
-  const [supplierSuggestions, setSupplierSuggestions] = useState<Contact[]>([]);
+  const [supplierSuggestions, setSupplierSuggestions] = useState<Ledger[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
 
   // Form state
@@ -79,11 +79,11 @@ export default function PurchasesPage() {
         return;
     }
     
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const materialsKey = getCompanyStorageKey('raw_materials')!;
 
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
     
     const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem(materialsKey) || '[]');
     setAllRawMaterials(storedMaterials);
@@ -106,7 +106,7 @@ export default function PurchasesPage() {
     }
   };
 
-  const handleSelectSupplier = (supplier: Contact) => {
+  const handleSelectSupplier = (supplier: Ledger) => {
     setSupplierName(supplier.name);
     setSupplierGstin(supplier.gstin || "");
     setSelectedSupplierId(supplier.id);
@@ -183,13 +183,13 @@ export default function PurchasesPage() {
         return;
     }
 
-    const contactsKey = getCompanyStorageKey('contacts')!;
+    const ledgersKey = getCompanyStorageKey('ledgers')!;
     const purchasesKey = getCompanyStorageKey('purchases')!;
     const materialsKey = getCompanyStorageKey('raw_materials')!;
     const ledgerKey = getCompanyStorageKey('ledger')!;
 
-    let storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    let supplier: Contact | undefined = storedContacts.find(
+    let storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    let supplier: Ledger | undefined = storedLedgers.find(
       (c) => c.id === selectedSupplierId
     );
     let supplierId: string;
@@ -197,16 +197,16 @@ export default function PurchasesPage() {
     if (supplier) {
         supplierId = supplier.id;
         if(supplier.gstin !== supplierGstin) {
-            storedContacts = storedContacts.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
-            localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
-            setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
+            storedLedgers = storedLedgers.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
+            localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
+            setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
         }
     } else {
-        supplierId = `SUPP-${Date.now()}`;
-        supplier = { id: supplierId, name: supplierName, type: 'Supplier', gstin: supplierGstin };
-        storedContacts.push(supplier);
-        localStorage.setItem(contactsKey, JSON.stringify(storedContacts));
-        setAllSuppliers(storedContacts.filter(c => c.type === 'Supplier'));
+        supplierId = `LEDG-${Date.now()}`;
+        supplier = { id: supplierId, name: supplierName, group: 'Sundry Creditors', gstin: supplierGstin };
+        storedLedgers.push(supplier);
+        localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
+        setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
     }
 
     const newPurchase: Purchase = {

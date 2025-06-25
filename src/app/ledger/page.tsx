@@ -16,17 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookText, Search } from "lucide-react";
-import type { Contact } from "@/lib/types";
-
-const internalAccounts = [
-    { id: 'SALES_ACCOUNT', name: 'Sales Account', type: 'Internal' },
-    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', type: 'Internal' },
-    { id: 'CASH_BANK_ACCOUNT', name: 'Cash/Bank Account', type: 'Internal' },
-];
+import type { Ledger } from "@/lib/types";
 
 export default function LedgerPage() {
   const router = useRouter();
-  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [allLedgers, setAllLedgers] = useState<Ledger[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
@@ -37,24 +31,20 @@ export default function LedgerPage() {
 
   useEffect(() => {
     if (!activeCompanyId) {
-        setAllContacts([]);
+        setAllLedgers([]);
         return;
     };
-    const contactsKey = `samarth_furniture_${activeCompanyId}_contacts`;
-    const storedContacts: Contact[] = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-    setAllContacts(storedContacts);
+    const ledgersKey = `samarth_furniture_${activeCompanyId}_ledgers`;
+    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    setAllLedgers(storedLedgers.sort((a,b) => a.name.localeCompare(b.name)));
   }, [activeCompanyId]);
-
-  const ledgerAccounts = useMemo(() => {
-    return [...internalAccounts, ...allContacts].sort((a,b) => a.name.localeCompare(b.name));
-  }, [allContacts]);
 
   const filteredAccounts = useMemo(() => {
     if (!searchTerm) {
-        return ledgerAccounts;
+        return allLedgers;
     }
-    return ledgerAccounts.filter(acc => acc.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [searchTerm, ledgerAccounts]);
+    return allLedgers.filter(acc => acc.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [searchTerm, allLedgers]);
   
   const handleOpenLedger = (accountId: string) => {
     router.push(`/ledger/${accountId}`);
@@ -111,7 +101,7 @@ export default function LedgerPage() {
                           >
                               <div>
                                   <p className="font-semibold">{account.name}</p>
-                                  <p className="text-xs text-muted-foreground">{'type' in account ? account.type : 'Internal'}</p>
+                                  <p className="text-xs text-muted-foreground">{account.group}</p>
                               </div>
                           </Button>
                       ))}
