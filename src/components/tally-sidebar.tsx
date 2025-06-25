@@ -22,8 +22,8 @@ const menuItems = [
   {
     name: 'Vouchers',
     subItems: [
-      { name: 'Payment', path: '/payments', fkey: 'F5', query: 'tab=payment' },
-      { name: 'Receipt', path: '/payments', fkey: 'F6', query: 'tab=receipt' },
+      { name: 'Payment', path: '/payments?tab=payment', fkey: 'F5' },
+      { name: 'Receipt', path: '/payments?tab=receipt', fkey: 'F6' },
       { name: 'Sales', path: '/direct-sale', fkey: 'F8' },
       { name: 'Purchase', path: '/purchases', fkey: 'F9' },
     ],
@@ -33,9 +33,9 @@ const menuItems = [
     subItems: [
         { name: 'Ledger', path: '/ledger' },
         { name: 'Daily Report', path: '/daily-report' },
-        { name: 'GST Reports', path: '/gst-reports' },
     ]
   },
+   { name: 'GST Reports', path: '/gst-reports' },
   { name: 'Quit', action: 'quit' },
 ];
 
@@ -83,7 +83,7 @@ export function TallySidebar() {
         <ul className="space-y-1">
             {activeSubItems.map(subItem => (
                  <li key={subItem.name}>
-                    <Link href={subItem.query ? `${subItem.path}?${subItem.query}` : subItem.path} className={cn(
+                    <Link href={subItem.path} className={cn(
                         'flex justify-between items-center p-1 rounded-sm hover:bg-tally-accent/80 hover:text-white',
                         pathname === subItem.path && 'bg-tally-accent text-white'
                     )}>

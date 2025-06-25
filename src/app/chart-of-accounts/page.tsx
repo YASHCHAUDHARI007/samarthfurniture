@@ -3,14 +3,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,6 +68,7 @@ export default function ChartOfAccountsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [hasAccess, setHasAccess] = useState(false);
+  const [isTallyTheme, setIsTallyTheme] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
@@ -101,6 +94,9 @@ export default function ChartOfAccountsPage() {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
+    }
+    if (role === "administrator") {
+      setIsTallyTheme(true);
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
@@ -200,11 +196,11 @@ export default function ChartOfAccountsPage() {
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
-        <Card className="max-w-md">
-          <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive" /> Access Denied</CardTitle></CardHeader>
-          <CardContent><p>You do not have permission to manage the Chart of Accounts.</p></CardContent>
-          <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
-        </Card>
+        <div className="border border-destructive p-4 rounded-md bg-destructive/10">
+          <h2 className="flex items-center gap-2 font-bold"><ShieldAlert className="text-destructive" /> Access Denied</h2>
+          <p>You do not have permission to manage the Chart of Accounts.</p>
+          <Button onClick={() => router.push("/")} className="mt-4">Return to Dashboard</Button>
+        </div>
       </div>
     );
   }
@@ -212,15 +208,88 @@ export default function ChartOfAccountsPage() {
   if (!activeCompanyId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
-        <Card className="max-w-md">
-          <CardHeader><CardTitle>No Company Selected</CardTitle></CardHeader>
-          <CardContent><p>Please select a company to manage the Chart of Accounts.</p></CardContent>
-          <CardFooter><Button onClick={() => router.push("/manage-companies")}>Go to Companies</Button></CardFooter>
-        </Card>
+         <div className="border p-4 rounded-md">
+            <h2 className="font-bold">No Company Selected</h2>
+            <p>Please select a company to manage the Chart of Accounts.</p>
+            <Button onClick={() => router.push("/manage-companies")} className="mt-4">Go to Companies</Button>
+        </div>
       </div>
     );
   }
 
+  if (isTallyTheme) {
+      return (
+        <>
+            <div className="border border-tally-border p-2 space-y-2 h-full flex flex-col bg-tally-bg">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-center font-bold text-lg uppercase flex-grow">List of Ledgers</h2>
+                    <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="bg-tally-accent text-white hover:bg-tally-accent/90 rounded-none px-4 py-1 h-auto">Create</Button>
+                </div>
+                <div className="flex-grow border border-tally-border overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="text-tally-fg font-bold">Name</TableHead>
+                                <TableHead className="text-tally-fg font-bold">Under</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {ledgers.length > 0 ? ledgers.map((ledger) => (
+                            <TableRow key={ledger.id} className="hover:bg-tally-accent/20 cursor-pointer" onDoubleClick={() => openEditDialog(ledger)}>
+                                <TableCell>{ledger.name}</TableCell>
+                                <TableCell>{ledger.group}</TableCell>
+                            </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={2} className="h-24 text-center">No ledgers created yet.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+            {/* Dialogs remain for functionality */}
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
+              <DialogContent>
+                  <DialogHeader>
+                      <DialogTitle>{ledgerToEdit ? 'Alter Ledger' : 'Create Ledger'}</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="name" className="text-right">Name</Label>
+                          <Input id="name" value={name} onChange={e => setName(e.target.value)} className="col-span-3" required />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="group" className="text-right">Under</Label>
+                          <Select value={group} onValueChange={(v) => setGroup(v as any)}><SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Sundry Debtors">Sundry Debtors</SelectItem><SelectItem value="Sundry Creditors">Sundry Creditors</SelectItem><Separator /><SelectItem value="Bank Accounts">Bank Accounts</SelectItem><SelectItem value="Capital Account">Capital Account</SelectItem><SelectItem value="Direct Expenses">Direct Expenses</SelectItem><SelectItem value="Indirect Expenses">Indirect Expenses</SelectItem><SelectItem value="Direct Incomes">Direct Incomes</SelectItem><SelectItem value="Indirect Incomes">Indirect Incomes</SelectItem><SelectItem value="Fixed Assets">Fixed Assets</SelectItem><SelectItem value="Current Assets">Current Assets</SelectItem><SelectItem value="Cash-in-hand">Cash-in-hand</SelectItem><SelectItem value="Loans (Liability)">Loans (Liability)</SelectItem><SelectItem value="Current Liabilities">Current Liabilities</SelectItem><SelectItem value="Sales Accounts">Sales Accounts</SelectItem><SelectItem value="Purchase Accounts">Purchase Accounts</SelectItem><SelectItem value="Duties & Taxes">Duties & Taxes</SelectItem><SelectItem value="Stock-in-Hand">Stock-in-Hand</SelectItem></SelectContent></Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="openingBalance" className="text-right">Op. Balance</Label>
+                          <div className="relative col-span-3">
+                              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input id="openingBalance" type="number" value={openingBalance} onChange={e => setOpeningBalance(parseFloat(e.target.value) || "")} className="pl-8" />
+                          </div>
+                      </div>
+                      <Separator />
+                      <p className="text-sm text-muted-foreground">Mailing Details</p>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="address" className="text-right">Address</Label>
+                          <Input id="address" value={address} onChange={e => setAddress(e.target.value)} className="col-span-3" />
+                      </div>
+                       <p className="text-sm text-muted-foreground">Tax Registration Details</p>
+                       <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="gstin" className="text-right">GSTIN</Label>
+                          <Input id="gstin" value={gstin} onChange={e => setGstin(e.target.value)} className="col-span-3" />
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <Button onClick={handleFormSubmit}>{ledgerToEdit ? 'Save Changes' : 'Create Ledger'}</Button>
+                  </DialogFooter>
+              </DialogContent>
+            </Dialog>
+        </>
+      );
+  }
+
+  // Original UI for other roles
   return (
     <>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -238,12 +307,12 @@ export default function ChartOfAccountsPage() {
         </p>
         <Separator />
         
-        <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Ledger List</CardTitle>
-              <CardDescription>A list of all accounts for the active company.</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <div className="border rounded-lg mt-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold">Ledger List</h3>
+              <p className="text-sm text-muted-foreground">A list of all accounts for the active company.</p>
+            </div>
+            <div className="p-6 pt-0">
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -271,8 +340,8 @@ export default function ChartOfAccountsPage() {
                   </TableBody>
                 </Table>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
