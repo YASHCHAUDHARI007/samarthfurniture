@@ -14,6 +14,7 @@ export default {
         headline: ['Inter', 'sans-serif'],
         code: ['monospace'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+        sans: ['Arial', 'Helvetica', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -75,13 +76,9 @@ export default {
             fg: 'hsl(var(--tally-fg))',
             border: 'hsl(var(--tally-border))',
             accent: 'hsl(var(--tally-accent))',
-            header: {
-                DEFAULT: 'hsl(var(--tally-header-bg))',
-                foreground: 'hsl(var(--tally-header-fg))'
-            },
-            sidebar: {
-                DEFAULT: 'hsl(var(--tally-sidebar-bg))',
-            }
+            'menu-bg': 'hsl(var(--tally-menu-bg))',
+            'header-bg': 'hsl(var(--tally-header-bg))',
+            'header-fg': 'hsl(var(--tally-header-fg))',
         }
       },
       borderRadius: {

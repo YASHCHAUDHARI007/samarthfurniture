@@ -80,13 +80,13 @@ body {
   }
   
   .tally-theme {
-    --tally-bg: hsl(210, 20%, 98%);
-    --tally-fg: hsl(215, 25%, 27%);
-    --tally-border: hsl(216, 12%, 84%);
-    --tally-accent: hsl(24, 96%, 53%);
-    --tally-header-bg: hsl(210, 16%, 93%);
-    --tally-header-fg: hsl(215, 25%, 27%);
-    --tally-sidebar-bg: hsl(210, 16%, 93%);
+    --tally-bg: hsl(220, 13%, 91%); /* Light grey background */
+    --tally-fg: hsl(224, 71%, 4%); /* Dark blue-black text */
+    --tally-border: hsl(220, 13%, 80%); /* Slightly darker border */
+    --tally-accent: hsl(50, 100%, 88%); /* Pale yellow for active items */
+    --tally-header-bg: hsl(220, 15%, 25%); /* Dark grey-blue header */
+    --tally-header-fg: hsl(210, 40%, 98%); /* White text for header */
+    --tally-menu-bg: hsl(207, 100%, 97%); /* Light blue for dropdowns */
   }
 }
 
@@ -104,22 +104,12 @@ body {
   }
 }
 
-@page {
-  size: A4;
-  margin: 1cm;
-}
-
 @media print {
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .no-print,
-  [data-radix-dialog-overlay] {
-    display: none !important;
-  }
-  
   [role="dialog"] {
     position: static !important;
     inset: auto !important;
@@ -136,11 +126,19 @@ body {
     box-shadow: none !important;
     background: white !important;
   }
-
+  
+  /* Hide everything on the page except for the printable area and its children */
+  body > *:not([role="dialog"]),
+  [data-radix-dialog-overlay] {
+    display: none !important;
+  }
+  
+  /* Hide the dialog's standard header/footer/close button when printing */
   [role="dialog"] > *:not(#printable-area) {
      display: none !important;
   }
 
+  /* Ensure the printable area itself is visible */
   #printable-area {
     display: block !important;
     width: 100% !important;
@@ -148,5 +146,10 @@ body {
     padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
+  }
+
+  /* Support for two-copy printing (e.g., delivery receipts) */
+  .print-page-break {
+    page-break-before: always;
   }
 }

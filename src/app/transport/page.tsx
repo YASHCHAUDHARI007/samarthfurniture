@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 const DeliveryReceipt = ({ order, addPageBreakBefore = false }: { order: Order, addPageBreakBefore?: boolean }) => (
     <div className={cn(
         "bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative",
-        addPageBreakBefore && "print:break-before-page"
+        addPageBreakBefore && "print-page-break"
       )}>
       {/* Header */}
       <div className="flex justify-between items-start mb-8">

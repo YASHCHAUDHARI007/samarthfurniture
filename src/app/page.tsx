@@ -33,6 +33,7 @@ import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { TallyGatewayMenu } from "@/components/tally/tally-gateway-menu";
 
 
 const chartConfig = {
@@ -50,10 +51,14 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
     const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
+
     if (!username) {
       router.push("/login");
       return;
@@ -144,6 +149,14 @@ export default function Dashboard() {
     }
   };
 
+  if (!isAuthenticated) {
+    return null;
+  }
+  
+  if (userRole === 'administrator') {
+    return <TallyGatewayMenu />;
+  }
+
   const recentOrders = [...orders].sort((a,b) => (b.createdAt && a.createdAt) ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0).slice(0, 4);
 
   const totalCustomizedOrders = orders.filter(
@@ -170,10 +183,6 @@ export default function Dashboard() {
     return acc + quantities.reduce((sum, q) => sum + q, 0);
   }, 0);
 
-  if (!isAuthenticated) {
-    return null;
-  }
-  
   if (isClient && !activeCompanyId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">

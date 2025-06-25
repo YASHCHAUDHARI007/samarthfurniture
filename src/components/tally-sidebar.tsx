@@ -1,98 +1,49 @@
 
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import type { Company } from '@/lib/types';
+import { Separator } from '@/components/ui/separator';
 
-const menuItems = [
-  { name: 'Gateway of Tally', path: '/' },
-  {
-    name: 'Masters',
-    subItems: [
-        { name: 'Chart of Accounts', path: '/chart-of-accounts' },
-        { name: 'Finished Stock', path: '/stock-turnover' },
-        { name: 'Raw Materials', path: '/raw-materials' },
-        { name: 'Locations', path: '/locations' },
-        { name: 'Companies', path: '/manage-companies' },
-        { name: 'Users', path: '/manage-users' },
-    ]
-  },
-  {
-    name: 'Vouchers',
-    subItems: [
-      { name: 'Payment', path: '/payments?tab=payment', fkey: 'F5' },
-      { name: 'Receipt', path: '/payments?tab=receipt', fkey: 'F6' },
-      { name: 'Sales', path: '/direct-sale', fkey: 'F8' },
-      { name: 'Purchase', path: '/purchases', fkey: 'F9' },
-    ],
-  },
-  {
-    name: 'Reports',
-    subItems: [
-        { name: 'Ledger', path: '/ledger' },
-        { name: 'Daily Report', path: '/daily-report' },
-    ]
-  },
-   { name: 'GST Reports', path: '/gst-reports' },
-  { name: 'Quit', action: 'quit' },
-];
+export function TallyLeftPanel() {
+  const [company, setCompany] = useState<Company | null>(null);
+  const [currentDate, setCurrentDate] = useState('');
 
+  useEffect(() => {
+    const activeCompanyId = localStorage.getItem('activeCompanyId');
+    const companies: Company[] = JSON.parse(localStorage.getItem('samarth_furniture_companies') || '[]');
+    const activeCompany = companies.find(c => c.id === activeCompanyId);
+    setCompany(activeCompany || null);
 
-export function TallySidebar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState('Gateway of Tally');
+    setCurrentDate(format(new Date(), 'eeee, d-MMM-yyyy'));
+  }, []);
 
-  const handleQuit = () => {
-    if (confirm('Are you sure you want to quit?')) {
-        router.push('/login');
-    }
-  }
-
-  const handleMenuClick = (item: (typeof menuItems)[0]) => {
-    setActiveMenu(item.name);
-    if(item.path) {
-        router.push(item.path);
-    }
-  }
+  const fyStart = company ? format(parseISO(company.financialYearStart), 'd-Apr-yy') : '';
+  const fyEnd = company ? format(parseISO(company.financialYearEnd), 'd-Mar-yy') : '';
   
-  const activeSubItems = menuItems.find(item => item.name === activeMenu)?.subItems || [];
-
   return (
-    <aside className="w-64 bg-tally-sidebar border-l border-tally-border p-2 flex flex-col justify-between">
-      <div>
-        <ul className="space-y-1">
-            {menuItems.map((item) => (
-            <li key={item.name}>
-                <button 
-                    onClick={item.action === 'quit' ? handleQuit : () => handleMenuClick(item)} 
-                    className={cn(
-                        'w-full text-left p-1 rounded-sm',
-                        activeMenu === item.name ? 'bg-tally-accent text-white' : 'hover:bg-tally-accent/80 hover:text-white'
-                    )}
-                >
-                    {item.name}
-                </button>
-            </li>
-            ))}
-        </ul>
+    <aside className="w-64 bg-tally-bg border-r-2 border-r-gray-400 p-2 flex flex-col gap-4">
+      <div className="border border-tally-border p-2">
+        <h3 className="text-center font-bold">Gateway of Tally</h3>
       </div>
-      <div>
-        <ul className="space-y-1">
-            {activeSubItems.map(subItem => (
-                 <li key={subItem.name}>
-                    <Link href={subItem.path} className={cn(
-                        'flex justify-between items-center p-1 rounded-sm hover:bg-tally-accent/80 hover:text-white',
-                        pathname === subItem.path && 'bg-tally-accent text-white'
-                    )}>
-                        <span>{subItem.name}</span>
-                        {subItem.fkey && <span className="text-xs opacity-70">{subItem.fkey}</span>}
-                    </Link>
-                </li>
-            ))}
-        </ul>
+      <div className="flex-grow space-y-4 text-xs">
+          <div>
+            <p className="text-tally-fg/70">CURRENT PERIOD</p>
+            <p className="font-semibold">{fyStart} to {fyEnd}</p>
+          </div>
+           <div>
+            <p className="text-tally-fg/70">CURRENT DATE</p>
+            <p className="font-semibold">{currentDate}</p>
+          </div>
+           <div>
+            <p className="text-tally-fg/70">NAME OF COMPANY</p>
+            <p className="font-semibold">{company?.name || 'No Company Selected'}</p>
+          </div>
+           <div>
+            <p className="text-tally-fg/70">DATE OF LAST ENTRY</p>
+            <p className="font-semibold">N/A</p>
+          </div>
       </div>
     </aside>
   );

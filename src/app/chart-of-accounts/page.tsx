@@ -220,22 +220,24 @@ export default function ChartOfAccountsPage() {
   if (isTallyTheme) {
       return (
         <>
-            <div className="border border-tally-border p-2 space-y-2 h-full flex flex-col bg-tally-bg">
-                <div className="flex justify-between items-center">
+            <div className="border border-tally-border p-2 space-y-2 h-full flex flex-col bg-white">
+                <div className="flex justify-between items-center px-1">
                     <h2 className="text-center font-bold text-lg uppercase flex-grow">List of Ledgers</h2>
-                    <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="bg-tally-accent text-white hover:bg-tally-accent/90 rounded-none px-4 py-1 h-auto">Create</Button>
+                    <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="bg-tally-header-bg text-tally-header-fg hover:bg-tally-header-bg/90 rounded-none px-4 py-1 h-auto border border-tally-border">
+                        C<span className="underline">r</span>eate
+                    </Button>
                 </div>
                 <div className="flex-grow border border-tally-border overflow-y-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead className="text-tally-fg font-bold">Name</TableHead>
-                                <TableHead className="text-tally-fg font-bold">Under</TableHead>
+                            <TableRow className="bg-tally-header-bg">
+                                <TableHead className="text-tally-header-fg font-bold border-tally-border">Name of Ledger</TableHead>
+                                <TableHead className="text-tally-header-fg font-bold border-tally-border">Under</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {ledgers.length > 0 ? ledgers.map((ledger) => (
-                            <TableRow key={ledger.id} className="hover:bg-tally-accent/20 cursor-pointer" onDoubleClick={() => openEditDialog(ledger)}>
+                            <TableRow key={ledger.id} className="hover:bg-tally-accent/20 cursor-pointer border-tally-border" onDoubleClick={() => openEditDialog(ledger)}>
                                 <TableCell>{ledger.name}</TableCell>
                                 <TableCell>{ledger.group}</TableCell>
                             </TableRow>
@@ -248,9 +250,9 @@ export default function ChartOfAccountsPage() {
             </div>
             {/* Dialogs remain for functionality */}
             <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
-              <DialogContent>
+              <DialogContent className="tally-theme">
                   <DialogHeader>
-                      <DialogTitle>{ledgerToEdit ? 'Alter Ledger' : 'Create Ledger'}</DialogTitle>
+                      <DialogTitle>{ledgerToEdit ? 'Ledger Alteration' : 'Ledger Creation'}</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                       <div className="grid grid-cols-4 items-center gap-4">
@@ -258,15 +260,12 @@ export default function ChartOfAccountsPage() {
                           <Input id="name" value={name} onChange={e => setName(e.target.value)} className="col-span-3" required />
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="group" className="text-right">(alias)</Label>
+                          <Input className="col-span-3" disabled />
+                      </div>
+                       <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="group" className="text-right">Under</Label>
                           <Select value={group} onValueChange={(v) => setGroup(v as any)}><SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Sundry Debtors">Sundry Debtors</SelectItem><SelectItem value="Sundry Creditors">Sundry Creditors</SelectItem><Separator /><SelectItem value="Bank Accounts">Bank Accounts</SelectItem><SelectItem value="Capital Account">Capital Account</SelectItem><SelectItem value="Direct Expenses">Direct Expenses</SelectItem><SelectItem value="Indirect Expenses">Indirect Expenses</SelectItem><SelectItem value="Direct Incomes">Direct Incomes</SelectItem><SelectItem value="Indirect Incomes">Indirect Incomes</SelectItem><SelectItem value="Fixed Assets">Fixed Assets</SelectItem><SelectItem value="Current Assets">Current Assets</SelectItem><SelectItem value="Cash-in-hand">Cash-in-hand</SelectItem><SelectItem value="Loans (Liability)">Loans (Liability)</SelectItem><SelectItem value="Current Liabilities">Current Liabilities</SelectItem><SelectItem value="Sales Accounts">Sales Accounts</SelectItem><SelectItem value="Purchase Accounts">Purchase Accounts</SelectItem><SelectItem value="Duties & Taxes">Duties & Taxes</SelectItem><SelectItem value="Stock-in-Hand">Stock-in-Hand</SelectItem></SelectContent></Select>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="openingBalance" className="text-right">Op. Balance</Label>
-                          <div className="relative col-span-3">
-                              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input id="openingBalance" type="number" value={openingBalance} onChange={e => setOpeningBalance(parseFloat(e.target.value) || "")} className="pl-8" />
-                          </div>
                       </div>
                       <Separator />
                       <p className="text-sm text-muted-foreground">Mailing Details</p>
@@ -276,12 +275,19 @@ export default function ChartOfAccountsPage() {
                       </div>
                        <p className="text-sm text-muted-foreground">Tax Registration Details</p>
                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="gstin" className="text-right">GSTIN</Label>
+                          <Label htmlFor="gstin" className="text-right">GSTIN/UIN</Label>
                           <Input id="gstin" value={gstin} onChange={e => setGstin(e.target.value)} className="col-span-3" />
+                      </div>
+                      <Separator />
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="openingBalance" className="text-right">Opening Balance</Label>
+                          <div className="relative col-span-3">
+                              <Input id="openingBalance" type="number" value={openingBalance} onChange={e => setOpeningBalance(parseFloat(e.target.value) || "")} className="pl-8" placeholder="0.00"/>
+                          </div>
                       </div>
                   </div>
                   <DialogFooter>
-                      <Button onClick={handleFormSubmit}>{ledgerToEdit ? 'Save Changes' : 'Create Ledger'}</Button>
+                      <Button onClick={handleFormSubmit}>Accept</Button>
                   </DialogFooter>
               </DialogContent>
             </Dialog>
