@@ -78,6 +78,16 @@ body {
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 35 92% 55%;
   }
+  
+  .tally-theme {
+    --tally-bg: hsl(210, 20%, 98%);
+    --tally-fg: hsl(215, 25%, 27%);
+    --tally-border: hsl(216, 12%, 84%);
+    --tally-accent: hsl(24, 96%, 53%);
+    --tally-header-bg: hsl(210, 16%, 93%);
+    --tally-header-fg: hsl(215, 25%, 27%);
+    --tally-sidebar-bg: hsl(210, 16%, 93%);
+  }
 }
 
 @layer base {
@@ -86,6 +96,11 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+  .tally-theme {
+    * {
+        @apply border-tally-border;
+    }
   }
 }
 
@@ -135,5 +150,3 @@ body {
     overflow: visible !important;
   }
 }
-
-    
