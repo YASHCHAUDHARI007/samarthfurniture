@@ -297,131 +297,127 @@ export default function DirectSalePage() {
 
   return (
     <>
-      <div className="flex-1 space-y-4 p-4 md:p-6">
-        <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-blue-800">Sales</h2>
-            <p className="font-mono">{voucherNumber ? `No. ${voucherNumber}` : 'No. ...'}</p>
+      <div className="flex-1 space-y-2 p-2 md:p-4">
+        <div className="flex items-center justify-between bg-primary text-primary-foreground p-2 rounded-t-md">
+            <h2 className="text-lg font-bold">Sales</h2>
+            <p className="font-mono text-sm">{voucherNumber ? `No. ${voucherNumber}` : 'No. ...'}</p>
         </div>
 
-        <div className="mt-4">
-            <div className="bg-emerald-50 border border-gray-300 p-4 rounded-md space-y-4">
-                <div className="flex justify-end">
-                     <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant={"outline"} className={cn("w-[240px] justify-start text-left font-normal", !saleDate && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {saleDate ? format(saleDate, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={saleDate} onSelect={setSaleDate} initialFocus /></PopoverContent>
-                    </Popover>
-                </div>
-                <div className="grid grid-cols-[140px_1fr] items-center gap-y-2 gap-x-4">
-                    <Label htmlFor="name" className="font-semibold text-right">Party A/c name</Label>
-                    <div className="relative">
-                        <Input id="name" name="name" required value={customerName} onChange={handleNameChange} onBlur={() => setTimeout(() => setCustomerSuggestions([]), 150)} autoComplete="off" className="bg-white" />
-                        {customerSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
-                                <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                    {customerSuggestions.map(c => ( <button key={c.id} type="button" className="w-full text-left p-2 rounded-md hover:bg-muted" onClick={() => handleSelectCustomer(c)}>{c.name}</button>))}
-                                </div>
+        <div className="bg-emerald-50 border border-border p-4 rounded-b-md space-y-4">
+            <div className="flex justify-end">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-[240px] justify-start text-left font-normal", !saleDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {saleDate ? format(saleDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={saleDate} onSelect={setSaleDate} initialFocus /></PopoverContent>
+                </Popover>
+            </div>
+            <div className="grid grid-cols-[140px_1fr] items-center gap-y-2 gap-x-4">
+                <Label htmlFor="name" className="font-semibold text-right">Party A/c name</Label>
+                <div className="relative">
+                    <Input id="name" name="name" required value={customerName} onChange={handleNameChange} onBlur={() => setTimeout(() => setCustomerSuggestions([]), 150)} autoComplete="off" className="bg-white" />
+                    {customerSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg">
+                            <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                {customerSuggestions.map(c => ( <button key={c.id} type="button" className="w-full text-left p-2 rounded-md hover:bg-muted" onClick={() => handleSelectCustomer(c)}>{c.name}</button>))}
                             </div>
-                        )}
-                    </div>
-
-                    <Label htmlFor="address" className="font-semibold text-right">Address</Label>
-                    <Input id="address" name="address" required value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="bg-white" />
+                        </div>
+                    )}
                 </div>
-                
-                <div className="space-y-1 bg-amber-50 p-2 rounded">
-                    <div className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 text-sm font-bold text-center">
-                        <Label className="text-left">Name of Item</Label>
-                        <Label>HSN/SAC</Label>
-                        <Label>Quantity</Label>
-                        <Label>Rate</Label>
-                        <Label>Amount</Label>
-                        <div></div>
-                    </div>
-                    {saleItems.map((item, index) => (
-                        <div key={item.key} className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 items-start">
-                             <div className="relative">
-                                <Input
-                                    placeholder="Type to search item"
-                                    value={item.name}
-                                    onChange={(e) => handleItemChange(item.key, 'name', e.target.value)}
-                                    onFocus={() => setActiveItemInput(item.key)}
-                                    onBlur={() => setTimeout(() => { setActiveItemInput(null); setItemSuggestions([]); }, 150)}
-                                    autoComplete="off"
-                                    className="bg-white h-9"
-                                    required
-                                />
-                                {activeItemInput === item.key && itemSuggestions.length > 0 && (
-                                    <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
-                                        <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
-                                            {itemSuggestions.map(s => (
-                                                <div key={s.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(item.key, 'stockItemId', s.id); setItemSuggestions([]);}}>
-                                                    {s.name} ({s.quantity})
-                                                </div>
-                                            ))}
-                                        </div>
+
+                <Label htmlFor="address" className="font-semibold text-right">Address</Label>
+                <Input id="address" name="address" required value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="bg-white" />
+            </div>
+            
+            <div className="space-y-1 bg-amber-50/50 p-2 rounded">
+                <div className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 text-sm font-bold text-center">
+                    <Label className="text-left">Name of Item</Label>
+                    <Label>HSN/SAC</Label>
+                    <Label>Quantity</Label>
+                    <Label>Rate</Label>
+                    <Label>Amount</Label>
+                    <div></div>
+                </div>
+                {saleItems.map((item, index) => (
+                    <div key={item.key} className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 items-start">
+                          <div className="relative">
+                            <Input
+                                placeholder="Type to search item"
+                                value={item.name}
+                                onChange={(e) => handleItemChange(item.key, 'name', e.target.value)}
+                                onFocus={() => setActiveItemInput(item.key)}
+                                onBlur={() => setTimeout(() => { setActiveItemInput(null); setItemSuggestions([]); }, 150)}
+                                autoComplete="off"
+                                className="bg-white h-9"
+                                required
+                            />
+                            {activeItemInput === item.key && itemSuggestions.length > 0 && (
+                                <div className="absolute z-20 w-full mt-1 bg-card border rounded-md shadow-lg">
+                                    <div className="flex flex-col gap-1 p-1 max-h-60 overflow-y-auto">
+                                        {itemSuggestions.map(s => (
+                                            <div key={s.id} className="p-2 hover:bg-muted rounded-md cursor-pointer" onMouseDown={() => {handleItemChange(item.key, 'stockItemId', s.id); setItemSuggestions([]);}}>
+                                                {s.name} ({s.quantity})
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
-                             </div>
-                             <Input placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.key, 'hsn', e.target.value)} className="bg-white h-9" />
-                             <Input type="number" value={item.quantity} onChange={e => handleItemChange(item.key, 'quantity', parseFloat(e.target.value) || "")} min="1" max={item.available || undefined} className="text-right bg-white h-9" placeholder="0" />
-                             <Input type="number" value={item.price} onChange={e => handleItemChange(item.key, 'price', parseFloat(e.target.value) || "")} min="0" className="text-right bg-white h-9" placeholder="0.00" />
-                             <Input value={((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)} className="text-right bg-gray-100 h-9" readOnly />
-                             <Button variant="ghost" size="icon" onClick={() => removeSaleItem(item.key)} className="text-destructive h-9 w-9"><Trash2 className="h-4 w-4"/></Button>
-                        </div>
-                    ))}
-                    <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
-                </div>
-                
-                 <div className="flex items-start justify-between gap-4 pt-4">
-                    {/* Narration on the left */}
-                    <div className="flex-grow space-y-1">
-                        <Label htmlFor="narration" className="font-semibold">Narration:</Label>
-                        <Textarea 
-                            id="narration" 
-                            value={narration} 
-                            onChange={e => setNarration(e.target.value)} 
-                            rows={4} 
-                            className="bg-white mt-1 w-full max-w-md"
-                        />
+                                </div>
+                            )}
+                          </div>
+                          <Input placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.key, 'hsn', e.target.value)} className="bg-white h-9" />
+                          <Input type="number" value={item.quantity} onChange={e => handleItemChange(item.key, 'quantity', parseFloat(e.target.value) || "")} min="1" max={item.available || undefined} className="text-right bg-white h-9" placeholder="0" />
+                          <Input type="number" value={item.price} onChange={e => handleItemChange(item.key, 'price', parseFloat(e.target.value) || "")} min="0" className="text-right bg-white h-9" placeholder="0.00" />
+                          <Input value={((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)} className="text-right bg-gray-100 h-9" readOnly />
+                          <Button variant="ghost" size="icon" onClick={() => removeSaleItem(item.key)} className="text-destructive h-9 w-9"><Trash2 className="h-4 w-4"/></Button>
                     </div>
-                    {/* Totals on the right */}
-                    <div className="w-full max-w-sm space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                            <p className="font-semibold">Total Qty:</p>
-                            <p className="font-mono font-bold">{totalQuantity.toFixed(2)}</p>
-                        </div>
-                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span className="font-mono">₹{subTotal.toFixed(2)}</span>
-                        </div>
-                         <div className="flex items-center justify-between gap-4 text-sm">
-                            <Label htmlFor="gstRate" className="whitespace-nowrap text-muted-foreground">GST Rate</Label>
-                            <Input id="gstRate" type="number" value={gstRate} onChange={e => setGstRate(parseFloat(e.target.value) || 0)} className="w-24 h-8"/>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">SGST ({(gstRate / 2).toFixed(2)}%)</span>
-                            <span className="font-mono">₹{sgstAmount.toFixed(2)}</span>
-                        </div>
-                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">CGST ({(gstRate / 2).toFixed(2)}%)</span>
-                            <span className="font-mono">₹{cgstAmount.toFixed(2)}</span>
-                        </div>
-                        <Separator className="my-1 bg-gray-300"/>
-                        <div className="flex justify-between items-center font-bold text-base">
-                            <p>Total Amt:</p>
-                            <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
-                        </div>
+                ))}
+                <Button variant="link" size="sm" onClick={addSaleItem}>Add Row</Button>
+            </div>
+            
+              <div className="flex items-start justify-between gap-4 pt-4">
+                <div className="flex-grow space-y-1">
+                    <Label htmlFor="narration" className="font-semibold">Narration:</Label>
+                    <Textarea 
+                        id="narration" 
+                        value={narration} 
+                        onChange={e => setNarration(e.target.value)} 
+                        rows={4} 
+                        className="bg-white mt-1 w-full max-w-md"
+                    />
+                </div>
+                <div className="w-full max-w-sm space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                        <p className="font-semibold">Total Qty:</p>
+                        <p className="font-mono font-bold">{totalQuantity.toFixed(2)}</p>
+                    </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-mono">₹{subTotal.toFixed(2)}</span>
+                    </div>
+                      <div className="flex items-center justify-between gap-4 text-sm">
+                        <Label htmlFor="gstRate" className="whitespace-nowrap text-muted-foreground">GST Rate</Label>
+                        <Input id="gstRate" type="number" value={gstRate} onChange={e => setGstRate(parseFloat(e.target.value) || 0)} className="w-24 h-8"/>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">SGST ({(gstRate / 2).toFixed(2)}%)</span>
+                        <span className="font-mono">₹{sgstAmount.toFixed(2)}</span>
+                    </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">CGST ({(gstRate / 2).toFixed(2)}%)</span>
+                        <span className="font-mono">₹{cgstAmount.toFixed(2)}</span>
+                    </div>
+                    <Separator className="my-1 bg-border"/>
+                    <div className="flex justify-between items-center font-bold text-base">
+                        <p>Total Amt:</p>
+                        <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
                     </div>
                 </div>
+            </div>
 
-                <div className="flex justify-end pt-4">
-                    <Button onClick={handleSubmit} disabled={saleItems.length === 0 || totalAmount <= 0}>Accept</Button>
-                </div>
+            <div className="flex justify-end pt-4">
+                <Button onClick={handleSubmit} disabled={saleItems.length === 0 || totalAmount <= 0}>Accept</Button>
             </div>
         </div>
       </div>
@@ -444,3 +440,5 @@ export default function DirectSalePage() {
     </>
   );
 }
+
+    
