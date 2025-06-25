@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -14,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -35,7 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, ShieldAlert, Trash2, Printer, Search } from "lucide-react";
+import { Receipt, ShieldAlert, Trash2, Printer, Search, IndianRupee } from "lucide-react";
 import type { Order, LineItem, PaymentStatus, LedgerEntry } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 
@@ -272,100 +272,93 @@ export default function BillingPage() {
 
     return (
         <>
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex-1 space-y-2 p-2 md:p-4 bg-gray-100 print:bg-white">
             {isCreating && selectedOrder ? (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Create Invoice for Order: {selectedOrder.id}</CardTitle>
-                        <CardDescription>Add pricing details to generate the final invoice. This will mark the order as 'Billed'.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="max-h-[50vh] overflow-y-auto p-1 space-y-4">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead className="w-32">HSN/SAC</TableHead>
-                                        <TableHead className="w-24">Quantity</TableHead>
-                                        <TableHead className="w-32">Price/Unit</TableHead>
-                                        <TableHead className="w-32 text-right">Total</TableHead>
-                                        {selectedOrder.type === "Customized" && <TableHead className="w-12"></TableHead>}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {lineItems.map(item => (
-                                        <TableRow key={item.id}>
-                                            <TableCell>
-                                                {selectedOrder.type === 'Customized' ? (
-                                                    <Input value={item.description} onChange={e => handleLineItemChange(item.id, 'description', e.target.value)} />
-                                                ) : item.description}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input value={item.hsn || ''} onChange={e => handleLineItemChange(item.id, 'hsn', e.target.value)} placeholder="e.g. 9403"/>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input type="number" value={item.quantity} onChange={e => handleLineItemChange(item.id, 'quantity', e.target.value)} min="1"/>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input type="number" value={item.price} onChange={e => handleLineItemChange(item.id, 'price', e.target.value)} min="0" placeholder="0.00"/>
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium">
-                                                {(item.quantity * item.price).toFixed(2)}
-                                            </TableCell>
-                                            {selectedOrder.type === 'Customized' && (
-                                                <TableCell>
-                                                    <Button variant="ghost" size="icon" onClick={() => removeLineItem(item.id)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                                                </TableCell>
-                                            )}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            {selectedOrder.type === 'Customized' && (
-                                <Button variant="outline" size="sm" onClick={addLineItem}>Add Line Item</Button>
-                            )}
+                <>
+                    <div className="flex items-center justify-between bg-primary text-primary-foreground p-2 rounded-t-md">
+                        <h2 className="text-lg font-bold">Sales Invoice: {selectedOrder.id}</h2>
+                        <p className="font-mono text-sm">Date: {new Date().toLocaleDateString()}</p>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-border p-4 rounded-b-md space-y-4">
+                        <div className="grid grid-cols-[140px_1fr] items-start gap-y-2 gap-x-4">
+                            <Label className="font-semibold text-right pt-2">Party A/c name</Label>
+                            <Input value={selectedOrder.customer} readOnly className="bg-gray-100" />
+
+                            <Label className="font-semibold text-right pt-2">Address</Label>
+                            <Textarea value={selectedOrder.customerInfo?.address || ''} readOnly rows={2} className="bg-gray-100" />
                         </div>
-                        <Separator className="my-4" />
-                        <div className="flex justify-between gap-8 items-start">
-                            <div className="w-full max-w-xs space-y-1">
-                                <Label htmlFor="reference">Ref (Optional)</Label>
-                                <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. PO-123"/>
+                        
+                        <div className="space-y-1 bg-amber-50/50 p-2 rounded">
+                            <div className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 text-sm font-bold text-center">
+                                <Label className="text-left">Name of Item</Label>
+                                <Label>HSN/SAC</Label>
+                                <Label>Quantity</Label>
+                                <Label>Rate</Label>
+                                <Label>Amount</Label>
+                                <div></div>
                             </div>
-                            <div className="w-full max-w-sm space-y-4">
-                                <div className="flex items-center justify-between gap-4">
-                                    <Label htmlFor="totalGstRate" className="whitespace-nowrap">Total GST Rate (%)</Label>
-                                    <Input id="totalGstRate" type="number" value={totalGstRate} onChange={e => setTotalGstRate(parseFloat(e.target.value) || 0)} className="w-24"/>
+                            {lineItems.map(item => (
+                                <div key={item.id} className="grid grid-cols-[1fr_120px_100px_120px_140px_40px] gap-2 items-start">
+                                    <Input
+                                        value={item.description}
+                                        readOnly={selectedOrder.type !== 'Customized'}
+                                        onChange={e => handleLineItemChange(item.id, 'description', e.target.value)}
+                                        className={selectedOrder.type !== 'Customized' ? 'bg-gray-100 h-9' : 'bg-white h-9'}
+                                    />
+                                    <Input placeholder="HSN" value={item.hsn || ''} onChange={e => handleLineItemChange(item.id, 'hsn', e.target.value)} className="bg-white h-9" />
+                                    <Input type="number" value={item.quantity} onChange={e => handleLineItemChange(item.id, 'quantity', e.target.value)} min="1" className="text-right bg-white h-9" placeholder="0" />
+                                    <Input type="number" value={item.price} onChange={e => handleLineItemChange(item.id, 'price', e.target.value)} min="0" className="text-right bg-white h-9" placeholder="0.00" />
+                                    <Input value={((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)} className="text-right bg-gray-100 h-9" readOnly />
+                                    {selectedOrder.type === 'Customized' ?
+                                        <Button variant="ghost" size="icon" onClick={() => removeLineItem(item.id)} className="text-destructive h-9 w-9"><Trash2 className="h-4 w-4"/></Button>
+                                        : <div></div>
+                                    }
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium">Subtotal</span>
-                                    <span>{subTotal.toFixed(2)}</span>
+                            ))}
+                            {selectedOrder.type === 'Customized' && <Button variant="link" size="sm" onClick={addLineItem}>Add Row</Button>}
+                        </div>
+                        
+                        <div className="flex items-start justify-between gap-4 pt-4">
+                            <div className="flex-grow space-y-1">
+                                <Label htmlFor="reference" className="font-semibold">Narration / Ref:</Label>
+                                <Textarea id="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. PO-123" rows={3} className="bg-white w-full max-w-md"/>
+                            </div>
+                            <div className="w-full max-w-sm space-y-2">
+                                 <div className="flex items-center justify-between gap-4 text-sm">
+                                    <Label htmlFor="totalGstRate" className="whitespace-nowrap">Total GST Rate</Label>
+                                    <Input id="totalGstRate" type="number" value={totalGstRate} onChange={e => setTotalGstRate(parseFloat(e.target.value) || 0)} className="w-24 h-8 bg-white"/>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium">SGST ({(totalGstRate / 2).toFixed(2)}%)</span>
-                                    <span>{sgstAmount.toFixed(2)}</span>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Subtotal</span>
+                                    <span className="font-mono">₹{subTotal.toFixed(2)}</span>
                                 </div>
-                                 <div className="flex justify-between">
-                                    <span className="font-medium">CGST ({(totalGstRate / 2).toFixed(2)}%)</span>
-                                    <span>{cgstAmount.toFixed(2)}</span>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">SGST ({(totalGstRate / 2).toFixed(2)}%)</span>
+                                    <span className="font-mono">₹{sgstAmount.toFixed(2)}</span>
                                 </div>
-                                <Separator />
-                                <div className="flex justify-between text-lg font-bold">
-                                    <span>Total Amount</span>
-                                    <span>₹{totalAmount.toFixed(2)}</span>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">CGST ({(totalGstRate / 2).toFixed(2)}%)</span>
+                                    <span className="font-mono">₹{cgstAmount.toFixed(2)}</span>
+                                </div>
+                                <Separator className="my-1 bg-border"/>
+                                <div className="flex justify-between items-center font-bold text-base">
+                                    <p>Total Amt:</p>
+                                    <p className="font-mono">₹{totalAmount.toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button variant="outline" onClick={handleCancelCreation}>Cancel</Button>
-                        <Button onClick={handleGenerateInvoice} disabled={!totalAmount}>Generate Invoice</Button>
-                    </CardFooter>
-                </Card>
+                        <div className="flex justify-end pt-4 gap-2">
+                            <Button variant="outline" onClick={handleCancelCreation}>Cancel</Button>
+                            <Button onClick={handleGenerateInvoice} disabled={!totalAmount}>Generate Invoice</Button>
+                        </div>
+                    </div>
+                </>
             ) : (
                 <>
                     <div className="flex items-center gap-2">
                         <Receipt className="h-7 w-7" />
-                        <h2 className="text-3xl font-bold tracking-tight">Sales & Billing</h2>
+                        <h2 className="text-3xl font-bold tracking-tight">Sales &amp; Billing</h2>
                     </div>
                     <p className="text-muted-foreground">
                         Generate invoices for completed orders.
@@ -373,9 +366,9 @@ export default function BillingPage() {
                     <Separator />
 
                     <Tabs defaultValue="billing" className="pt-4">
-                        <TabsList className="grid w-full grid-cols-2 max-w-md">
-                            <TabsTrigger value="billing">Ready for Billing</TabsTrigger>
-                            <TabsTrigger value="payments">Bill History</TabsTrigger>
+                        <TabsList className="bg-transparent p-0 h-auto">
+                           <TabsTrigger value="billing" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary justify-start p-2 text-base">Ready for Billing</TabsTrigger>
+                           <TabsTrigger value="payments" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary justify-start p-2 text-base">Bill History</TabsTrigger>
                         </TabsList>
                         <TabsContent value="billing">
                             <Card className="mt-2">
@@ -399,16 +392,16 @@ export default function BillingPage() {
                                             <TableBody>
                                                 {ordersReadyForBilling.length > 0 ? ordersReadyForBilling.map(order => (
                                                     <TableRow key={order.id}>
-                                                        <TableCell className="font-medium">{order.id}</TableCell>
-                                                        <TableCell>{order.customer}</TableCell>
-                                                        <TableCell>{order.type}</TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="font-medium p-2">{order.id}</TableCell>
+                                                        <TableCell className="p-2">{order.customer}</TableCell>
+                                                        <TableCell className="p-2">{order.type}</TableCell>
+                                                        <TableCell className="text-right p-2">
                                                             <Button size="sm" onClick={() => handleSelectOrder(order)}>Create Invoice</Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 )) : (
                                                     <TableRow>
-                                                        <TableCell colSpan={4} className="h-24 text-center">No orders are awaiting billing.</TableCell>
+                                                        <TableCell colSpan={4} className="h-24 text-center p-2">No orders are awaiting billing.</TableCell>
                                                     </TableRow>
                                                 )}
                                             </TableBody>
@@ -453,19 +446,19 @@ export default function BillingPage() {
                                             <TableBody>
                                                 {filteredBilledOrders.length > 0 ? filteredBilledOrders.map(order => (
                                                     <TableRow key={order.id}>
-                                                        <TableCell className="font-medium">{order.invoiceNumber}</TableCell>
-                                                        <TableCell>{order.customer}</TableCell>
-                                                        <TableCell className="text-right">₹{order.totalAmount?.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right">₹{order.paidAmount?.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-semibold">₹{order.balanceDue?.toFixed(2)}</TableCell>
-                                                        <TableCell><Badge variant={getPaymentStatusVariant(order.paymentStatus)}>{order.paymentStatus}</Badge></TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="font-medium p-2">{order.invoiceNumber}</TableCell>
+                                                        <TableCell className="p-2">{order.customer}</TableCell>
+                                                        <TableCell className="text-right p-2">₹{order.totalAmount?.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right p-2">₹{order.paidAmount?.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-semibold p-2">₹{order.balanceDue?.toFixed(2)}</TableCell>
+                                                        <TableCell className="p-2"><Badge variant={getPaymentStatusVariant(order.paymentStatus)}>{order.paymentStatus}</Badge></TableCell>
+                                                        <TableCell className="text-right p-2">
                                                             <Button size="sm" onClick={() => { setInvoiceOrder(order); setIsReprintView(true); }} variant="outline" className="mr-2">View / Reprint</Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 )) : (
                                                     <TableRow>
-                                                        <TableCell colSpan={7} className="h-24 text-center">No billed orders found.</TableCell>
+                                                        <TableCell colSpan={7} className="h-24 text-center p-2">No billed orders found.</TableCell>
                                                     </TableRow>
                                                 )}
                                             </TableBody>
