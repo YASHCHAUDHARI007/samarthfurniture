@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import {
   Card,
   CardContent,
@@ -49,6 +49,19 @@ import type { Company, Ledger } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 
 
+const SafeFormatDate = ({ dateString }: { dateString: string }) => {
+    try {
+      const date = parseISO(dateString);
+      if (isValid(date)) {
+        return <>{format(date, "dd-MMM-yyyy")}</>;
+      }
+    } catch (e) {
+      //
+    }
+    return <>{dateString || 'Invalid Date'}</>;
+};
+
+
 export default function ManageCompaniesPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -85,7 +98,7 @@ export default function ManageCompaniesPage() {
     }
     fetchCompanies();
     
-  }, []);
+  }, [toast]);
 
   const handleAddCompany = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -258,7 +271,7 @@ export default function ManageCompaniesPage() {
                       <TableRow key={company.id}>
                         <TableCell className="font-medium">{company.name}</TableCell>
                         <TableCell>
-                          {format(parseISO(company.financialYearStart), "dd-MMM-yyyy")} to {format(parseISO(company.financialYearEnd), "dd-MMM-yyyy")}
+                          <SafeFormatDate dateString={company.financialYearStart} /> to <SafeFormatDate dateString={company.financialYearEnd} />
                         </TableCell>
                         <TableCell className="text-right space-x-1">
                           <Dialog onOpenChange={(open) => !open && setCompanyToEdit(null)}>

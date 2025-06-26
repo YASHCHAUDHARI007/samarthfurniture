@@ -127,9 +127,14 @@ export default function Dashboard() {
       );
 
       deliveredOrdersWithDate.forEach((order) => {
-        const month = format(new Date(order.invoiceDate!), "MMMM");
-        if (salesByMonth.hasOwnProperty(month)) {
-          salesByMonth[month] += (order.totalAmount || 0);
+        if (!order.invoiceDate) return;
+        try {
+            const month = format(new Date(order.invoiceDate), "MMMM");
+            if (salesByMonth.hasOwnProperty(month)) {
+              salesByMonth[month] += (order.totalAmount || 0);
+            }
+        } catch (e) {
+            console.error(`Invalid date format for order ${order.id}: ${order.invoiceDate}`);
         }
       });
 
@@ -329,18 +334,18 @@ export default function Dashboard() {
                               data-ai-hint="person"
                             />
                             <AvatarFallback>
-                              {order.customer.substring(0, 2).toUpperCase()}
+                              {order.customer?.substring(0, 2).toUpperCase() ?? '??'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="grid gap-0.5">
-                            <p className="font-medium">{order.customer}</p>
+                            <p className="font-medium">{order.customer ?? 'N/A'}</p>
                             <p className="text-xs text-muted-foreground">
                               {order.id}
                             </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{order.type}</TableCell>
+                      <TableCell>{order.type ?? 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={getBadgeVariant(order.status)}>
                           {order.status}
@@ -364,4 +369,3 @@ export default function Dashboard() {
   );
 }
 
-    

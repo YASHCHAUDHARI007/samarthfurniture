@@ -52,6 +52,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, StockItem, StockStatus, PaymentStatus } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -65,11 +66,6 @@ export default function FactoryDashboardPage() {
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -95,18 +91,30 @@ export default function FactoryDashboardPage() {
         return;
     };
     
-    setIsLoading(true);
-    const ordersKey = getCompanyStorageKey('orders')!;
-    let allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        const username = localStorage.getItem("loggedInUser");
+        const role = localStorage.getItem("userRole");
 
-    const username = localStorage.getItem("loggedInUser");
-    const role = localStorage.getItem("userRole");
-    if (role === "coordinator" && username) {
-      allOrders = allOrders.filter(order => order.createdBy === username);
+        let query = supabase.from('orders').select('*').eq('company_id', activeCompanyId);
+        
+        if (role === "coordinator" && username) {
+            query = query.eq('createdBy', username);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+            setOrders([]);
+        } else {
+            setOrders(data || []);
+        }
+        setIsLoading(false);
     }
-    setOrders(allOrders);
-    setIsLoading(false);
-  }, [activeCompanyId, userRole]);
+    fetchOrders();
+
+  }, [activeCompanyId, userRole, toast]);
 
   const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity === 0) return "Out of Stock";
@@ -114,88 +122,55 @@ export default function FactoryDashboardPage() {
     return "In Stock";
   };
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const originalOrder = orders.find(o => o.id === orderId);
     if (!originalOrder || !activeCompanyId) return;
     
-    const ordersKey = getCompanyStorageKey('orders')!;
-    const stockKey = getCompanyStorageKey('stock_items')!;
-    
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    let stockItems: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
-    let stockUpdated = false;
+    // Optimistic UI update
+    const previousOrders = orders;
+    setOrders(currentOrders => currentOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
-    // Stock deduction logic
-    if (newStatus === 'Completed' && originalOrder.type === 'Dealer' && !originalOrder.stockDeducted) {
-        const orderLines = originalOrder.details.split('\n');
-        for (const line of orderLines) {
-            const match = line.match(/(\d+)x\s.*?\((.*?)\)/); // e.g. "10x Modern Sofa (SOF-MOD-BLU)"
-            if (match) {
-                const quantityToDeduct = parseInt(match[1], 10);
-                const sku = match[2]; // Extracts the SKU from parenthesis
-                
-                const stockItemIndex = stockItems.findIndex(item => item.sku === sku);
-                if (stockItemIndex !== -1) {
-                    const currentItem = stockItems[stockItemIndex];
-                    const newQuantity = Math.max(0, currentItem.quantity - quantityToDeduct);
-                    stockItems[stockItemIndex] = { 
-                        ...currentItem, 
-                        quantity: newQuantity,
-                        status: getStockStatus(newQuantity, currentItem.reorderLevel)
-                    };
-                    stockUpdated = true;
-                }
-            }
-        }
+    const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+
+    if (error) {
+        setOrders(previousOrders); // Revert on failure
+        toast({
+            variant: 'destructive',
+            title: "Status Update Failed",
+            description: error.message,
+        });
+        return;
     }
     
-    const updatedOrders = allOrders.map((order) =>
-      order.id === orderId ? { ...order, status: newStatus, stockDeducted: newStatus === 'Completed' ? true : order.stockDeducted } : order
-    );
-
-    let userOrders = updatedOrders;
-    if (userRole === "coordinator") {
-      const username = localStorage.getItem("loggedInUser");
-      userOrders = updatedOrders.filter(order => order.createdBy === username);
-    }
-    setOrders(userOrders);
-    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
-
-    if (stockUpdated) {
-        localStorage.setItem(stockKey, JSON.stringify(stockItems));
-        toast({ title: 'Stock Updated', description: 'Inventory levels have been automatically adjusted.' });
-    }
-
     toast({
       title: "Status Updated",
       description: `Order ${orderId} status changed to ${newStatus}.`,
     });
   };
 
-  const handleDeleteOrder = () => {
+  const handleDeleteOrder = async () => {
     if (!orderToDelete || !activeCompanyId) return;
     
-    const ordersKey = getCompanyStorageKey('orders')!;
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    const updatedOrders = allOrders.filter((order) => order.id !== orderToDelete.id);
-    
-    let userOrders = updatedOrders;
-    if (userRole === "coordinator") {
-      const username = localStorage.getItem("loggedInUser");
-      userOrders = updatedOrders.filter(order => order.createdBy === username);
-    }
-    setOrders(userOrders);
-    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
+    const { error } = await supabase.from('orders').delete().eq('id', orderToDelete.id);
 
-    toast({
-      title: "Order Deleted",
-      description: `Order ${orderToDelete.id} has been permanently deleted.`,
-      variant: "destructive"
-    });
+    if (error) {
+      toast({
+        title: "Order Deletion Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      setOrders(orders.filter((order) => order.id !== orderToDelete.id));
+      toast({
+        title: "Order Deleted",
+        description: `Order ${orderToDelete.id} has been permanently deleted.`,
+        variant: "destructive"
+      });
+    }
     setOrderToDelete(null);
   };
 
-  const getStatusBadgeVariant = (status: OrderStatus): BadgeProps["variant"] => {
+  const getStatusBadgeVariant = (status?: OrderStatus): BadgeProps["variant"] => {
     switch (status) {
       case "Delivered":
         return "success";
@@ -274,10 +249,10 @@ export default function FactoryDashboardPage() {
   );
 
   const filteredHistoryOrders = [...completedOrders, ...deliveredOrders].filter(order => 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.item.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : 0);
+      (order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.customer && order.customer.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.item && order.item.toLowerCase().includes(searchTerm.toLowerCase()))
+  ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : -1);
   
   const canDelete = userRole === "administrator";
 
@@ -493,7 +468,7 @@ export default function FactoryDashboardPage() {
                   <div className="space-y-2">
                     <h4 className="font-semibold">Customer Information</h4>
                     <p>
-                      <strong>Name:</strong> {selectedOrder.customerInfo.name}
+                      <strong>Name:</strong> {selectedOrder.customerInfo.name ?? 'N/A'}
                     </p>
                     {selectedOrder.customerInfo.email && (
                       <p>
@@ -519,7 +494,7 @@ export default function FactoryDashboardPage() {
               <Separator />
               <div className="space-y-2">
                 <h4 className="font-semibold">Order Specification</h4>
-                <p className="whitespace-pre-wrap">{selectedOrder.details}</p>
+                <p className="whitespace-pre-wrap">{selectedOrder.details ?? 'No details provided.'}</p>
               </div>
 
               {selectedOrder.dimensions &&

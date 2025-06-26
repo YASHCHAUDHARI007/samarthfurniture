@@ -7,6 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Armchair } from "lucide-react";
 import Image from "next/image";
 
+const SafeInvoiceDate = ({ dateString }: { dateString?: string }) => {
+    if (!dateString) return <span>N/A</span>;
+    try {
+        return <span>{new Date(dateString).toLocaleDateString()}</span>;
+    } catch (e) {
+        return <span>Invalid Date</span>;
+    }
+}
+
 export const Invoice = ({ order, company }: { order: Order, company: Company | null }) => (
     <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
         {/* Header */}
@@ -23,8 +32,8 @@ export const Invoice = ({ order, company }: { order: Order, company: Company | n
                 <div className="flex justify-end items-start gap-4">
                     <div>
                         <h2 className="text-2xl font-semibold uppercase text-gray-700">Invoice</h2>
-                        <p className="text-sm">Invoice #: <span className="font-medium">{order.invoiceNumber}</span></p>
-                        <p className="text-sm">Date: <span className="font-medium">{order.invoiceDate ? new Date(order.invoiceDate).toLocaleDateString() : 'N/A'}</span></p>
+                        <p className="text-sm">Invoice #: <span className="font-medium">{order.invoiceNumber ?? 'N/A'}</span></p>
+                        <p className="text-sm">Date: <span className="font-medium"><SafeInvoiceDate dateString={order.invoiceDate} /></span></p>
                         {order.reference && (<p className="text-sm">Ref: <span className="font-medium">{order.reference}</span></p>)}
                     </div>
                      {order.qrCodeUrl && (
@@ -51,7 +60,7 @@ export const Invoice = ({ order, company }: { order: Order, company: Company | n
         {/* Billed To */}
         <div className="mb-8">
             <h3 className="text-sm font-semibold uppercase text-gray-500 mb-2">Billed To</h3>
-            <p className="font-bold text-lg">{order.customerInfo?.name || order.customer}</p>
+            <p className="font-bold text-lg">{order.customerInfo?.name || order.customer || "N/A"}</p>
             <p className="text-sm break-words">{order.customerInfo?.address || "N/A"}</p>
             <p className="text-sm break-words">{order.customerInfo?.email || ""}</p>
         </div>
@@ -74,8 +83,8 @@ export const Invoice = ({ order, company }: { order: Order, company: Company | n
                             <TableCell className="font-medium">{item.description}</TableCell>
                             <TableCell className="text-center">{item.hsn || ''}</TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">₹{item.price.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">₹{(item.quantity * item.price).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">₹{item.price?.toFixed(2) ?? '0.00'}</TableCell>
+                            <TableCell className="text-right">₹{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -107,8 +116,8 @@ export const Invoice = ({ order, company }: { order: Order, company: Company | n
                         <Separator className="my-2" />
                         {order.payments.map(p => (
                              <div className="flex justify-between text-xs" key={p.id}>
-                                <span>Payment ({new Date(p.date).toLocaleDateString()})</span>
-                                <span className="font-medium">-₹{p.amount.toFixed(2)}</span>
+                                <span>Payment (<SafeInvoiceDate dateString={p.date} />)</span>
+                                <span className="font-medium">-₹{(p.amount || 0).toFixed(2)}</span>
                             </div>
                         ))}
                     </>
@@ -136,5 +145,3 @@ export const Invoice = ({ order, company }: { order: Order, company: Company | n
         </div>
     </div>
 );
-
-    

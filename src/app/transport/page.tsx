@@ -134,6 +134,7 @@ export default function TransportPage() {
 
   useEffect(() => {
     const fetchOrders = async (companyId: string) => {
+        setIsLoading(true);
         const username = localStorage.getItem("loggedInUser");
         const role = localStorage.getItem("userRole");
 
@@ -150,9 +151,11 @@ export default function TransportPage() {
         const { data, error } = await query;
         if (error) {
             toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+            setOrders([]);
         } else {
             setOrders(data || []);
         }
+        setIsLoading(false);
     }
     
     if (activeCompany?.id) {
@@ -289,7 +292,7 @@ export default function TransportPage() {
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">{order.id}</TableCell>
                         <TableCell>
-                          {order.customerInfo?.name || order.customer}
+                          {order.customerInfo?.name || order.customer || "N/A"}
                         </TableCell>
                         <TableCell>
                           {order.customerInfo?.address || "N/A"}
@@ -386,5 +389,3 @@ export default function TransportPage() {
     </>
   );
 }
-
-    
