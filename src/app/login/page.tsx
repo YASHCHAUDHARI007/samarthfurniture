@@ -54,7 +54,6 @@ export default function LoginPage() {
       
       // If the table exists but is empty, seed it.
       if (count === 0) {
-        console.log("No users found, seeding initial accounts...");
         const initialUsers: Omit<User, 'id'>[] = [
           { username: "owner", password: "password123", role: "owner" },
           { username: "coordinator", password: "password456", role: "coordinator" },
@@ -67,13 +66,12 @@ export default function LoginPage() {
           console.error("Failed to seed initial users:", insertError);
           toast({ variant: "destructive", title: "Database setup error", description: "Could not create initial user accounts." });
         } else {
-           console.log("Initial users seeded successfully.");
            toast({ title: "Setup Complete", description: "Default user accounts have been created." });
         }
       }
     }
     seedInitialUsers();
-  }, []);
+  }, [toast]);
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

@@ -2,5 +2,6 @@
   "/page": "app/page.js",
   "/login/page": "app/login/page.js",
   "/direct-sale/page": "app/direct-sale/page.js",
-  "/ledger/page": "app/ledger/page.js"
+  "/ledger/page": "app/ledger/page.js",
+  "/manage-companies/page": "app/manage-companies/page.js"
 }
