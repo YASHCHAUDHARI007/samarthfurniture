@@ -3,6 +3,7 @@
 
 import { Separator } from "@/components/ui/separator";
 import { Armchair, IndianRupee } from "lucide-react";
+import type { Company } from "@/lib/types";
 
 interface VoucherPrintData {
     id: string;
@@ -16,7 +17,7 @@ interface VoucherPrintData {
 }
 
 
-export const VoucherReceipt = ({ voucher }: { voucher: VoucherPrintData }) => {
+export const VoucherReceipt = ({ voucher, company }: { voucher: VoucherPrintData, company: Company | null }) => {
     const isReceipt = voucher.type === 'Receipt';
     const title = isReceipt ? "Receipt Voucher" : "Payment Voucher";
     const partyLabel = isReceipt ? "Received from" : "Paid to";
@@ -31,7 +32,7 @@ export const VoucherReceipt = ({ voucher }: { voucher: VoucherPrintData }) => {
                 <div className="flex items-center gap-3">
                     <Armchair className="h-10 w-10 text-primary" />
                     <div>
-                        <h1 className="text-2xl font-bold">Samarth Furniture</h1>
+                        <h1 className="text-2xl font-bold">{company?.name || 'Samarth Furniture'}</h1>
                         <p className="text-xs text-gray-500">123 Furniture Lane, Anytown, ST 12345</p>
                     </div>
                 </div>
@@ -87,3 +88,5 @@ export const VoucherReceipt = ({ voucher }: { voucher: VoucherPrintData }) => {
         </div>
     );
 };
+
+    

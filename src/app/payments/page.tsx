@@ -37,9 +37,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus } from "@/lib/types";
+import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus, Company } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 
 export default function PaymentsPage() {
@@ -70,12 +71,7 @@ export default function PaymentsPage() {
   const [selectedPurchaseId, setSelectedPurchaseId] = useState("");
 
   const [voucherToPrint, setVoucherToPrint] = useState<any | null>(null);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
+  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -83,36 +79,46 @@ export default function PaymentsPage() {
       setHasAccess(true);
     }
     const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
+    if (companyId) {
+        const fetchCompanyDetails = async () => {
+            const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
+            if (!error && data) setActiveCompany(data);
+        }
+        fetchCompanyDetails();
+    }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setLedgers([]);
         setOrders([]);
         setPurchases([]);
         return;
     }
+    
+    const fetchAllData = async (companyId: string) => {
+        const { data: ledgersData, error: ledgersError } = await supabase.from('ledgers').select('*').eq('company_id', companyId);
+        if(ledgersData) setLedgers(ledgersData);
 
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const ordersKey = getCompanyStorageKey('orders')!;
-    const purchasesKey = getCompanyStorageKey('purchases')!;
+        const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').eq('company_id', companyId);
+        if(ordersData) setOrders(ordersData);
 
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setLedgers(storedLedgers);
-    const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    setOrders(storedOrders);
-    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
-    const initializedPurchases = storedPurchases.map(p => ({
-        ...p,
-        paidAmount: p.paidAmount || 0,
-        balanceDue: p.balanceDue ?? p.totalAmount,
-        paymentStatus: p.paymentStatus || (p.totalAmount > 0 ? 'Unpaid' : 'Paid'),
-        payments: p.payments || [],
-    }));
-    setPurchases(initializedPurchases);
-  }, [activeCompanyId]);
+        const { data: purchasesData, error: purchasesError } = await supabase.from('purchases').select('*').eq('company_id', companyId);
+        if(purchasesData) {
+            const initializedPurchases = purchasesData.map(p => ({
+                ...p,
+                paidAmount: p.paidAmount || 0,
+                balanceDue: p.balanceDue ?? p.totalAmount,
+                paymentStatus: p.paymentStatus || (p.totalAmount > 0 ? 'Unpaid' : 'Paid'),
+                payments: p.payments || [],
+            }));
+            setPurchases(initializedPurchases);
+        }
+    }
+    fetchAllData(activeCompany.id);
+
+  }, [activeCompany]);
 
   useEffect(() => {
     if (receiptContactId) {
@@ -164,8 +170,8 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleRecordReceipt = () => {
-    if (!receiptContactId || !receiptAmount || receiptAmount <= 0 || !receiptDate || !activeCompanyId) {
+  const handleRecordReceipt = async () => {
+    if (!receiptContactId || !receiptAmount || receiptAmount <= 0 || !receiptDate || !activeCompany) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a customer, date and enter a valid amount." });
       return;
     }
@@ -175,69 +181,38 @@ export default function PaymentsPage() {
     const paymentDateISO = receiptDate.toISOString();
     const paymentId = `PAY-${Date.now()}`;
     
-    const ledgerKey = getCompanyStorageKey('ledger')!;
-    const ordersKey = getCompanyStorageKey('orders')!;
-
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+    const originalOrder = selectedInvoiceId ? orders.find(o => o.id === selectedInvoiceId) : null;
+    const details = `Received via ${receiptMethod}. Ref: ${receiptRef || 'N/A'} ${originalOrder ? `against INV #${originalOrder.invoiceNumber}` : ''}`.trim();
     
-    const details = `Received via ${receiptMethod}. Ref: ${receiptRef || 'N/A'} ${selectedInvoiceId ? `against INV #${allOrders.find(o => o.id === selectedInvoiceId)?.invoiceNumber}` : ''}`.trim();
-    
-    ledgerEntries.push({
-      id: `LEDG-${Date.now()}-C`,
-      date: paymentDateISO,
-      accountId: customer.id,
-      accountName: customer.name,
-      type: 'Receipt',
-      details,
-      debit: 0,
-      credit: receiptAmount,
-      refId: paymentId,
-    });
-    
-    ledgerEntries.push({
-      id: `LEDG-${Date.now()}-D`,
-      date: paymentDateISO,
-      accountId: 'CASH_ACCOUNT',
-      accountName: 'Cash',
-      type: 'Receipt',
-      details: `From ${customer.name}`,
-      debit: receiptAmount,
-      credit: 0,
-      refId: paymentId,
-    });
+    const ledgerEntriesToInsert = [
+        { company_id: activeCompany.id, date: paymentDateISO, accountId: customer.id, accountName: customer.name, type: 'Receipt', details, debit: 0, credit: receiptAmount, refId: paymentId },
+        { company_id: activeCompany.id, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Receipt', details: `From ${customer.name}`, debit: receiptAmount, credit: 0, refId: paymentId }
+    ];
 
-    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
+    const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
+    if(ledgerError) {
+        toast({ variant: "destructive", title: "Ledger Entry Failed", description: ledgerError.message });
+        return;
+    }
 
-    if (selectedInvoiceId) {
-        const updatedOrders = allOrders.map(order => {
-            if (order.id === selectedInvoiceId) {
-                const newPayment: Payment = {
-                    id: paymentId, date: paymentDateISO, amount: receiptAmount as number, method: receiptMethod,
-                };
-                const payments = [...(order.payments || []), newPayment];
-                const paidAmount = payments.reduce((acc, p) => acc + p.amount, 0);
-                const balanceDue = (order.totalAmount || 0) - paidAmount;
-                const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
-                return { ...order, payments, paidAmount, balanceDue, paymentStatus };
-            }
-            return order;
-        });
-        localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
-        setOrders(updatedOrders);
+    if (originalOrder) {
+        const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: receiptAmount as number, method: receiptMethod };
+        const payments = [...(originalOrder.payments || []), newPayment];
+        const paidAmount = payments.reduce((acc, p) => acc + p.amount, 0);
+        const balanceDue = (originalOrder.totalAmount || 0) - paidAmount;
+        const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
+        
+        const { error: orderUpdateError } = await supabase.from('orders').update({ payments, paidAmount, balanceDue, paymentStatus }).eq('id', originalOrder.id);
+        if (orderUpdateError) {
+             toast({ variant: "destructive", title: "Order Update Failed", description: orderUpdateError.message });
+        }
     }
     
     toast({ title: "Receipt Recorded", description: `Payment from ${customer.name} has been recorded.` });
-
+    
     const voucherData = {
-        id: paymentId,
-        type: 'Receipt',
-        contactName: customer.name,
-        amount: receiptAmount,
-        date: paymentDateISO,
-        method: receiptMethod,
-        reference: receiptRef,
-        againstBill: selectedInvoiceId ? allOrders.find(o => o.id === selectedInvoiceId)?.invoiceNumber : undefined,
+        id: paymentId, type: 'Receipt', contactName: customer.name, amount: receiptAmount, date: paymentDateISO,
+        method: receiptMethod, reference: receiptRef, againstBill: originalOrder ? originalOrder.invoiceNumber : undefined,
     };
     setVoucherToPrint(voucherData);
 
@@ -248,8 +223,8 @@ export default function PaymentsPage() {
     setReceiptDate(new Date());
   };
 
-  const handleRecordPayment = () => {
-     if (!paymentContactId || !paymentAmount || paymentAmount <= 0 || !paymentDate || !activeCompanyId) {
+  const handleRecordPayment = async () => {
+     if (!paymentContactId || !paymentAmount || paymentAmount <= 0 || !paymentDate || !activeCompany) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select a supplier, date and enter a valid amount." });
       return;
     }
@@ -259,52 +234,38 @@ export default function PaymentsPage() {
     const paymentDateISO = paymentDate.toISOString();
     const paymentId = `PAY-${Date.now()}`;
     
-    const ledgerKey = getCompanyStorageKey('ledger')!;
-    const purchasesKey = getCompanyStorageKey('purchases')!;
+    const originalPurchase = selectedPurchaseId ? purchases.find(p => p.id === selectedPurchaseId) : null;
+    const details = `Paid via ${paymentMethod}. Ref: ${paymentRef || 'N/A'} ${originalPurchase ? `against Bill #${originalPurchase.billNumber}` : ''}`.trim();
 
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
-    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
+    const ledgerEntriesToInsert = [
+        { company_id: activeCompany.id, date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: paymentAmount, credit: 0, refId: paymentId },
+        { company_id: activeCompany.id, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId }
+    ];
+    
+    const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
+    if(ledgerError) {
+        toast({ variant: "destructive", title: "Ledger Entry Failed", description: ledgerError.message });
+        return;
+    }
 
-    const details = `Paid via ${paymentMethod}. Ref: ${paymentRef || 'N/A'} ${selectedPurchaseId ? `against Bill #${allPurchases.find(p => p.id === selectedPurchaseId)?.billNumber}` : ''}`.trim();
-
-    ledgerEntries.push({
-        id: `LEDG-${Date.now()}-D`, date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: paymentAmount, credit: 0, refId: paymentId,
-    });
-
-    ledgerEntries.push({
-        id: `LEDG-${Date.now()}-C`, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId,
-    });
-
-    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
-
-     if (selectedPurchaseId) {
-      const updatedPurchases = allPurchases.map(p => {
-          if (p.id === selectedPurchaseId) {
-              const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: paymentAmount as number, method: paymentMethod };
-              const payments = [...(p.payments || []), newPayment];
-              const paidAmount = payments.reduce((acc, pay) => acc + pay.amount, 0);
-              const balanceDue = p.totalAmount - paidAmount;
-              const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
-              return { ...p, payments, paidAmount, balanceDue, paymentStatus };
-          }
-          return p;
-      });
-      localStorage.setItem(purchasesKey, JSON.stringify(updatedPurchases));
-      setPurchases(updatedPurchases);
+     if (originalPurchase) {
+      const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: paymentAmount as number, method: paymentMethod };
+      const payments = [...(originalPurchase.payments || []), newPayment];
+      const paidAmount = payments.reduce((acc, pay) => acc + pay.amount, 0);
+      const balanceDue = originalPurchase.totalAmount - paidAmount;
+      const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
+      
+      const { error: purchaseUpdateError } = await supabase.from('purchases').update({ payments, paidAmount, balanceDue, paymentStatus }).eq('id', originalPurchase.id);
+      if (purchaseUpdateError) {
+            toast({ variant: "destructive", title: "Purchase Update Failed", description: purchaseUpdateError.message });
+      }
     }
 
     toast({ title: "Payment Recorded", description: `Payment to ${supplier.name} has been recorded.` });
 
-    const purchase = selectedPurchaseId ? allPurchases.find(p => p.id === selectedPurchaseId) : null;
     const voucherData = {
-        id: paymentId,
-        type: 'Payment',
-        contactName: supplier.name,
-        amount: paymentAmount,
-        date: paymentDateISO,
-        method: paymentMethod,
-        reference: paymentRef,
-        againstBill: purchase ? purchase.billNumber : undefined,
+        id: paymentId, type: 'Payment', contactName: supplier.name, amount: paymentAmount, date: paymentDateISO,
+        method: paymentMethod, reference: paymentRef, againstBill: originalPurchase ? originalPurchase.billNumber : undefined,
     };
     setVoucherToPrint(voucherData);
 
@@ -340,7 +301,7 @@ export default function PaymentsPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">
@@ -527,7 +488,7 @@ export default function PaymentsPage() {
                 </DialogDescription>
             </DialogHeader>
             <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4">
-                {voucherToPrint && <VoucherReceipt voucher={voucherToPrint} />}
+                {voucherToPrint && <VoucherReceipt voucher={voucherToPrint} company={activeCompany} />}
             </div>
             <DialogFooter className="no-print">
                 <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
@@ -538,3 +499,5 @@ export default function PaymentsPage() {
     </>
   );
 }
+
+    

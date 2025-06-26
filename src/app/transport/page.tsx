@@ -34,11 +34,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
-import type { Order } from "@/lib/types";
+import type { Order, Company } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 
-const DeliveryReceipt = ({ order, addPageBreakBefore = false }: { order: Order, addPageBreakBefore?: boolean }) => (
+const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order: Order, company: Company | null, addPageBreakBefore?: boolean }) => (
     <div className={cn(
         "bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative",
         addPageBreakBefore && "print-page-break"
@@ -48,7 +49,7 @@ const DeliveryReceipt = ({ order, addPageBreakBefore = false }: { order: Order, 
         <div className="flex items-center gap-3">
           <Armchair className="h-12 w-12 text-primary" />
           <div>
-            <h1 className="text-3xl font-bold">Samarth Furniture</h1>
+            <h1 className="text-3xl font-bold">{company?.name || 'Samarth Furniture'}</h1>
             <p className="text-sm text-gray-500">Delivery & Shipping Department</p>
           </div>
         </div>
@@ -81,7 +82,7 @@ const DeliveryReceipt = ({ order, addPageBreakBefore = false }: { order: Order, 
         <div className="whitespace-pre-wrap text-sm break-words border p-4 bg-gray-50 rounded-md min-h-[100px]">
             {order.lineItems && order.lineItems.length > 0
                 ? order.lineItems.map(item => `- ${item.quantity}x ${item.description}`).join('\n')
-                : order.details || "No details provided."
+                : (order.details || "No details provided.")
             }
         </div>
       </div>
@@ -113,44 +114,56 @@ export default function TransportPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
+  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     
     const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
+    if (companyId) {
+      const fetchCompanyDetails = async () => {
+          const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
+          if (!error && data) setActiveCompany(data);
+      }
+      fetchCompanyDetails();
+    }
     
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
-        setOrders([]);
-        return;
-    }
-    const username = localStorage.getItem("loggedInUser");
-    const role = localStorage.getItem("userRole");
-    const ordersKey = getCompanyStorageKey('orders')!;
+    const fetchOrders = async (companyId: string) => {
+        const username = localStorage.getItem("loggedInUser");
+        const role = localStorage.getItem("userRole");
 
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
-    let ordersToDisplay = allOrders.filter(o => o.status === 'Billed');
+        let query = supabase
+            .from('orders')
+            .select('*')
+            .eq('company_id', companyId)
+            .eq('status', 'Billed');
+        
+        if (role === "coordinator" && username) {
+          query = query.eq('createdBy', username);
+        }
+        
+        const { data, error } = await query;
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+        } else {
+            setOrders(data || []);
+        }
+    }
     
-    if (role === "coordinator" && username) {
-      ordersToDisplay = ordersToDisplay.filter(order => order.createdBy === username);
+    if (activeCompany?.id) {
+        fetchOrders(activeCompany.id);
     }
-    setOrders(ordersToDisplay);
-  }, [activeCompanyId, userRole]);
 
-  const handleDispatchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  }, [activeCompany, toast]);
+
+  const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedOrder || !activeCompanyId) return;
+    if (!selectedOrder || !activeCompany) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
     const transportDetails = {
@@ -160,33 +173,31 @@ export default function TransportPage() {
       vehicleModel: formData.get("vehicleModel") as string,
     };
     
-    const ordersKey = getCompanyStorageKey('orders')!;
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
-
     const deliveredAt = new Date().toISOString();
-    let updatedOrder: Order | undefined;
 
-    const updatedOrders = allOrders.map((o) => {
-      if (o.id === selectedOrder.id) {
-        updatedOrder = {
-          ...o,
-          status: "Delivered",
-          transportDetails,
-          deliveredAt,
-        };
-        return updatedOrder;
-      }
-      return o;
-    });
+    const { data: updatedOrder, error } = await supabase
+        .from('orders')
+        .update({
+            status: "Delivered",
+            transportDetails,
+            deliveredAt,
+        })
+        .eq('id', selectedOrder.id)
+        .select()
+        .single();
 
-    localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
+    if (error) {
+        toast({ variant: 'destructive', title: 'Failed to dispatch order', description: error.message });
+        return;
+    }
+
     setOrders(orders.filter((o) => o.id !== selectedOrder.id));
     toast({
       title: "Order Dispatched!",
       description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
     });
 
-    setReceiptOrder(updatedOrder || null);
+    setReceiptOrder(updatedOrder);
     setSelectedOrder(null);
   };
   
@@ -218,7 +229,7 @@ export default function TransportPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">
@@ -359,8 +370,8 @@ export default function TransportPage() {
                 </DialogDescription>
             </DialogHeader>
             <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white">
-                {receiptOrder && <DeliveryReceipt order={receiptOrder} />}
-                {receiptOrder && <DeliveryReceipt order={receiptOrder} addPageBreakBefore={true} />}
+                {receiptOrder && <DeliveryReceipt order={receiptOrder} company={activeCompany} />}
+                {receiptOrder && <DeliveryReceipt order={receiptOrder} company={activeCompany} addPageBreakBefore={true} />}
             </div>
             <DialogFooter className="no-print">
                  <DialogClose asChild>
@@ -375,3 +386,5 @@ export default function TransportPage() {
     </>
   );
 }
+
+    

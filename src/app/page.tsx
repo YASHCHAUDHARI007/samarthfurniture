@@ -123,25 +123,13 @@ export default function Dashboard() {
       }, {} as Record<string, number>);
 
       const deliveredOrdersWithDate = (allOrders || []).filter(
-        (o) => o.status === "Delivered" && o.deliveredAt
+        (o) => (o.status === "Delivered" || o.status === "Billed") && o.invoiceDate
       );
 
       deliveredOrdersWithDate.forEach((order) => {
-        const month = format(new Date(order.deliveredAt!), "MMMM");
+        const month = format(new Date(order.invoiceDate!), "MMMM");
         if (salesByMonth.hasOwnProperty(month)) {
-          let units = 0;
-          if (order.type === "Customized") {
-            units = 1;
-          } else if (order.details) {
-            const quantities = order.details
-              .split("\n")
-              .map((line) => {
-                const match = line.match(/^(\d+)x/);
-                return match ? parseInt(match[1], 10) : 0;
-              });
-            units = quantities.reduce((sum, q) => sum + q, 0);
-          }
-          salesByMonth[month] += units;
+          salesByMonth[month] += (order.totalAmount || 0);
         }
       });
 
@@ -154,10 +142,12 @@ export default function Dashboard() {
       setIsLoading(false);
     };
 
-    if (activeCompanyId) {
+    if (isAuthenticated && activeCompanyId) {
         fetchDashboardData();
+    } else if (isAuthenticated && !activeCompanyId) {
+        setIsLoading(false);
     }
-  }, [activeCompanyId]);
+  }, [isAuthenticated, activeCompanyId]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -186,22 +176,9 @@ export default function Dashboard() {
     (o) => o.status === "Working" || o.status === "Pending"
   ).length;
 
-  const deliveredOrders = orders.filter((o) => o.status === "Delivered");
-  const unitsSold = deliveredOrders.reduce((acc, order) => {
-    if (order.type === "Customized") {
-      return acc + 1;
-    }
-    if (!order.details) {
-      return acc;
-    }
-    const quantities = order.details
-      .split("\n")
-      .map((line) => {
-        const match = line.match(/^(\d+)x/);
-        return match ? parseInt(match[1], 10) : 0;
-      });
-    return acc + quantities.reduce((sum, q) => sum + q, 0);
-  }, 0);
+  const totalSales = orders
+    .filter((o) => o.status === "Delivered" || o.status === 'Billed')
+    .reduce((acc, order) => acc + (order.totalAmount || 0), 0);
 
   if (isClient && !activeCompanyId) {
     return (
@@ -247,7 +224,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Units Delivered
+              Total Sales
             </CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -255,10 +232,10 @@ export default function Dashboard() {
             {isLoading ? (
               <Skeleton className="h-8 w-1/2" />
             ) : (
-              <div className="text-2xl font-bold">{unitsSold}</div>
+              <div className="text-2xl font-bold">₹{totalSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
             )}
             <p className="text-xs text-muted-foreground">
-              Total units in your delivered orders.
+              From your delivered or billed orders.
             </p>
           </CardContent>
         </Card>
@@ -285,7 +262,7 @@ export default function Dashboard() {
         <Card className="col-span-4">
           <CardHeader>
             <CardTitle>Sales Overview (Last 6 Months)</CardTitle>
-            <CardDescription>Total units delivered each month across the company.</CardDescription>
+            <CardDescription>Total sales value per month across the company.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             {isClient && !isLoading ? (
@@ -301,6 +278,7 @@ export default function Dashboard() {
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent indicator="dot" />}
+                    formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`}
                   />
                   <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
                 </BarChart>
@@ -385,3 +363,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+    

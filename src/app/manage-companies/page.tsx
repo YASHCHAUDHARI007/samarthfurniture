@@ -85,7 +85,7 @@ export default function ManageCompaniesPage() {
     }
     fetchCompanies();
     
-  }, [toast]);
+  }, []);
 
   const handleAddCompany = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

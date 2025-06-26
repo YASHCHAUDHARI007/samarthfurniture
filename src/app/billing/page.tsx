@@ -37,8 +37,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, Search, IndianRupee } from "lucide-react";
-import type { Order, LineItem, PaymentStatus, LedgerEntry } from "@/lib/types";
+import type { Order, LineItem, PaymentStatus, LedgerEntry, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
+import { supabase } from "@/lib/supabase";
 
 
 export default function BillingPage() {
@@ -47,7 +48,7 @@ export default function BillingPage() {
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [hasAccess, setHasAccess] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+    const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -60,30 +61,35 @@ export default function BillingPage() {
     const [isReprintView, setIsReprintView] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
 
-    const getCompanyStorageKey = (baseKey: string) => {
-        if (!activeCompanyId) return null;
-        return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-    };
-
-    const fetchOrders = () => {
-        if (!activeCompanyId) return;
-        const ordersKey = getCompanyStorageKey('orders');
-        if (!ordersKey) return;
-
-        let storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-        
+    const fetchOrders = async (companyId: string) => {
         const role = localStorage.getItem("userRole");
         const username = localStorage.getItem("loggedInUser");
+
+        let query = supabase.from('orders').select('*').eq('company_id', companyId);
+
         if (role === 'coordinator' && username) {
-            storedOrders = storedOrders.filter(o => o.createdBy === username);
+            query = query.eq('createdBy', username);
         }
 
-        setAllOrders(storedOrders);
+        const { data, error } = await query;
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+            setAllOrders([]);
+        } else {
+            setAllOrders(data || []);
+        }
     };
 
     useEffect(() => {
         const companyId = localStorage.getItem('activeCompanyId');
-        setActiveCompanyId(companyId);
+        if (companyId) {
+            fetchOrders(companyId);
+             const fetchCompanyDetails = async () => {
+                const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
+                if (!error && data) setActiveCompany(data);
+            }
+            fetchCompanyDetails();
+        }
 
         const role = localStorage.getItem("userRole");
         if (role === "owner" || role === "coordinator" || role === "administrator") {
@@ -92,13 +98,8 @@ export default function BillingPage() {
         setIsLoading(false);
     }, []);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [activeCompanyId]);
-
-
     const handleSelectOrder = (order: Order) => {
-        if (order.type === 'Dealer') {
+        if (order.type === 'Dealer' && order.details) {
             const items = order.details.split('\n').map((line, index) => {
                 const match = line.match(/(\d+)x\s(.*?)\s\(SKU: (.*?)\)/);
                 if (match) {
@@ -110,7 +111,7 @@ export default function BillingPage() {
                 return null;
             }).filter((item): item is LineItem => item !== null);
             setLineItems(items);
-        } else { // Customized order
+        } else { // Customized order or no details
             setLineItems([{ id: `line-0`, description: order.item, quantity: 1, price: 0, hsn: '' }]);
         }
         setSelectedOrder(order);
@@ -152,14 +153,13 @@ export default function BillingPage() {
         return { subTotal, sgstAmount, cgstAmount, totalGstAmount, totalAmount };
     }, [lineItems, totalGstRate]);
 
-    const handleGenerateInvoice = () => {
-        if (!selectedOrder || !selectedOrder.customerInfo || !activeCompanyId) return;
+    const handleGenerateInvoice = async () => {
+        if (!selectedOrder || !selectedOrder.customerInfo || !activeCompany) return;
         
         const invoiceDate = new Date().toISOString();
         const invoiceNumber = `INV-${new Date().getTime()}`;
 
-        const updatedOrder: Order = {
-            ...selectedOrder,
+        const updatedOrder: Partial<Order> = {
             status: "Billed",
             lineItems,
             subTotal,
@@ -178,17 +178,21 @@ export default function BillingPage() {
             irn: `IRN-MOCK-${new Date().getTime()}`,
             qrCodeUrl: 'https://placehold.co/100x100.png',
         };
-        
-        const ordersKey = getCompanyStorageKey('orders')!;
-        const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-        const updatedOrders = storedOrders.map(o => o.id === selectedOrder.id ? updatedOrder : o);
-        localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
+
+        const { data: dbOrder, error: updateError } = await supabase
+            .from('orders')
+            .update(updatedOrder)
+            .eq('id', selectedOrder.id)
+            .select()
+            .single();
+            
+        if (updateError) {
+             toast({ variant: 'destructive', title: 'Failed to update order', description: updateError.message });
+             return;
+        }
 
         // Create Ledger Entry for Sale
-        const ledgerKey = getCompanyStorageKey('ledger')!;
-        const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
-        const customerDebitEntry: LedgerEntry = {
-            id: `LEDG-${Date.now()}-D`,
+        const customerDebitEntry: Omit<LedgerEntry, 'id' | 'company_id'> = {
             date: invoiceDate,
             accountId: selectedOrder.customerInfo.id,
             accountName: selectedOrder.customerInfo.name,
@@ -198,10 +202,9 @@ export default function BillingPage() {
             credit: 0,
             refId: selectedOrder.id,
         };
-        const salesCreditEntry: LedgerEntry = {
-            id: `LEDG-${Date.now()}-C`,
+        const salesCreditEntry: Omit<LedgerEntry, 'id' | 'company_id'> = {
             date: invoiceDate,
-            accountId: 'SALES_ACCOUNT',
+            accountId: 'SALES_ACCOUNT', // This should be a fixed ID for the sales ledger
             accountName: 'Sales Account',
             type: 'Sales',
             details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}${reference ? ` (Ref: ${reference})` : ''}`,
@@ -209,12 +212,18 @@ export default function BillingPage() {
             credit: totalAmount,
             refId: selectedOrder.id,
         };
-        ledgerEntries.push(customerDebitEntry, salesCreditEntry);
-        localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
+        
+        const ledgerEntriesToInsert = [customerDebitEntry, salesCreditEntry].map(e => ({ ...e, company_id: activeCompany.id }));
+
+        const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
+
+        if (ledgerError) {
+            toast({ variant: 'destructive', title: 'Failed to create ledger entries', description: ledgerError.message });
+        }
 
 
-        fetchOrders();
-        setInvoiceOrder(updatedOrder);
+        await fetchOrders(activeCompany.id);
+        setInvoiceOrder({ ...selectedOrder, ...dbOrder });
         setIsReprintView(false);
         handleCancelCreation();
         toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });
@@ -257,7 +266,7 @@ export default function BillingPage() {
         );
     }
     
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
               <Card className="max-w-md">
@@ -500,7 +509,7 @@ export default function BillingPage() {
                     <DialogDescription>{isReprintView ? 'View or reprint the invoice for this order.' : "You can view or print the invoice. It is now available in the 'Bill History' tab."}</DialogDescription>
                 </DialogHeader>
                 <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4">
-                    {invoiceOrder && <Invoice order={invoiceOrder} />}
+                    {invoiceOrder && <Invoice order={invoiceOrder} company={activeCompany} />}
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
@@ -512,3 +521,5 @@ export default function BillingPage() {
         </>
     );
 }
+
+    

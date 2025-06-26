@@ -27,17 +27,33 @@ export default function LoginPage() {
 
   useEffect(() => {
     const seedInitialUsers = async () => {
-      const { data: users, error } = await supabase.from('users').select('id', { count: 'exact' });
+      // Check if users table is empty
+      const { error, count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
 
-      if(error) {
-        console.error("Error checking for users:", error);
-        // This might fail if the table doesn't exist yet on first run of a new Supabase project.
-        // The user should ensure the 'users' table is created via Supabase Studio.
-        toast({ variant: "destructive", title: "Database Error", description: "Could not connect to the users table. Please ensure it exists."});
-        return;
+      // If the table does not exist, Supabase returns an error.
+      // We can't create tables from client-side code for security reasons.
+      // So, we'll inform the user.
+      if (error && error.code === '42P01') { // 42P01: undefined_table
+          toast({
+              variant: "destructive",
+              title: "Database Setup Required",
+              description: "The 'users' table does not exist. Please create it in your Supabase project dashboard.",
+              duration: 10000,
+          });
+          return;
+      } else if (error) {
+          toast({
+              variant: "destructive",
+              title: "Database Connection Error",
+              description: error.message,
+          });
+          return;
       }
-
-      if (users && users.length === 0) {
+      
+      // If the table exists but is empty, seed it.
+      if (count === 0) {
         console.log("No users found, seeding initial accounts...");
         const initialUsers: Omit<User, 'id'>[] = [
           { username: "owner", password: "password123", role: "owner" },
@@ -49,7 +65,7 @@ export default function LoginPage() {
         const { error: insertError } = await supabase.from('users').insert(initialUsers);
         if (insertError) {
           console.error("Failed to seed initial users:", insertError);
-          toast({ variant: "destructive", title: "Database setup error", description: "Could not create initial user accounts. Please check your Supabase connection and table schema." });
+          toast({ variant: "destructive", title: "Database setup error", description: "Could not create initial user accounts." });
         } else {
            console.log("Initial users seeded successfully.");
            toast({ title: "Setup Complete", description: "Default user accounts have been created." });
@@ -57,7 +73,7 @@ export default function LoginPage() {
       }
     }
     seedInitialUsers();
-  }, [toast]);
+  }, []);
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

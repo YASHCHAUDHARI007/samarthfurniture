@@ -1,20 +1,20 @@
 
 "use client";
 
-import type { Order } from "@/lib/types";
+import type { Order, Company } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Armchair } from "lucide-react";
 import Image from "next/image";
 
-export const Invoice = ({ order }: { order: Order }) => (
+export const Invoice = ({ order, company }: { order: Order, company: Company | null }) => (
     <div className="bg-white text-black p-8 w-full min-h-[297mm] mx-auto shadow-lg print:shadow-none relative">
         {/* Header */}
         <div className="flex justify-between items-start mb-8">
             <div className="flex items-center gap-3">
                 <Armchair className="h-12 w-12 text-primary" />
                 <div>
-                    <h1 className="text-3xl font-bold">Samarth Furniture</h1>
+                    <h1 className="text-3xl font-bold">{company?.name || 'Samarth Furniture'}</h1>
                     <p className="text-sm text-gray-500">123 Furniture Lane, Anytown, ST 12345</p>
                     <p className="text-sm text-gray-500">contact@samarthfurniture.com</p>
                 </div>
@@ -136,3 +136,5 @@ export const Invoice = ({ order }: { order: Order }) => (
         </div>
     </div>
 );
+
+    
