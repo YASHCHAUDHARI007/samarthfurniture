@@ -32,9 +32,13 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Seed initial users if they don't exist
-    if (typeof window !== 'undefined' && !localStorage.getItem('samarth_furniture_users')) {
-      localStorage.setItem('samarth_furniture_users', JSON.stringify(initialUsers));
+    // Seed initial users if they don't exist or if the list is empty
+    if (typeof window !== 'undefined') {
+        const storedUsersRaw = localStorage.getItem('samarth_furniture_users');
+        const storedUsers = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+        if (storedUsers.length === 0) {
+            localStorage.setItem('samarth_furniture_users', JSON.stringify(initialUsers));
+        }
     }
   }, []);
 
