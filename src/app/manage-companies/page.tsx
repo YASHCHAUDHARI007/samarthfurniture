@@ -46,29 +46,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ShieldAlert, Trash2, Edit } from "lucide-react";
 import type { Company, Ledger } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
-const initialProductCatalog = [
-    { id: "prod-1", name: "Classic Oak Dining Table", sku: "TBL-OAK-CLS", image: "https://placehold.co/100x100.png", aiHint: "dining table" },
-    { id: "prod-2", name: "Modern Leather Sofa", sku: "SOF-LTH-MOD", image: "https://placehold.co/100x100.png", aiHint: "leather sofa" },
-    { id: "prod-3", name: "Walnut Bookshelf", sku: "BKS-WLN-STD", image: "https://placehold.co/100x100.png", aiHint: "bookshelf" },
-];
-
-const initialStock = [
-  { id: 'stock-1', name: "Modern Sofa", sku: "SOF-MOD-BLU", quantity: 25, reorderLevel: 10, status: "In Stock", locationId: "loc-default", locationName: "Main Warehouse" },
-  { id: 'stock-2', name: "Oak Bookshelf", sku: "BKS-OAK-LRG", quantity: 8, reorderLevel: 5, status: "Low Stock", locationId: "loc-default", locationName: "Main Warehouse" },
-  { id: 'stock-3', name: "Coffee Table", sku: "TBL-COF-WHT", quantity: 0, reorderLevel: 8, status: "Out of Stock", locationId: "loc-default", locationName: "Main Warehouse" },
-];
-
-const initialLocations = [
-    { id: 'loc-default', name: 'Main Warehouse', address: 'Default Location' }
-];
-
-const initialLedgers: Ledger[] = [
-    { id: 'PROFIT_LOSS', name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
-    { id: 'SALES_ACCOUNT', name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
-    { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
-    { id: 'CASH_ACCOUNT', name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
-];
 
 export default function ManageCompaniesPage() {
   const router = useRouter();
@@ -93,42 +72,59 @@ export default function ManageCompaniesPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const storedCompanies = JSON.parse(localStorage.getItem('samarth_furniture_companies') || '[]');
-    setCompanies(storedCompanies);
-    setIsLoading(false);
-  }, []);
+    
+    const fetchCompanies = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase.from('companies').select('*');
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error fetching companies', description: error.message });
+      } else {
+        setCompanies(data || []);
+      }
+      setIsLoading(false);
+    }
+    fetchCompanies();
+    
+  }, [toast]);
 
-  const handleAddCompany = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddCompany = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newCompanyName || !newFyStart || !newFyEnd) {
       toast({ variant: "destructive", title: "Missing Information" });
       return;
     }
-    const newCompany: Company = {
-      id: `COM-${Date.now()}`,
+    const newCompany: Omit<Company, 'id'> = {
       name: newCompanyName,
       financialYearStart: newFyStart,
       financialYearEnd: newFyEnd,
     };
-    const updatedCompanies = [...companies, newCompany];
-    setCompanies(updatedCompanies);
-    localStorage.setItem('samarth_furniture_companies', JSON.stringify(updatedCompanies));
 
-    // Seed initial data for the new company
-    const companyId = newCompany.id;
-    const dataKeys = ['orders', 'purchases', 'raw_materials'];
-    dataKeys.forEach(key => {
-        localStorage.setItem(`samarth_furniture_${companyId}_${key}`, '[]');
-    });
-    localStorage.setItem(`samarth_furniture_${companyId}_ledgers`, JSON.stringify(initialLedgers));
-    localStorage.setItem(`samarth_furniture_${companyId}_ledger`, '[]'); // Main transaction ledger
-    localStorage.setItem(`samarth_furniture_${companyId}_product_catalog`, JSON.stringify(initialProductCatalog));
-    localStorage.setItem(`samarth_furniture_${companyId}_stock_items`, JSON.stringify(initialStock));
-    localStorage.setItem(`samarth_furniture_${companyId}_locations`, JSON.stringify(initialLocations));
+    const { data: insertedCompany, error } = await supabase.from('companies').insert(newCompany).select().single();
+
+    if (error) {
+       toast({ variant: "destructive", title: "Failed to create company", description: error.message });
+       return;
+    }
+    
+    setCompanies([...companies, insertedCompany]);
+    
+    // Auto-create essential ledgers for the new company
+    const initialLedgers: Omit<Ledger, 'id' | 'company_id'>[] = [
+        { name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
+        { name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
+        { name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
+        { name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
+    ];
+    const ledgersToInsert = initialLedgers.map(l => ({ ...l, company_id: insertedCompany.id }));
+    const { error: ledgerError } = await supabase.from('ledgers').insert(ledgersToInsert);
+    if (ledgerError) {
+        toast({ variant: 'destructive', title: 'Ledger setup failed', description: `Company created, but failed to create default ledgers: ${ledgerError.message}`});
+    }
+
 
     // If it's the first company, set it as active
     if (!localStorage.getItem('activeCompanyId')) {
-        localStorage.setItem('activeCompanyId', companyId);
+        localStorage.setItem('activeCompanyId', insertedCompany.id);
         window.location.reload(); // Reload to apply company context
     }
     
@@ -138,38 +134,48 @@ export default function ManageCompaniesPage() {
     setNewFyEnd("");
   };
 
-  const handleEditCompany = () => {
+  const handleEditCompany = async () => {
     if (!companyToEdit || !editName || !editFyStart || !editFyEnd) return;
     
-    const updatedCompanies = companies.map(c => 
-      c.id === companyToEdit.id ? { ...c, name: editName, financialYearStart: editFyStart, financialYearEnd: editFyEnd } : c
-    );
-    setCompanies(updatedCompanies);
-    localStorage.setItem('samarth_furniture_companies', JSON.stringify(updatedCompanies));
-    toast({ title: "Company Updated" });
-    setCompanyToEdit(null);
+    const updates = { name: editName, financialYearStart: editFyStart, financialYearEnd: editFyEnd };
+    const { error } = await supabase.from('companies').update(updates).eq('id', companyToEdit.id);
+
+    if (error) {
+      toast({ variant: "destructive", title: "Update failed", description: error.message });
+    } else {
+      setCompanies(companies.map(c => 
+        c.id === companyToEdit.id ? { ...c, ...updates } : c
+      ));
+      toast({ title: "Company Updated" });
+      setCompanyToEdit(null);
+    }
   };
   
-  const handleDeleteCompany = () => {
+  const handleDeleteCompany = async () => {
     if (!companyToDelete) return;
     
-    const updatedCompanies = companies.filter(c => c.id !== companyToDelete.id);
-    setCompanies(updatedCompanies);
-    localStorage.setItem('samarth_furniture_companies', JSON.stringify(updatedCompanies));
+    const tablesToDeleteFrom = ['orders', 'ledgers', 'purchases', 'ledger_entries', 'raw_materials', 'stock_items', 'locations', 'products'];
     
-    // Clean up company-specific data
-    const dataKeys = ['orders', 'ledgers', 'purchases', 'ledger', 'raw_materials', 'product_catalog', 'stock_items', 'locations'];
-    dataKeys.forEach(key => {
-        localStorage.removeItem(`samarth_furniture_${companyToDelete.id}_${key}`);
-    });
-
-    // If the deleted company was the active one, clear it
-    if (localStorage.getItem('activeCompanyId') === companyToDelete.id) {
-        localStorage.removeItem('activeCompanyId');
-        window.location.reload();
+    for (const table of tablesToDeleteFrom) {
+      const { error } = await supabase.from(table).delete().eq('company_id', companyToDelete.id);
+       if (error) {
+          console.error(`Error deleting from ${table}:`, error.message);
+          // Optionally, show a more detailed error to the user.
+       }
     }
     
-    toast({ title: "Company Deleted", variant: "destructive" });
+    const { error } = await supabase.from('companies').delete().eq('id', companyToDelete.id);
+
+    if (error) {
+       toast({ title: "Company Deletion Failed", variant: "destructive", description: error.message });
+    } else {
+      setCompanies(companies.filter(c => c.id !== companyToDelete.id));
+      toast({ title: "Company Deleted", variant: "destructive" });
+      if (localStorage.getItem('activeCompanyId') === companyToDelete.id) {
+          localStorage.removeItem('activeCompanyId');
+          window.location.reload();
+      }
+    }
     setCompanyToDelete(null);
   };
 

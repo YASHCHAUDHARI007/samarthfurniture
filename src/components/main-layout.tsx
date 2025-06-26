@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/lib/supabase";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
@@ -139,8 +140,13 @@ function CompanySwitcher() {
     const router = useRouter();
 
     useEffect(() => {
-        const storedCompanies = JSON.parse(localStorage.getItem('samarth_furniture_companies') || '[]');
-        setCompanies(storedCompanies);
+        const fetchCompanies = async () => {
+          const { data, error } = await supabase.from('companies').select('*');
+          if (!error && data) {
+            setCompanies(data);
+          }
+        };
+        fetchCompanies();
         const storedActiveId = localStorage.getItem('activeCompanyId');
         setActiveCompanyId(storedActiveId);
     }, []);

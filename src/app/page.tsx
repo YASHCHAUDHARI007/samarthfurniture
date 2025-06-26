@@ -33,6 +33,7 @@ import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
 
 
 const chartConfig = {
@@ -66,72 +67,96 @@ export default function Dashboard() {
     
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-
-    setIsLoading(false);
   }, [router]);
 
   useEffect(() => {
-    if (!activeCompanyId) {
-      setOrders([]);
-      setChartData([]);
-      return;
-    }
-
-    const role = localStorage.getItem("userRole");
-    const username = localStorage.getItem("loggedInUser");
-    const ordersKey = `samarth_furniture_${activeCompanyId}_orders`;
-
-    let allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
-
-    let userOrders = allOrders;
-    if (role === "coordinator" && username) {
-      userOrders = allOrders.filter(order => order.createdBy === username);
-    }
-    setOrders(userOrders);
-
-    // Generate dynamic chart data from all orders, not just user's
-    const now = new Date();
-    const last6Months: string[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = subMonths(now, i);
-      last6Months.push(format(d, "MMMM"));
-    }
-
-    const salesByMonth = last6Months.reduce((acc, month) => {
-      acc[month] = 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const deliveredOrdersWithDate = allOrders.filter(
-      (o) => o.status === "Delivered" && o.deliveredAt
-    );
-
-    deliveredOrdersWithDate.forEach((order) => {
-      const month = format(new Date(order.deliveredAt!), "MMMM");
-      if (salesByMonth.hasOwnProperty(month)) {
-        let units = 0;
-        if (order.type === "Customized") {
-          units = 1;
-        } else if (order.details) {
-          const quantities = order.details
-            .split("\n")
-            .map((line) => {
-              const match = line.match(/^(\d+)x/);
-              return match ? parseInt(match[1], 10) : 0;
-            });
-          units = quantities.reduce((sum, q) => sum + q, 0);
-        }
-        salesByMonth[month] += units;
+    const fetchDashboardData = async () => {
+      if (!activeCompanyId) {
+        setOrders([]);
+        setChartData([]);
+        setIsLoading(false);
+        return;
       }
-    });
 
-    const newChartData = last6Months.map((month) => ({
-      month: month.slice(0, 3),
-      sales: salesByMonth[month],
-    }));
+      setIsLoading(true);
+      const role = localStorage.getItem("userRole");
+      const username = localStorage.getItem("loggedInUser");
 
-    setChartData(newChartData);
+      // Fetch all orders for chart data
+      const { data: allOrders, error: allOrdersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('company_id', activeCompanyId);
+      
+      if (allOrdersError) {
+        console.error("Error fetching all orders:", allOrdersError);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fetch user-specific orders for cards and recent orders table
+      let userOrdersQuery = supabase.from('orders').select('*').eq('company_id', activeCompanyId);
+      if (role === "coordinator" && username) {
+        userOrdersQuery = userOrdersQuery.eq('createdBy', username);
+      }
+      const { data: userOrders, error: userOrdersError } = await userOrdersQuery;
 
+      if (userOrdersError) {
+        console.error("Error fetching user orders:", userOrdersError);
+        setIsLoading(false);
+        return;
+      }
+      
+      setOrders(userOrders || []);
+
+      // Generate dynamic chart data from all orders
+      const now = new Date();
+      const last6Months: string[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(now, i);
+        last6Months.push(format(d, "MMMM"));
+      }
+
+      const salesByMonth = last6Months.reduce((acc, month) => {
+        acc[month] = 0;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const deliveredOrdersWithDate = (allOrders || []).filter(
+        (o) => o.status === "Delivered" && o.deliveredAt
+      );
+
+      deliveredOrdersWithDate.forEach((order) => {
+        const month = format(new Date(order.deliveredAt!), "MMMM");
+        if (salesByMonth.hasOwnProperty(month)) {
+          let units = 0;
+          if (order.type === "Customized") {
+            units = 1;
+          } else if (order.details) {
+            const quantities = order.details
+              .split("\n")
+              .map((line) => {
+                const match = line.match(/^(\d+)x/);
+                return match ? parseInt(match[1], 10) : 0;
+              });
+            units = quantities.reduce((sum, q) => sum + q, 0);
+          }
+          salesByMonth[month] += units;
+        }
+      });
+
+      const newChartData = last6Months.map((month) => ({
+        month: month.slice(0, 3),
+        sales: salesByMonth[month],
+      }));
+
+      setChartData(newChartData);
+      setIsLoading(false);
+    };
+
+    if (activeCompanyId) {
+        fetchDashboardData();
+    }
   }, [activeCompanyId]);
 
   const getBadgeVariant = (status: OrderStatus) => {
@@ -148,7 +173,7 @@ export default function Dashboard() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isClient || !isAuthenticated) {
     return null;
   }
   

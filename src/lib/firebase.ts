@@ -1,6 +1,9 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-// Replace with your Supabase project URL and public anon key
+// This file seems to be a duplicate of supabase.ts.
+// Using supabase.ts as the single source of truth.
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

@@ -23,6 +23,7 @@ export type PaymentStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
 
 export type Order = {
   id:string;
+  company_id: string;
   customer: string;
   item: string;
   status: OrderStatus;
@@ -79,6 +80,7 @@ export type User = {
 
 export type Product = {
   id: string;
+  company_id: string;
   name: string;
   sku: string;
   image: string;
@@ -89,6 +91,7 @@ export type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
 export type StockItem = {
   id: string;
+  company_id: string;
   name: string;
   sku: string;
   quantity: number;
@@ -100,6 +103,7 @@ export type StockItem = {
 
 export type RawMaterial = {
   id: string;
+  company_id: string;
   name: string;
   quantity: number;
   unit: string;
@@ -129,6 +133,7 @@ export type LedgerGroup =
 
 export type Ledger = {
   id: string;
+  company_id: string;
   name: string;
   group: LedgerGroup;
   email?: string;
@@ -140,6 +145,7 @@ export type Ledger = {
 
 export type Purchase = {
     id:string;
+    company_id: string;
     supplierId: string;
     supplierName: string;
     billNumber: string;
@@ -162,6 +168,7 @@ export type LedgerEntryType = 'Sales' | 'Purchase' | 'Receipt' | 'Payment';
 
 export type LedgerEntry = {
     id: string;
+    company_id: string;
     date: string;
     // The account being affected (e.g., customer, supplier, sales, purchase)
     accountId: string; 
@@ -182,6 +189,7 @@ export type Company = {
 
 export type Location = {
   id: string;
+  company_id: string;
   name: string;
   address?: string;
 };

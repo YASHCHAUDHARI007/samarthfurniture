@@ -43,6 +43,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Users, ShieldAlert, Trash2 } from "lucide-react";
 import type { User, UserRole } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -74,13 +75,24 @@ export default function ManageUsersPage() {
 
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
+      fetchUsers();
+    } else {
+        setIsLoading(false);
     }
-    const storedUsers = JSON.parse(localStorage.getItem('samarth_furniture_users') || '[]');
-    setUsers(storedUsers);
-    setIsLoading(false);
   }, []);
 
-  const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const fetchUsers = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) {
+        toast({ variant: 'destructive', title: 'Error fetching users', description: error.message });
+      } else {
+        setUsers(data || []);
+      }
+      setIsLoading(false);
+    };
+
+  const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newUserName || !newUserPassword) {
       toast({
@@ -90,8 +102,10 @@ export default function ManageUsersPage() {
       });
       return;
     }
-    if (users.some(user => user.username === newUserName)) {
-        toast({
+
+    const { data: existingUser } = await supabase.from('users').select('id').eq('username', newUserName).single();
+    if (existingUser) {
+      toast({
             variant: "destructive",
             title: "Error",
             description: "A user with this username already exists.",
@@ -99,28 +113,29 @@ export default function ManageUsersPage() {
         return;
     }
 
-    const newUser: User = { 
-        id: new Date().getTime().toString(),
+    const newUser: Omit<User, 'id'> = { 
         username: newUserName, 
         password: newUserPassword, 
         role: newUserRole 
     };
 
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    localStorage.setItem('samarth_furniture_users', JSON.stringify(updatedUsers));
-    
-    toast({
-      title: "User Added",
-      description: `User ${newUserName} has been added and can now log in.`,
-    });
+    const { data, error } = await supabase.from('users').insert(newUser).select().single();
 
-    setNewUserName("");
-    setNewUserPassword("");
-    setNewUserRole("coordinator");
+    if (error) {
+       toast({ variant: 'destructive', title: 'Error adding user', description: error.message });
+    } else if (data) {
+      setUsers([...users, data]);
+      toast({
+        title: "User Added",
+        description: `User ${newUserName} has been added and can now log in.`,
+      });
+      setNewUserName("");
+      setNewUserPassword("");
+      setNewUserRole("coordinator");
+    }
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!userToDelete) return;
     
     if (userToDelete.username === currentUsername || ['owner', 'admin'].includes(userToDelete.username)) {
@@ -129,15 +144,18 @@ export default function ManageUsersPage() {
       return;
     }
 
-    const updatedUsers = users.filter((user) => user.id !== userToDelete.id);
-    setUsers(updatedUsers);
-    localStorage.setItem('samarth_furniture_users', JSON.stringify(updatedUsers));
+    const { error } = await supabase.from('users').delete().eq('id', userToDelete.id);
     
-    toast({
-      title: "User Deleted",
-      description: `User account for ${userToDelete.username} has been removed.`,
-      variant: "destructive"
-    });
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error deleting user', description: error.message });
+    } else {
+      setUsers(users.filter((user) => user.id !== userToDelete.id));
+      toast({
+        title: "User Deleted",
+        description: `User account for ${userToDelete.username} has been removed.`,
+        variant: "destructive"
+      });
+    }
     setUserToDelete(null);
   };
 

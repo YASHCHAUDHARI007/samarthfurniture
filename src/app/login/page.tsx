@@ -16,13 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/lib/types";
-
-const initialUsers: User[] = [
-  { id: "1", username: "owner", password: "password123", role: "owner" },
-  { id: "2", username: "coordinator", password: "password456", role: "coordinator" },
-  { id: "3", username: "factory", password: "password789", role: "factory" },
-  { id: "4", username: "admin", password: "password", role: "administrator" },
-];
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,24 +26,60 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Seed initial users if they don't exist or if the list is empty
-    if (typeof window !== 'undefined') {
-        const storedUsersRaw = localStorage.getItem('samarth_furniture_users');
-        const storedUsers = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-        if (storedUsers.length === 0) {
-            localStorage.setItem('samarth_furniture_users', JSON.stringify(initialUsers));
-        }
-    }
-  }, []);
+    const seedInitialUsers = async () => {
+      const { data: users, error } = await supabase.from('users').select('id', { count: 'exact' });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      if(error) {
+        console.error("Error checking for users:", error);
+        // This might fail if the table doesn't exist yet on first run of a new Supabase project.
+        // The user should ensure the 'users' table is created via Supabase Studio.
+        toast({ variant: "destructive", title: "Database Error", description: "Could not connect to the users table. Please ensure it exists."});
+        return;
+      }
+
+      if (users && users.length === 0) {
+        console.log("No users found, seeding initial accounts...");
+        const initialUsers: Omit<User, 'id'>[] = [
+          { username: "owner", password: "password123", role: "owner" },
+          { username: "coordinator", password: "password456", role: "coordinator" },
+          { username: "factory", password: "password789", role: "factory" },
+          { username: "admin", password: "password", role: "administrator" },
+        ];
+        
+        const { error: insertError } = await supabase.from('users').insert(initialUsers);
+        if (insertError) {
+          console.error("Failed to seed initial users:", insertError);
+          toast({ variant: "destructive", title: "Database setup error", description: "Could not create initial user accounts. Please check your Supabase connection and table schema." });
+        } else {
+           console.log("Initial users seeded successfully.");
+           toast({ title: "Setup Complete", description: "Default user accounts have been created." });
+        }
+      }
+    }
+    seedInitialUsers();
+  }, [toast]);
+
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const users: User[] = JSON.parse(localStorage.getItem('samarth_furniture_users') || '[]');
-    const user = users.find(
-      (u) => u.username === username && u.password === password
-    );
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password)
+      .single();
+
+    if (error || !user) {
+       toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid username or password. Please try again.",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     if (user) {
       if (typeof window !== 'undefined') {
@@ -67,13 +97,6 @@ export default function LoginPage() {
             router.push("/");
         }
       }, 1000);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid username or password. Please try again.",
-      });
-      setIsSubmitting(false);
     }
   };
 
