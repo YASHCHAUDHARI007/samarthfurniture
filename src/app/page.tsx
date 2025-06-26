@@ -33,7 +33,6 @@ import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { TallyGatewayMenu } from "@/components/tally/tally-gateway-menu";
 
 
 const chartConfig = {
@@ -153,10 +152,6 @@ export default function Dashboard() {
     return null;
   }
   
-  if (userRole === 'administrator') {
-    return <TallyGatewayMenu />;
-  }
-
   const recentOrders = [...orders].sort((a,b) => (b.createdAt && a.createdAt) ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0).slice(0, 4);
 
   const totalCustomizedOrders = orders.filter(

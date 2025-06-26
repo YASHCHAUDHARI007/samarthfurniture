@@ -78,16 +78,6 @@ body {
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 35 92% 55%;
   }
-  
-  .tally-theme {
-    --tally-bg: hsl(220, 13%, 91%); /* Light grey background */
-    --tally-fg: hsl(224, 71%, 4%); /* Dark blue-black text */
-    --tally-border: hsl(220, 13%, 80%); /* Slightly darker border */
-    --tally-accent: hsl(50, 100%, 88%); /* Pale yellow for active items */
-    --tally-header-bg: hsl(220, 15%, 25%); /* Dark grey-blue header */
-    --tally-header-fg: hsl(210, 40%, 98%); /* White text for header */
-    --tally-menu-bg: hsl(207, 100%, 97%); /* Light blue for dropdowns */
-  }
 }
 
 @layer base {
@@ -96,11 +86,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-  }
-  .tally-theme {
-    * {
-        @apply border-tally-border;
-    }
   }
 }
 

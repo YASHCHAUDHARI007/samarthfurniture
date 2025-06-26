@@ -71,15 +71,6 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        tally: {
-            bg: 'hsl(var(--tally-bg))',
-            fg: 'hsl(var(--tally-fg))',
-            border: 'hsl(var(--tally-border))',
-            accent: 'hsl(var(--tally-accent))',
-            'menu-bg': 'hsl(var(--tally-menu-bg))',
-            'header-bg': 'hsl(var(--tally-header-bg))',
-            'header-fg': 'hsl(var(--tally-header-fg))',
-        }
       },
       borderRadius: {
         lg: 'var(--radius)',
