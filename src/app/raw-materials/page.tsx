@@ -27,6 +27,8 @@ import { Wrench, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set } from "firebase/database";
 
 export default function RawMaterialsPage() {
   const router = useRouter();
@@ -52,31 +54,46 @@ export default function RawMaterialsPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
   
   useEffect(() => {
     if (!activeCompanyId) {
         setMaterials([]);
         setLocations([]);
+        setIsLoading(false);
         return;
     }
-    const materialsKey = getCompanyStorageKey('raw_materials')!;
-    const storedMaterials = localStorage.getItem(materialsKey);
-    setMaterials(storedMaterials ? JSON.parse(storedMaterials) : []);
-    
-    const locationsKey = getCompanyStorageKey('locations')!;
-    const storedLocations = localStorage.getItem(locationsKey);
-    setLocations(storedLocations ? JSON.parse(storedLocations) : []);
+    setIsLoading(true);
 
+    const materialsRef = ref(db, `raw_materials/${activeCompanyId}`);
+    const unsubMaterials = onValue(materialsRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setMaterials(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setMaterials([]);
+        }
+    });
+    
+    const locationsRef = ref(db, `locations/${activeCompanyId}`);
+    const unsubLocations = onValue(locationsRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setLocations([]);
+        }
+    });
+
+    setIsLoading(false);
+
+    return () => {
+        unsubMaterials();
+        unsubLocations();
+    }
   }, [activeCompanyId]);
   
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCompanyId || !newItemName || !newItemUnit || !newItemLocationId) {
       toast({
@@ -99,27 +116,29 @@ export default function RawMaterialsPage() {
     const location = locations.find(loc => loc.id === newItemLocationId);
     if (!location) return;
 
+    const newItemId = `raw-${new Date().getTime()}`;
     const newItem: RawMaterial = {
-      id: `raw-${new Date().getTime()}`,
+      id: newItemId,
       name: newItemName,
       quantity: parseInt(newItemQuantity, 10) || 0,
       unit: newItemUnit,
       locationId: newItemLocationId,
       locationName: location.name,
     };
-
-    const updatedMaterials = [...materials, newItem];
-    setMaterials(updatedMaterials);
-    const materialsKey = getCompanyStorageKey('raw_materials')!;
-    localStorage.setItem(materialsKey, JSON.stringify(updatedMaterials));
-    toast({
-      title: "Material Added",
-      description: `${newItem.name} has been added. Use the Purchases page to add more stock.`,
-    });
-    setNewItemName("");
-    setNewItemUnit("");
-    setNewItemQuantity("");
-    setNewItemLocationId("");
+    
+    try {
+        await set(ref(db, `raw_materials/${activeCompanyId}/${newItemId}`), newItem);
+        toast({
+          title: "Material Added",
+          description: `${newItem.name} has been added. Use the Purchases page to add more stock.`,
+        });
+        setNewItemName("");
+        setNewItemUnit("");
+        setNewItemQuantity("");
+        setNewItemLocationId("");
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to add material', description: error.message });
+    }
   };
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
@@ -265,3 +284,5 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
+
+    

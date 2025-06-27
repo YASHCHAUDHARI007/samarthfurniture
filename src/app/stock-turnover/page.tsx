@@ -38,6 +38,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { StockItem, StockStatus, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, remove } from "firebase/database";
 
 export default function StockTurnoverPage() {
   const router = useRouter();
@@ -57,11 +59,6 @@ export default function StockTurnoverPage() {
 
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
@@ -70,23 +67,41 @@ export default function StockTurnoverPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     if (!activeCompanyId) {
         setStock([]);
         setLocations([]);
+        setIsLoading(false);
         return;
     }
-    const stockKey = getCompanyStorageKey('stock_items')!;
-    const storedStock = localStorage.getItem(stockKey);
-    setStock(storedStock ? JSON.parse(storedStock) : []);
+    setIsLoading(true);
+    const stockRef = ref(db, `stock_items/${activeCompanyId}`);
+    const unsubStock = onValue(stockRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setStock(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setStock([]);
+        }
+    });
     
-    const locationsKey = getCompanyStorageKey('locations')!;
-    const storedLocations = localStorage.getItem(locationsKey);
-    setLocations(storedLocations ? JSON.parse(storedLocations) : []);
+    const locationsRef = ref(db, `locations/${activeCompanyId}`);
+    const unsubLocations = onValue(locationsRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setLocations([]);
+        }
+    });
 
+    setIsLoading(false);
+    return () => {
+        unsubStock();
+        unsubLocations();
+    }
   }, [activeCompanyId]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
@@ -108,7 +123,7 @@ export default function StockTurnoverPage() {
     }
   };
 
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCompanyId) return;
 
@@ -140,8 +155,9 @@ export default function StockTurnoverPage() {
     const location = locations.find(loc => loc.id === newItemLocationId);
     if (!location) return;
 
+    const newItemId = `stock-${new Date().getTime()}`;
     const newItem: StockItem = {
-      id: `stock-${new Date().getTime()}`,
+      id: newItemId,
       name: newItemName,
       sku: newItemSku,
       quantity,
@@ -151,35 +167,34 @@ export default function StockTurnoverPage() {
       locationName: location.name,
     };
 
-    const updatedStock = [...stock, newItem];
-    setStock(updatedStock);
-    
-    const stockKey = getCompanyStorageKey('stock_items')!;
-    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
-
-    toast({
-      title: "Item Added",
-      description: `${newItem.name} has been added to the stock.`,
-    });
-    setNewItemName("");
-    setNewItemSku("");
-    setNewItemQuantity("");
-    setNewItemReorderLevel("");
-    setNewItemLocationId("");
+    try {
+        await set(ref(db, `stock_items/${activeCompanyId}/${newItemId}`), newItem);
+        toast({
+          title: "Item Added",
+          description: `${newItem.name} has been added to the stock.`,
+        });
+        setNewItemName("");
+        setNewItemSku("");
+        setNewItemQuantity("");
+        setNewItemReorderLevel("");
+        setNewItemLocationId("");
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to add item', description: error.message });
+    }
   };
   
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!itemToDelete || !activeCompanyId) return;
-    const updatedStock = stock.filter((s) => s.id !== itemToDelete.id);
-    setStock(updatedStock);
-
-    const stockKey = getCompanyStorageKey('stock_items')!;
-    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
-    toast({
-      title: "Item Deleted",
-      description: `${itemToDelete.name} has been removed from the stock.`,
-      variant: "destructive",
-    });
+    try {
+        await remove(ref(db, `stock_items/${activeCompanyId}/${itemToDelete.id}`));
+        toast({
+          title: "Item Deleted",
+          description: `${itemToDelete.name} has been removed from the stock.`,
+          variant: "destructive",
+        });
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to delete item', description: error.message });
+    }
     setItemToDelete(null);
   };
 
@@ -405,3 +420,5 @@ export default function StockTurnoverPage() {
     </>
   );
 }
+
+    

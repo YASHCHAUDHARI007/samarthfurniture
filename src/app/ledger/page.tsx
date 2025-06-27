@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookText, Search, ShieldAlert } from "lucide-react";
 import type { Ledger } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 export default function LedgerPage() {
   const router = useRouter();
@@ -34,17 +36,27 @@ export default function LedgerPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     if (!activeCompanyId) {
         setAllLedgers([]);
+        setIsLoading(false);
         return;
     };
-    const ledgersKey = `samarth_furniture_${activeCompanyId}_ledgers`;
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllLedgers(storedLedgers.sort((a,b) => a.name.localeCompare(b.name)));
+    setIsLoading(true);
+    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
+    const unsubscribe = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            setAllLedgers(list.sort((a,b) => a.name.localeCompare(b.name)));
+        } else {
+            setAllLedgers([]);
+        }
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, [activeCompanyId]);
 
   const filteredAccounts = useMemo(() => {
@@ -143,3 +155,5 @@ export default function LedgerPage() {
     </div>
   );
 }
+
+    

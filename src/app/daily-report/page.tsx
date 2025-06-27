@@ -24,6 +24,8 @@ import {
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
 import type { Order, StockItem, StockStatus } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 export default function DailyReportPage() {
   const router = useRouter();
@@ -43,7 +45,6 @@ export default function DailyReportPage() {
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
     
-    setIsLoading(false);
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -52,17 +53,37 @@ export default function DailyReportPage() {
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) return;
+    if (!activeCompanyId) {
+        setIsLoading(false);
+        return;
+    }
+    setIsLoading(true);
     
-    const ordersKey = `samarth_furniture_${activeCompanyId}_orders`;
-    const stockKey = `samarth_furniture_${activeCompanyId}_stock_items`;
+    const ordersRef = ref(db, `orders/${activeCompanyId}`);
+    const unsubOrders = onValue(ordersRef, (snapshot) => {
+      if(snapshot.exists()) {
+        const data = snapshot.val();
+        setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+      } else {
+        setOrders([]);
+      }
+    });
 
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    setOrders(allOrders);
-
-    const allStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
-    setStockItems(allStock);
-
+    const stockItemsRef = ref(db, `stock_items/${activeCompanyId}`);
+    const unsubStock = onValue(stockItemsRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setStockItems(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setStockItems([]);
+        }
+        setIsLoading(false);
+    });
+    
+    return () => {
+        unsubOrders();
+        unsubStock();
+    };
   }, [activeCompanyId]);
 
 
@@ -258,3 +279,5 @@ export default function DailyReportPage() {
     </div>
   );
 }
+
+    

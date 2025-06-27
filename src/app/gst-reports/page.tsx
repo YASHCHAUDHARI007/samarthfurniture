@@ -24,6 +24,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, Printer, IndianRupee, ShieldAlert } from "lucide-react";
 import type { Order, Purchase, Ledger } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 export default function GstReportsPage() {
   const router = useRouter();
@@ -42,21 +44,52 @@ export default function GstReportsPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) return;
+    if (!activeCompanyId) {
+        setIsLoading(false);
+        return;
+    };
+    setIsLoading(true);
 
-    const getCompanyStorageKey = (baseKey: string) => `samarth_furniture_${activeCompanyId}_${baseKey}`;
-    
-    const ordersKey = getCompanyStorageKey('orders');
-    const purchasesKey = getCompanyStorageKey('purchases');
-    const ledgersKey = getCompanyStorageKey('ledgers');
+    const ordersRef = ref(db, `orders/${activeCompanyId}`);
+    const unsubOrders = onValue(ordersRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setOrders([]);
+        }
+    });
 
-    setOrders(JSON.parse(localStorage.getItem(ordersKey) || '[]'));
-    setPurchases(JSON.parse(localStorage.getItem(purchasesKey) || '[]'));
-    setLedgers(JSON.parse(localStorage.getItem(ledgersKey) || '[]'));
+    const purchasesRef = ref(db, `purchases/${activeCompanyId}`);
+    const unsubPurchases = onValue(purchasesRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            setPurchases(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setPurchases([]);
+        }
+    });
+
+    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
+    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            setLedgers(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setLedgers([]);
+        }
+        setIsLoading(false);
+    });
+
+    return () => {
+        unsubOrders();
+        unsubPurchases();
+        unsubLedgers();
+    };
+
   }, [activeCompanyId]);
 
   const { gstr1Data, gstr2Data, gstr3bSummary } = useMemo(() => {
@@ -293,3 +326,5 @@ export default function GstReportsPage() {
     </>
   );
 }
+
+    

@@ -43,6 +43,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BookUser, ShieldAlert, Trash2, Edit, PlusCircle, IndianRupee } from "lucide-react";
 import type { Ledger, LedgerGroup } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, update, remove } from "firebase/database";
 
 const ledgerGroups: LedgerGroup[] = [
     'Sundry Debtors',
@@ -84,11 +86,6 @@ export default function ChartOfAccountsPage() {
   const [gstin, setGstin] = useState("");
   const [openingBalance, setOpeningBalance] = useState<number | "">(0);
 
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
@@ -96,18 +93,33 @@ export default function ChartOfAccountsPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     if (!activeCompanyId) {
         setLedgers([]);
+        setIsLoading(false);
         return;
     }
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const storedLedgers = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setLedgers(storedLedgers);
-  }, [activeCompanyId]);
+    setIsLoading(true);
+    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
+    return onValue(ledgersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list = Object.keys(data)
+          .map(key => ({ id: key, ...data[key] }))
+          // Exclude the primary accounts from being edited here
+          .filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id));
+        setLedgers(list);
+      } else {
+        setLedgers([]);
+      }
+      setIsLoading(false);
+    }, (error) => {
+        toast({ variant: 'destructive', title: 'Error fetching ledgers', description: error.message });
+        setIsLoading(false);
+    });
+  }, [activeCompanyId, toast]);
 
   const resetForm = () => {
     setName("");
@@ -130,15 +142,11 @@ export default function ChartOfAccountsPage() {
     setIsDialogOpen(true);
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     if (!name || !group || !activeCompanyId) {
       toast({ variant: "destructive", title: "Missing Fields" });
       return;
     }
-
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const currentLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    let updatedLedgers: Ledger[];
 
     const ledgerData = {
         name,
@@ -149,39 +157,36 @@ export default function ChartOfAccountsPage() {
         openingBalance: Number(openingBalance) || 0
     };
 
-    if (ledgerToEdit) {
-      // Edit mode
-      updatedLedgers = currentLedgers.map(l => 
-        l.id === ledgerToEdit.id ? { ...l, ...ledgerData } : l
-      );
-      toast({ title: "Ledger Updated" });
-    } else {
-      // Add mode
-      if (currentLedgers.some(l => l.name.toLowerCase() === name.toLowerCase())) {
-        toast({ variant: "destructive", title: "Ledger exists", description: "A ledger with this name already exists." });
-        return;
+    try {
+      if (ledgerToEdit) {
+        // Edit mode
+        await update(ref(db, `ledgers/${activeCompanyId}/${ledgerToEdit.id}`), ledgerData);
+        toast({ title: "Ledger Updated" });
+      } else {
+        // Add mode
+        if (ledgers.some(l => l.name.toLowerCase() === name.toLowerCase())) {
+          toast({ variant: "destructive", title: "Ledger exists", description: "A ledger with this name already exists." });
+          return;
+        }
+        const ledgerId = `LEDG-${Date.now()}`;
+        await set(ref(db, `ledgers/${activeCompanyId}/${ledgerId}`), {id: ledgerId, ...ledgerData});
+        toast({ title: "Ledger Created" });
       }
-      const newLedger: Ledger = {
-        id: `LEDG-${Date.now()}`,
-        ...ledgerData
-      };
-      updatedLedgers = [...currentLedgers, newLedger];
-      toast({ title: "Ledger Created" });
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Operation failed", description: error.message });
     }
-    
-    setLedgers(updatedLedgers);
-    localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-    setIsDialogOpen(false);
-    resetForm();
   };
 
-  const handleDeleteLedger = () => {
+  const handleDeleteLedger = async () => {
     if (!ledgerToDelete || !activeCompanyId) return;
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const updatedLedgers = ledgers.filter(l => l.id !== ledgerToDelete.id);
-    setLedgers(updatedLedgers);
-    localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-    toast({ title: "Ledger Deleted", variant: "destructive" });
+    try {
+        await remove(ref(db, `ledgers/${activeCompanyId}/${ledgerToDelete.id}`));
+        toast({ title: "Ledger Deleted", variant: "destructive" });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Deletion failed", description: error.message });
+    }
     setLedgerToDelete(null);
   };
 
@@ -325,3 +330,5 @@ export default function ChartOfAccountsPage() {
     </>
   );
 }
+
+    

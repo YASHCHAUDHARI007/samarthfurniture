@@ -27,8 +27,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BookText, IndianRupee } from "lucide-react";
-import type { Ledger, LedgerEntry, Order, Purchase } from "@/lib/types";
+import type { Ledger, LedgerEntry, Order, Purchase, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 export default function LedgerDetailPage({ params }: { params: { accountId: string } }) {
   const { accountId } = params;
@@ -36,6 +38,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allPurchases, setAllPurchases] = useState<Purchase[]>([]);
   const [account, setAccount] = useState<Ledger | null>(null);
+  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   const [billToView, setBillToView] = useState<Order | Purchase | null>(null);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
@@ -48,26 +51,47 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
   useEffect(() => {
     if (!activeCompanyId) return;
 
-    const getCompanyStorageKey = (baseKey: string) => `samarth_furniture_${activeCompanyId}_${baseKey}`;
-    
-    const ledgerEntriesKey = getCompanyStorageKey('ledger');
-    const ledgersKey = getCompanyStorageKey('ledgers');
-    const ordersKey = getCompanyStorageKey('orders');
-    const purchasesKey = getCompanyStorageKey('purchases');
+    onValue(ref(db, `companies/${activeCompanyId}`), (snapshot) => {
+        if(snapshot.exists()) setActiveCompany({ id: activeCompanyId, ...snapshot.val() });
+    });
 
-    const storedEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerEntriesKey) || '[]');
-    setAllLedgerEntries(storedEntries);
+    onValue(ref(db, `ledger_entries/${activeCompanyId}`), (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setAllLedgerEntries(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setAllLedgerEntries([]);
+        }
+    });
     
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
+    onValue(ref(db, `ledgers/${activeCompanyId}`), (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            const foundAccount = Object.values(data as {[key:string]: Ledger}).find(acc => acc.id === accountId);
+            setAccount(foundAccount || null);
+        } else {
+            setAccount(null);
+        }
+    });
     
-    const storedOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    setAllOrders(storedOrders);
+    onValue(ref(db, `orders/${activeCompanyId}`), (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setAllOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setAllOrders([]);
+        }
+    });
 
-    const storedPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
-    setAllPurchases(storedPurchases);
+    onValue(ref(db, `purchases/${activeCompanyId}`), (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setAllPurchases(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setAllPurchases([]);
+        }
+    });
 
-    const foundAccount = storedLedgers.find(acc => acc.id === accountId);
-    setAccount(foundAccount || null);
   }, [accountId, activeCompanyId]);
 
   const displayedEntries = useMemo(() => {
@@ -254,7 +278,7 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
                         <DialogDescription>Invoice details for order {billToView.id}.</DialogDescription>
                     </DialogHeader>
                     <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4 print:p-0">
-                       <Invoice order={billToView} />
+                       <Invoice order={billToView} company={activeCompany} />
                     </div>
                     </>
                )
@@ -268,3 +292,5 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
     </>
   );
 }
+
+    

@@ -38,6 +38,8 @@ import {
 import { Trash2 } from "lucide-react";
 import type { Order, Product, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, push, remove, update } from "firebase/database";
 
 type OrderItem = {
   id: string;
@@ -64,11 +66,6 @@ export default function DealerOrderPage() {
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "factory" || role === "administrator" || role === "owner") {
@@ -85,15 +82,31 @@ export default function DealerOrderPage() {
       return;
     };
     
-    const catalogKey = getCompanyStorageKey('product_catalog')!;
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
+    const catalogRef = ref(db, `product_catalog/${activeCompanyId}`);
+    const unsubCatalog = onValue(catalogRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            setProductCatalog(Object.keys(data).map(key => ({ id: key, ...data[key]})));
+        } else {
+            setProductCatalog([]);
+        }
+    });
 
-    const storedCatalog = localStorage.getItem(catalogKey);
-    setProductCatalog(storedCatalog ? JSON.parse(storedCatalog) : []);
-    
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllDealers(storedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
+    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
+    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
+            setAllDealers(list.filter(c => c.group === 'Sundry Debtors'));
+        } else {
+            setAllDealers([]);
+        }
+    });
 
+    return () => {
+        unsubCatalog();
+        unsubLedgers();
+    }
   }, [activeCompanyId]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,7 +152,7 @@ export default function DealerOrderPage() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCompanyId) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating an order." });
@@ -177,70 +190,61 @@ export default function DealerOrderPage() {
       return;
     }
 
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const ordersKey = getCompanyStorageKey('orders')!;
-
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    let dealer = storedLedgers.find(c => c.name.toLowerCase() === dealerName.toLowerCase() && c.group === 'Sundry Debtors');
-    let contactId = '';
-    
-    if (!dealer) {
-        contactId = `LEDG-${Date.now()}`;
-        dealer = {
-            id: contactId,
-            name: dealerName,
-            group: 'Sundry Debtors',
-            dealerId: dealerId,
-        };
-        const updatedLedgers = [...storedLedgers, dealer];
-        localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-        setAllDealers(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
-    } else {
-        contactId = dealer.id;
-        if (dealer.dealerId !== dealerId) {
-            dealer.dealerId = dealerId;
-            const updatedLedgers = storedLedgers.map(c => c.id === dealer!.id ? dealer : c);
-            localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-            setAllDealers(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
+    try {
+        let dealer = allDealers.find(c => c.name.toLowerCase() === dealerName.toLowerCase());
+        let contactId = dealer?.id;
+        
+        if (!dealer) {
+            contactId = `LEDG-${Date.now()}`;
+            const newDealerData = {
+                id: contactId,
+                name: dealerName,
+                group: 'Sundry Debtors' as const,
+                dealerId: dealerId,
+            };
+            await set(ref(db, `ledgers/${activeCompanyId}/${contactId}`), newDealerData);
+        } else {
+            if (dealer.dealerId !== dealerId) {
+                await update(ref(db, `ledgers/${activeCompanyId}/${contactId}`), { dealerId: dealerId });
+            }
         }
+
+        const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+        const loggedInUser = localStorage.getItem("loggedInUser");
+
+        const newOrder: Omit<Order, 'id'> = {
+          customer: dealerName,
+          item: `Bulk Order: ${summary}`,
+          status: "Pending",
+          type: "Dealer",
+          details: orderDescription,
+          createdBy: loggedInUser || undefined,
+          createdAt: new Date().toISOString(),
+          customerInfo: {
+            id: contactId!,
+            name: dealerName,
+            dealerId: dealerId,
+          },
+        };
+
+        await push(ref(db, `orders/${activeCompanyId}`), newOrder);
+
+        toast({
+          title: "Dealer Order Placed!",
+          description: "The bulk order has been sent to the factory.",
+        });
+
+        setOrderItems([]);
+        setDealerName("");
+        setDealerId("");
+        (e.target as HTMLFormElement).reset();
+
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to place order', description: error.message });
     }
-
-
-    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
-    const loggedInUser = localStorage.getItem("loggedInUser");
-
-    const newOrder: Order = {
-      id: `ORD-${new Date().getTime()}`,
-      customer: dealerName,
-      item: `Bulk Order: ${summary}`,
-      status: "Pending",
-      type: "Dealer",
-      details: orderDescription,
-      createdBy: loggedInUser || undefined,
-      createdAt: new Date().toISOString(),
-      customerInfo: {
-        id: contactId,
-        name: dealerName,
-        dealerId: dealerId,
-      },
-    };
-
-    const existingOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
-    localStorage.setItem(ordersKey, JSON.stringify([...existingOrders, newOrder]));
-    toast({
-      title: "Dealer Order Placed!",
-      description: "The bulk order has been sent to the factory.",
-    });
-
-    setOrderItems([]);
-    setDealerName("");
-    setDealerId("");
-    (e.target as HTMLFormElement).reset();
-    // This part is tricky, how to reset the checkboxes?
-    // A simple way is to force a re-render or manage checkbox state, but for now we leave it.
   };
 
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCompanyId) return;
 
@@ -252,35 +256,36 @@ export default function DealerOrderPage() {
         toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
         return;
     }
-    const newProduct: Product = {
-      id: `prod-${new Date().getTime()}`,
+
+    const newProduct: Omit<Product, 'id'> = {
       name: newItemName,
       sku: newItemSku,
       image: "https://placehold.co/100x100.png",
       aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
     };
-    const updatedCatalog = [...productCatalog, newProduct];
-    setProductCatalog(updatedCatalog);
     
-    const catalogKey = getCompanyStorageKey('product_catalog')!;
-    localStorage.setItem(catalogKey, JSON.stringify(updatedCatalog));
-    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
-    setNewItemName("");
-    setNewItemSku("");
+    try {
+        await push(ref(db, `product_catalog/${activeCompanyId}`), newProduct);
+        toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
+        setNewItemName("");
+        setNewItemSku("");
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Failed to add product", description: error.message });
+    }
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!itemToDelete || !activeCompanyId) return;
-    const updatedCatalog = productCatalog.filter((p) => p.id !== itemToDelete.id);
-    setProductCatalog(updatedCatalog);
-    
-    const catalogKey = getCompanyStorageKey('product_catalog')!;
-    localStorage.setItem(catalogKey, JSON.stringify(updatedCatalog));
-    toast({
-      title: "Product Deleted",
-      description: `${itemToDelete.name} has been removed from the catalog.`,
-      variant: "destructive",
-    });
+    try {
+        await remove(ref(db, `product_catalog/${activeCompanyId}/${itemToDelete.id}`));
+        toast({
+          title: "Product Deleted",
+          description: `${itemToDelete.name} has been removed from the catalog.`,
+          variant: "destructive",
+        });
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to delete product", description: error.message });
+    }
     setItemToDelete(null);
   };
 
@@ -518,3 +523,5 @@ export default function DealerOrderPage() {
     </>
   );
 }
+
+    

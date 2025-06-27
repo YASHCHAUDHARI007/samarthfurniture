@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingBag, IndianRupee, Printer, CalendarIcon, Trash2 } from "lucide-react";
-import type { Ledger, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus } from "@/lib/types";
+import type { Ledger, StockItem, Order, LedgerEntry, LineItem, PaymentStatus, StockStatus, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -41,6 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, update, push } from "firebase/database";
 
 type SaleItem = {
   key: string;
@@ -73,37 +75,53 @@ export default function DirectSalePage() {
 
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
-
-  const getCompanyStorageKey = (baseKey: string) => {
-      if (!activeCompanyId) return null;
-      return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
+  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
+    if(companyId){
+        onValue(ref(db, `companies/${companyId}`), (snapshot) => {
+            if(snapshot.exists()) setActiveCompany({ id: companyId, ...snapshot.val() });
+        });
+    }
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany?.id) {
       setAllDebtors([]);
       setStockItems([]);
       return;
     };
     
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const stockKey = getCompanyStorageKey('stock_items')!;
+    const companyId = activeCompany.id;
+    const ledgersRef = ref(db, `ledgers/${companyId}`);
+    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
+            setAllDebtors(list.filter(c => c.group === 'Sundry Debtors'));
+        } else {
+            setAllDebtors([]);
+        }
+    });
     
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
-    
-    const storedStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
-    setStockItems(storedStock);
+    const stockItemsRef = ref(db, `stock_items/${companyId}`);
+    const unsubStock = onValue(stockItemsRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setStockItems(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setStockItems([]);
+        }
+    });
+
     addSaleItem();
 
-  }, [activeCompanyId]);
+    return () => {
+        unsubLedgers();
+        unsubStock();
+    }
+  }, [activeCompany]);
 
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,8 +197,8 @@ export default function DirectSalePage() {
   }, [saleItems, gstRate]);
 
 
-  const handleSubmit = () => {
-    if (!activeCompanyId) {
+  const handleSubmit = async () => {
+    if (!activeCompany?.id) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating a sale." });
         return;
     }
@@ -188,7 +206,7 @@ export default function DirectSalePage() {
         toast({ variant: "destructive", title: "Missing Customer", description: "Please select or enter customer details."});
         return;
     }
-    const validSaleItems = saleItems.filter(item => (item.quantity || 0) > 0 && (item.price || 0) > 0 && item.stockItemId);
+    const validSaleItems = saleItems.filter(item => (item.quantity || 0) > 0 && (item.price || 0) >= 0 && item.stockItemId);
     if (validSaleItems.length === 0) {
         toast({ variant: "destructive", title: "Invalid Items", description: "Please add items with valid quantity and price."});
         return;
@@ -198,96 +216,90 @@ export default function DirectSalePage() {
         return;
     }
     
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const ordersKey = getCompanyStorageKey('orders')!;
-    const stockKey = getCompanyStorageKey('stock_items')!;
-    const ledgerKey = getCompanyStorageKey('ledger')!;
-
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    let customer = storedLedgers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.group === 'Sundry Debtors');
-    let customerId = selectedCustomerId;
-    
-    if (!customer) {
-        customerId = `LEDG-${Date.now()}`;
-        customer = { id: customerId, name: customerName, group: 'Sundry Debtors', address: shippingAddress, };
-        storedLedgers.push(customer);
-    } else {
-        customerId = customer.id;
-        customer.address = shippingAddress;
-    }
-    localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
-    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
-    
-    const invoiceDate = saleDate.toISOString();
-    const invoiceNumber = `INV-${new Date().getTime()}`;
-    const orderId = `ORD-${new Date().getTime()}`;
-    
-    const lineItems: LineItem[] = validSaleItems.map(item => ({
-        id: item.stockItemId,
-        description: `${item.name} (${item.sku})`,
-        quantity: Number(item.quantity),
-        price: Number(item.price),
-        hsn: item.hsn,
-    }));
-
-    const orderDetails = lineItems.map(item => `${item.quantity}x ${item.description}`).join('\n');
-
-    const newOrder: Order = {
-        id: orderId, customer: customerName, item: "Direct Stock Sale", status: "Billed", type: "Dealer", details: orderDetails, createdBy: localStorage.getItem("loggedInUser") || undefined, createdAt: invoiceDate,
-        customerInfo: { id: customerId!, name: customerName, address: shippingAddress, },
-        invoiceNumber, invoiceDate, lineItems, subTotal, totalGstRate: gstRate, sgstAmount, cgstAmount, totalGstAmount, totalAmount,
-        payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
-        irn: `IRN-MOCK-${new Date().getTime()}`,
-        qrCodeUrl: 'https://placehold.co/100x100.png',
-    };
-    
-    const currentStock: StockItem[] = JSON.parse(localStorage.getItem(stockKey) || '[]');
-    const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
-        if (quantity <= 0) return "Out of Stock";
-        if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
-        return "In Stock";
-    };
-    const updatedStock = currentStock.map(stockItem => {
-        const soldItem = validSaleItems.find(si => si.stockItemId === stockItem.id);
-        if (soldItem) {
-            const newQuantity = stockItem.quantity - Number(soldItem.quantity);
-            return { ...stockItem, quantity: newQuantity, status: getStatus(newQuantity, stockItem.reorderLevel) };
+    try {
+        let customer = allDebtors.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+        let customerId = selectedCustomerId;
+        
+        if (!customer) {
+            customerId = `LEDG-${Date.now()}`;
+            await set(ref(db, `ledgers/${activeCompany.id}/${customerId}`), { id: customerId, name: customerName, group: 'Sundry Debtors', address: shippingAddress });
+        } else {
+            customerId = customer.id;
+            await update(ref(db, `ledgers/${activeCompany.id}/${customerId}`), { address: shippingAddress });
         }
-        return stockItem;
-    });
-    localStorage.setItem(stockKey, JSON.stringify(updatedStock));
-    setStockItems(updatedStock);
+        
+        const invoiceDate = saleDate.toISOString();
+        const invoiceNumber = `INV-${new Date().getTime()}`;
+        
+        const lineItems: LineItem[] = validSaleItems.map(item => ({
+            id: item.stockItemId,
+            description: `${item.name} (${item.sku})`,
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+            hsn: item.hsn,
+        }));
 
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
-    ledgerEntries.push({
-        id: `LEDG-${Date.now()}-D`, date: invoiceDate, accountId: customerId!, accountName: customerName, type: 'Sales',
-        details: `Invoice ${invoiceNumber}`, debit: totalAmount, credit: 0, refId: orderId,
-    });
-    ledgerEntries.push({
-        id: `LEDG-${Date.now()}-C`, date: invoiceDate, accountId: 'SALES_ACCOUNT', accountName: 'Sales Account', type: 'Sales',
-        details: `Against Inv ${invoiceNumber} to ${customerName}`, debit: 0, credit: totalAmount, refId: orderId,
-    });
-    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
+        const orderDetails = lineItems.map(item => `${item.quantity}x ${item.description}`).join('\n');
+        
+        const orderRef = push(ref(db, `orders/${activeCompany.id}`));
+        const orderId = orderRef.key!;
 
-    const allOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-    localStorage.setItem(ordersKey, JSON.stringify([...allOrders, newOrder]));
-    
-    setInvoiceOrder(newOrder);
-    toast({ title: "Sale Recorded!", description: `Invoice ${invoiceNumber} created.` });
-    
-    setCustomerName("");
-    setShippingAddress("");
-    setSelectedCustomerId(null);
-    setSaleItems([]);
-    addSaleItem();
-    setSaleDate(new Date());
-    setNarration("");
+        const newOrderData: Order = {
+            id: orderId, customer: customerName, item: "Direct Stock Sale", status: "Billed", type: "Dealer", details: orderDetails, createdBy: localStorage.getItem("loggedInUser") || undefined, createdAt: invoiceDate,
+            customerInfo: { id: customerId!, name: customerName, address: shippingAddress, },
+            invoiceNumber, invoiceDate, lineItems, subTotal, totalGstRate: gstRate, sgstAmount, cgstAmount, totalGstAmount, totalAmount,
+            payments: [], paidAmount: 0, balanceDue: totalAmount, paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid", stockDeducted: true,
+            irn: `IRN-MOCK-${new Date().getTime()}`,
+            qrCodeUrl: 'https://placehold.co/100x100.png',
+        };
+        await set(orderRef, newOrderData);
+        
+        const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
+            if (quantity <= 0) return "Out of Stock";
+            if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
+            return "In Stock";
+        };
+
+        const stockUpdates: {[key: string]: any} = {};
+        validSaleItems.forEach(item => {
+            const stockItem = stockItems.find(si => si.id === item.stockItemId);
+            if(stockItem) {
+                const newQuantity = stockItem.quantity - Number(item.quantity);
+                stockUpdates[`stock_items/${activeCompany.id}/${item.stockItemId}/quantity`] = newQuantity;
+                stockUpdates[`stock_items/${activeCompany.id}/${item.stockItemId}/status`] = getStatus(newQuantity, stockItem.reorderLevel);
+            }
+        });
+        await update(ref(db), stockUpdates);
+
+        const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
+        const customerDebitEntry: Omit<LedgerEntry, 'id'> = {
+            date: invoiceDate, accountId: customerId!, accountName: customerName, type: 'Sales', details: `Invoice ${invoiceNumber}`, debit: totalAmount, credit: 0, refId: orderId,
+        };
+        const salesCreditEntry: Omit<LedgerEntry, 'id'> = {
+            date: invoiceDate, accountId: 'SALES_ACCOUNT', accountName: 'Sales Account', type: 'Sales', details: `Against Inv ${invoiceNumber} to ${customerName}`, debit: 0, credit: totalAmount, refId: orderId,
+        };
+        await push(ledgerEntriesRef, customerDebitEntry);
+        await push(ledgerEntriesRef, salesCreditEntry);
+        
+        setInvoiceOrder(newOrderData);
+        toast({ title: "Sale Recorded!", description: `Invoice ${invoiceNumber} created.` });
+        
+        setCustomerName("");
+        setShippingAddress("");
+        setSelectedCustomerId(null);
+        setSaleItems([]);
+        addSaleItem();
+        setSaleDate(new Date());
+        setNarration("");
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to record sale', description: error.message });
+    }
   };
 
   const handlePrint = () => window.print();
   const totalQuantity = useMemo(() => saleItems.reduce((acc, item) => acc + Number(item.quantity || 0), 0), [saleItems]);
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">
@@ -456,7 +468,7 @@ export default function DirectSalePage() {
                   <DialogDescription>The order is now ready for dispatch. You can print the invoice below.</DialogDescription>
               </DialogHeader>
               <div id="printable-area" className="flex-grow overflow-y-auto bg-gray-100 print:bg-white p-4">
-                  {invoiceOrder && <Invoice order={invoiceOrder} />}
+                  {invoiceOrder && <Invoice order={invoiceOrder} company={activeCompany} />}
               </div>
               <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
@@ -467,3 +479,5 @@ export default function DirectSalePage() {
     </>
   );
 }
+
+    

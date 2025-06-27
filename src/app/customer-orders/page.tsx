@@ -19,6 +19,8 @@ import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, update, push } from "firebase/database";
 
 export default function CustomerOrderPage() {
   const router = useRouter();
@@ -39,15 +41,18 @@ export default function CustomerOrderPage() {
     setActiveCompanyId(companyId);
     if (!companyId) return;
 
-    const ledgersKey = `samarth_furniture_${companyId}_ledgers`;
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllDebtors(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
+    const ledgersRef = ref(db, `ledgers/${companyId}`);
+    const unsubscribe = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
+            setAllDebtors(list.filter(c => c.group === 'Sundry Debtors'));
+        } else {
+            setAllDebtors([]);
+        }
+    });
+    return () => unsubscribe();
   }, []);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-      if (!activeCompanyId) return null;
-      return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -80,7 +85,7 @@ export default function CustomerOrderPage() {
   };
 
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!activeCompanyId) {
@@ -101,75 +106,69 @@ export default function CustomerOrderPage() {
     }
 
     const loggedInUser = localStorage.getItem("loggedInUser");
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const ordersKey = getCompanyStorageKey('orders')!;
-
-    // Save or update customer ledger
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    let customer = storedLedgers.find(c => c.name.toLowerCase() === customerName.toLowerCase() && c.group === 'Sundry Debtors');
-    let customerId = '';
     
-    if (!customer) {
-        customerId = `LEDG-${Date.now()}`;
-        customer = {
-            id: customerId,
+    try {
+        let customer = allDebtors.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+        let customerId = customer?.id;
+        
+        if (!customer) {
+            customerId = `LEDG-${Date.now()}`;
+            const newLedgerData = {
+                id: customerId,
+                name: customerName,
+                group: 'Sundry Debtors',
+                email: customerEmail,
+                address: shippingAddress,
+            };
+            await set(ref(db, `ledgers/${activeCompanyId}/${customerId}`), newLedgerData);
+        } else {
+            const updates: Partial<Ledger> = {};
+            if(customer.email !== customerEmail) updates.email = customerEmail;
+            if(customer.address !== shippingAddress) updates.address = shippingAddress;
+            if(Object.keys(updates).length > 0) {
+              await update(ref(db, `ledgers/${activeCompanyId}/${customerId}`), updates);
+            }
+        }
+
+        const newOrder: Omit<Order, 'id'> = {
+          customer: customerName,
+          item: `Custom: ${orderDetails.substring(0, 30)}...`,
+          status: "Pending",
+          type: "Customized",
+          details: orderDetails,
+          createdBy: loggedInUser || undefined,
+          createdAt: new Date().toISOString(),
+          dimensions: {
+            height: height || undefined,
+            width: width || undefined,
+            depth: depth || undefined,
+          },
+          dimensionDetails: dimensionDetails || undefined,
+          photoDataUrl: photoDataUrl,
+          customerInfo: {
+            id: customerId!,
             name: customerName,
-            group: 'Sundry Debtors',
             email: customerEmail,
             address: shippingAddress,
+          },
         };
-        const updatedLedgers = [...storedLedgers, customer];
-        localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-        setAllDebtors(updatedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
-    } else {
-        customerId = customer.id;
-        if (customer.email !== customerEmail || customer.address !== shippingAddress) {
-            customer.email = customerEmail;
-            customer.address = shippingAddress;
-            const updatedLedgers = storedLedgers.map(c => c.id === customer!.id ? customer : c);
-            localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-            setAllDebtors(updatedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
-        }
+
+        await push(ref(db, `orders/${activeCompanyId}`), newOrder);
+
+        toast({
+          title: "Customized Order Submitted!",
+          description: "The customized order has been sent to the factory.",
+        });
+        
+        setPhotoDataUrl(undefined);
+        setCustomerName("");
+        setCustomerEmail("");
+        setShippingAddress("");
+        (e.target as HTMLFormElement).reset();
+
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Failed to create order', description: error.message });
     }
-
-    const newOrder: Order = {
-      id: `ORD-${new Date().getTime()}`,
-      customer: customerName,
-      item: `Custom: ${orderDetails.substring(0, 30)}...`,
-      status: "Pending",
-      type: "Customized",
-      details: orderDetails,
-      createdBy: loggedInUser || undefined,
-      createdAt: new Date().toISOString(),
-      dimensions: {
-        height: height || undefined,
-        width: width || undefined,
-        depth: depth || undefined,
-      },
-      dimensionDetails: dimensionDetails || undefined,
-      photoDataUrl: photoDataUrl,
-      customerInfo: {
-        id: customerId,
-        name: customerName,
-        email: customerEmail,
-        address: shippingAddress,
-      },
-    };
-
-    const existingOrders: Order[] = JSON.parse(localStorage.getItem(ordersKey) || "[]");
-    localStorage.setItem(ordersKey, JSON.stringify([...existingOrders, newOrder]));
-
-    toast({
-      title: "Customized Order Submitted!",
-      description: "The customized order has been sent to the factory.",
-      variant: "default",
-    });
-    
-    setPhotoDataUrl(undefined);
-    setCustomerName("");
-    setCustomerEmail("");
-    setShippingAddress("");
-    (e.target as HTMLFormElement).reset();
   };
 
   if (!activeCompanyId) {
@@ -347,3 +346,5 @@ export default function CustomerOrderPage() {
     </div>
   );
 }
+
+    

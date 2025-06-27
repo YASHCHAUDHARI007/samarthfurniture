@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Ledger, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, update, push } from "firebase/database";
 
 type PurchaseItem = {
   id: string; // Raw material stock ID
@@ -71,30 +73,43 @@ export default function PurchasesPage() {
     setBillDate(new Date().toISOString().split("T")[0]);
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-    setIsLoading(false);
   }, []);
-
-  const getCompanyStorageKey = (baseKey: string) => {
-    if (!activeCompanyId) return null;
-    return `samarth_furniture_${activeCompanyId}_${baseKey}`;
-  };
 
   useEffect(() => {
     if (!activeCompanyId) {
         setAllSuppliers([]);
         setAllRawMaterials([]);
+        setIsLoading(false);
         return;
     }
+    setIsLoading(true);
     
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const materialsKey = getCompanyStorageKey('raw_materials')!;
+    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
+    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
+            setAllSuppliers(list.filter(c => c.group === 'Sundry Creditors'));
+        } else {
+            setAllSuppliers([]);
+        }
+    });
+    
+    const materialsRef = ref(db, `raw_materials/${activeCompanyId}`);
+    const unsubMaterials = onValue(materialsRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setAllRawMaterials(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setAllRawMaterials([]);
+        }
+    });
 
-    const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
-    
-    const storedMaterials: RawMaterial[] = JSON.parse(localStorage.getItem(materialsKey) || '[]');
-    setAllRawMaterials(storedMaterials);
-    
+    setIsLoading(false);
+    return () => {
+        unsubLedgers();
+        unsubMaterials();
+    }
   }, [activeCompanyId]);
 
   // Supplier handlers
@@ -175,7 +190,7 @@ export default function PurchasesPage() {
     }, 0);
   }, [purchaseItems]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!activeCompanyId) {
@@ -189,80 +204,71 @@ export default function PurchasesPage() {
         toast({ variant: "destructive", title: "Missing Information", description: "Please fill all supplier, bill and valid item details."});
         return;
     }
-
-    const ledgersKey = getCompanyStorageKey('ledgers')!;
-    const purchasesKey = getCompanyStorageKey('purchases')!;
-    const materialsKey = getCompanyStorageKey('raw_materials')!;
-    const ledgerKey = getCompanyStorageKey('ledger')!;
-
-    let storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    let supplier: Ledger | undefined = storedLedgers.find(
-      (c) => c.id === selectedSupplierId
-    );
-    let supplierId: string;
-
-    if (supplier) {
-        supplierId = supplier.id;
-        if(supplier.gstin !== supplierGstin) {
-            storedLedgers = storedLedgers.map(c => c.id === supplierId ? {...c, gstin: supplierGstin} : c);
-            localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
-            setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
-        }
-    } else {
-        supplierId = `LEDG-${Date.now()}`;
-        supplier = { id: supplierId, name: supplierName, group: 'Sundry Creditors', gstin: supplierGstin };
-        storedLedgers.push(supplier);
-        localStorage.setItem(ledgersKey, JSON.stringify(storedLedgers));
-        setAllSuppliers(storedLedgers.filter(c => c.group === 'Sundry Creditors'));
-    }
-
-    const newPurchase: Purchase = {
-        id: `PUR-${Date.now()}`,
-        supplierId,
-        supplierName,
-        billNumber,
-        date: new Date(billDate).toISOString(),
-        items: validItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price), hsn: item.hsn})),
-        totalAmount,
-        payments: [],
-        paidAmount: 0,
-        balanceDue: totalAmount,
-        paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
-    };
-
-    const allPurchases: Purchase[] = JSON.parse(localStorage.getItem(purchasesKey) || '[]');
-    localStorage.setItem(purchasesKey, JSON.stringify([...allPurchases, newPurchase]));
-
-    let materials: RawMaterial[] = JSON.parse(localStorage.getItem(materialsKey) || '[]');
-    newPurchase.items.forEach(item => {
-        const materialIndex = materials.findIndex(m => m.id === item.id);
-        if (materialIndex !== -1) {
-            materials[materialIndex].quantity += item.quantity;
-        }
-        // This won't create a new material as user must select an existing one
-    });
-    localStorage.setItem(materialsKey, JSON.stringify(materials));
-    setAllRawMaterials(materials);
-
-    const ledgerEntries: LedgerEntry[] = JSON.parse(localStorage.getItem(ledgerKey) || '[]');
-    const purchaseDebitEntry: LedgerEntry = {
-        id: `LEDG-${Date.now()}-D`, date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
-    };
-    const supplierCreditEntry: LedgerEntry = {
-        id: `LEDG-${Date.now()}-C`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Against Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
-    };
-    ledgerEntries.push(purchaseDebitEntry, supplierCreditEntry);
-    localStorage.setItem(ledgerKey, JSON.stringify(ledgerEntries));
-
-    toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
     
-    // Reset form
-    setSupplierName("");
-    setSupplierGstin("");
-    setSelectedSupplierId(null);
-    setBillNumber("");
-    setBillDate(new Date().toISOString().split("T")[0]);
-    setPurchaseItems([{id: '', name: '', hsn: '', quantity: '', price: ''}]);
+    try {
+        let supplier = allSuppliers.find(c => c.id === selectedSupplierId);
+        let supplierId: string;
+
+        if (supplier) {
+            supplierId = supplier.id;
+            if(supplier.gstin !== supplierGstin) {
+                await update(ref(db, `ledgers/${activeCompanyId}/${supplierId}`), { gstin: supplierGstin });
+            }
+        } else {
+            supplierId = `LEDG-${Date.now()}`;
+            await set(ref(db, `ledgers/${activeCompanyId}/${supplierId}`), { id: supplierId, name: supplierName, group: 'Sundry Creditors', gstin: supplierGstin });
+        }
+        
+        const purchaseRef = push(ref(db, `purchases/${activeCompanyId}`));
+        const newPurchaseId = purchaseRef.key!;
+
+        const newPurchase: Purchase = {
+            id: newPurchaseId,
+            supplierId,
+            supplierName,
+            billNumber,
+            date: new Date(billDate).toISOString(),
+            items: validItems.map(item => ({...item, quantity: Number(item.quantity), price: Number(item.price), hsn: item.hsn})),
+            totalAmount,
+            payments: [],
+            paidAmount: 0,
+            balanceDue: totalAmount,
+            paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
+        };
+        await set(purchaseRef, newPurchase);
+
+        const materialUpdates: {[key: string]: any} = {};
+        for (const item of newPurchase.items) {
+            const material = allRawMaterials.find(m => m.id === item.id);
+            if(material) {
+                const newQuantity = material.quantity + item.quantity;
+                materialUpdates[`raw_materials/${activeCompanyId}/${item.id}/quantity`] = newQuantity;
+            }
+        }
+        await update(ref(db), materialUpdates);
+
+        const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompanyId}`);
+        const purchaseDebitEntry: Omit<LedgerEntry, 'id'> = {
+            date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
+        };
+        const supplierCreditEntry: Omit<LedgerEntry, 'id'> = {
+            date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Against Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
+        };
+        await push(ledgerEntriesRef, purchaseDebitEntry);
+        await push(ledgerEntriesRef, supplierCreditEntry);
+
+        toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
+        
+        // Reset form
+        setSupplierName("");
+        setSupplierGstin("");
+        setSelectedSupplierId(null);
+        setBillNumber("");
+        setBillDate(new Date().toISOString().split("T")[0]);
+        setPurchaseItems([{id: '', name: '', hsn: '', quantity: '', price: ''}]);
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to record purchase", description: error.message });
+    }
   };
 
   if (isLoading) {
@@ -434,3 +440,5 @@ export default function PurchasesPage() {
     </div>
   );
 }
+
+    

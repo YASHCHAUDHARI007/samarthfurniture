@@ -36,6 +36,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Warehouse, ShieldAlert, Trash2 } from "lucide-react";
 import type { Location } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, remove } from "firebase/database";
 
 export default function ManageLocationsPage() {
   const router = useRouter();
@@ -66,14 +68,21 @@ export default function ManageLocationsPage() {
           return;
       }
       setIsLoading(true);
-      const locationsKey = `samarth_furniture_${activeCompanyId}_locations`;
-      const storedLocations = JSON.parse(localStorage.getItem(locationsKey) || '[]');
-      setLocations(storedLocations);
-      setIsLoading(false);
+      const locationsRef = ref(db, `locations/${activeCompanyId}`);
+      const unsubscribe = onValue(locationsRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setLocations([]);
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
   }, [activeCompanyId]);
 
 
-  const handleAddLocation = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddLocation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newLocationName || !activeCompanyId) {
       toast({ variant: "destructive", title: "Missing Name" });
@@ -85,34 +94,33 @@ export default function ManageLocationsPage() {
         return;
     }
 
+    const newLocationId = `LOC-${Date.now()}`;
     const newLocation: Location = {
-      id: `LOC-${Date.now()}`,
+      id: newLocationId,
       name: newLocationName,
       address: newLocationAddress || undefined,
     };
-    const updatedLocations = [...locations, newLocation];
-    setLocations(updatedLocations);
     
-    const locationsKey = `samarth_furniture_${activeCompanyId}_locations`;
-    localStorage.setItem(locationsKey, JSON.stringify(updatedLocations));
-    
-    toast({ title: "Location Created", description: `${newLocationName} has been created successfully.` });
-    setNewLocationName("");
-    setNewLocationAddress("");
+    try {
+        await set(ref(db, `locations/${activeCompanyId}/${newLocationId}`), newLocation);
+        toast({ title: "Location Created", description: `${newLocationName} has been created successfully.` });
+        setNewLocationName("");
+        setNewLocationAddress("");
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to create location", description: error.message });
+    }
   };
 
-  const handleDeleteLocation = () => {
+  const handleDeleteLocation = async () => {
     if (!locationToDelete || !activeCompanyId) return;
 
     // TODO: Add check to prevent deleting a location if it has stock.
-    
-    const updatedLocations = locations.filter(c => c.id !== locationToDelete.id);
-    setLocations(updatedLocations);
-    
-    const locationsKey = `samarth_furniture_${activeCompanyId}_locations`;
-    localStorage.setItem(locationsKey, JSON.stringify(updatedLocations));
-    
-    toast({ title: "Location Deleted", variant: "destructive" });
+    try {
+        await remove(ref(db, `locations/${activeCompanyId}/${locationToDelete.id}`));
+        toast({ title: "Location Deleted", variant: "destructive" });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Deletion failed", description: error.message });
+    }
     setLocationToDelete(null);
   };
 
@@ -244,3 +252,5 @@ export default function ManageLocationsPage() {
     </>
   );
 }
+
+    
