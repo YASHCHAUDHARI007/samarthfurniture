@@ -120,7 +120,7 @@ export default function CustomerOrderPage() {
         };
         const updatedLedgers = [...storedLedgers, customer];
         localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-        setAllDebtors(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
+        setAllDebtors(updatedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
     } else {
         customerId = customer.id;
         if (customer.email !== customerEmail || customer.address !== shippingAddress) {
@@ -128,7 +128,7 @@ export default function CustomerOrderPage() {
             customer.address = shippingAddress;
             const updatedLedgers = storedLedgers.map(c => c.id === customer!.id ? customer : c);
             localStorage.setItem(ledgersKey, JSON.stringify(updatedLedgers));
-            setAllDebtors(updatedLedgers.filter(c => c.group === 'Sundry Debtors'));
+            setAllDebtors(updatedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
         }
     }
 
