@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -36,7 +35,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
 import type { Order, Company } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { ref, onValue, query, orderByChild, equalTo, update } from "firebase/database";
 
 
 const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order: Order, company: Company | null, addPageBreakBefore?: boolean }) => (
@@ -122,45 +122,44 @@ export default function TransportPage() {
     
     const companyId = localStorage.getItem('activeCompanyId');
     if (companyId) {
-      const fetchCompanyDetails = async () => {
-          const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
-          if (!error && data) setActiveCompany(data);
-      }
-      fetchCompanyDetails();
+      const companyRef = ref(db, `companies/${companyId}`);
+      onValue(companyRef, (snapshot) => {
+        if(snapshot.exists()) {
+          setActiveCompany({ id: snapshot.key, ...snapshot.val() });
+        }
+      });
     }
     
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    const fetchOrders = async (companyId: string) => {
+    if(!activeCompany?.id) return;
+    
+    const fetchOrders = (companyId: string) => {
         setIsLoading(true);
-        const username = localStorage.getItem("loggedInUser");
-        const role = localStorage.getItem("userRole");
 
-        let query = supabase
-            .from('orders')
-            .select('*')
-            .eq('company_id', companyId)
-            .eq('status', 'Billed');
+        const ordersRef = ref(db, `orders/${companyId}`);
+        const ordersQuery = query(ordersRef, orderByChild('status'), equalTo('Billed'));
         
-        if (role === "coordinator" && username) {
-          query = query.eq('createdBy', username);
-        }
-        
-        const { data, error } = await query;
-        if (error) {
-            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+        const unsubscribe = onValue(ordersQuery, (snapshot) => {
+          if(snapshot.exists()) {
+            const data = snapshot.val();
+            const ordersList: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            setOrders(ordersList);
+          } else {
             setOrders([]);
-        } else {
-            setOrders(data || []);
-        }
-        setIsLoading(false);
+          }
+          setIsLoading(false);
+        }, (error) => {
+            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+            setIsLoading(false);
+        });
+        return unsubscribe;
     }
     
-    if (activeCompany?.id) {
-        fetchOrders(activeCompany.id);
-    }
+    const unsubscribe = fetchOrders(activeCompany.id);
+    return () => unsubscribe();
 
   }, [activeCompany, toast]);
 
@@ -177,31 +176,24 @@ export default function TransportPage() {
     };
     
     const deliveredAt = new Date().toISOString();
-
-    const { data: updatedOrder, error } = await supabase
-        .from('orders')
-        .update({
-            status: "Delivered",
-            transportDetails,
-            deliveredAt,
-        })
-        .eq('id', selectedOrder.id)
-        .select()
-        .single();
-
-    if (error) {
-        toast({ variant: 'destructive', title: 'Failed to dispatch order', description: error.message });
-        return;
+    
+    const orderUpdates = {
+      status: "Delivered",
+      transportDetails,
+      deliveredAt,
+    };
+    
+    try {
+      await update(ref(db, `orders/${activeCompany.id}/${selectedOrder.id}`), orderUpdates);
+      toast({
+        title: "Order Dispatched!",
+        description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
+      });
+      setReceiptOrder({ ...selectedOrder, ...orderUpdates });
+      setSelectedOrder(null);
+    } catch (error: any) {
+       toast({ variant: 'destructive', title: 'Failed to dispatch order', description: error.message });
     }
-
-    setOrders(orders.filter((o) => o.id !== selectedOrder.id));
-    toast({
-      title: "Order Dispatched!",
-      description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
-    });
-
-    setReceiptOrder(updatedOrder);
-    setSelectedOrder(null);
   };
   
   const handlePrint = () => {

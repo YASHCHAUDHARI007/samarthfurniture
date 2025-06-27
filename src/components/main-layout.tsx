@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -47,7 +46,8 @@ import {
 } from "@/components/ui/tooltip";
 import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
@@ -136,19 +136,26 @@ function Menu({ userRole }: { userRole: string | null }) {
 function CompanySwitcher() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-    const { isMobile, setOpenMobile } = useSidebar();
-    const router = useRouter();
 
     useEffect(() => {
-        const fetchCompanies = async () => {
-          const { data, error } = await supabase.from('companies').select('*');
-          if (!error && data) {
-            setCompanies(data);
-          }
-        };
-        fetchCompanies();
+        const companiesRef = ref(db, 'companies');
+        const unsubscribe = onValue(companiesRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const companiesData = snapshot.val();
+                const companiesList = Object.keys(companiesData).map(key => ({
+                    id: key,
+                    ...companiesData[key]
+                }));
+                setCompanies(companiesList);
+            } else {
+                setCompanies([]);
+            }
+        });
+        
         const storedActiveId = localStorage.getItem('activeCompanyId');
         setActiveCompanyId(storedActiveId);
+
+        return () => unsubscribe();
     }, []);
 
     const handleCompanyChange = (companyId: string) => {

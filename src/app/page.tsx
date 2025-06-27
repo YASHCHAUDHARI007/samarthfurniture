@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -33,8 +32,8 @@ import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
-
+import { db } from "@/lib/firebase";
+import { ref, onValue, query, orderByChild, equalTo } from "firebase/database";
 
 const chartConfig = {
   sales: {
@@ -51,14 +50,10 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
     const username = localStorage.getItem("loggedInUser");
-    const role = localStorage.getItem("userRole");
-    setUserRole(role);
-
     if (!username) {
       router.push("/login");
       return;
@@ -70,88 +65,79 @@ export default function Dashboard() {
   }, [router]);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!activeCompanyId) {
+    if (!isAuthenticated || !activeCompanyId) {
+        setIsLoading(false);
         setOrders([]);
         setChartData([]);
-        setIsLoading(false);
         return;
-      }
-
-      setIsLoading(true);
-      const role = localStorage.getItem("userRole");
-      const username = localStorage.getItem("loggedInUser");
-
-      // Fetch all orders for chart data
-      const { data: allOrders, error: allOrdersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('company_id', activeCompanyId);
-      
-      if (allOrdersError) {
-        console.error("Error fetching all orders:", allOrdersError);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Fetch user-specific orders for cards and recent orders table
-      let userOrdersQuery = supabase.from('orders').select('*').eq('company_id', activeCompanyId);
-      if (role === "coordinator" && username) {
-        userOrdersQuery = userOrdersQuery.eq('createdBy', username);
-      }
-      const { data: userOrders, error: userOrdersError } = await userOrdersQuery;
-
-      if (userOrdersError) {
-        console.error("Error fetching user orders:", userOrdersError);
-        setIsLoading(false);
-        return;
-      }
-      
-      setOrders(userOrders || []);
-
-      // Generate dynamic chart data from all orders
-      const now = new Date();
-      const last6Months: string[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = subMonths(now, i);
-        last6Months.push(format(d, "MMMM"));
-      }
-
-      const salesByMonth = last6Months.reduce((acc, month) => {
-        acc[month] = 0;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const deliveredOrdersWithDate = (allOrders || []).filter(
-        (o) => (o.status === "Delivered" || o.status === "Billed") && o.invoiceDate
-      );
-
-      deliveredOrdersWithDate.forEach((order) => {
-        if (!order.invoiceDate) return;
-        try {
-            const month = format(new Date(order.invoiceDate), "MMMM");
-            if (salesByMonth.hasOwnProperty(month)) {
-              salesByMonth[month] += (order.totalAmount || 0);
-            }
-        } catch (e) {
-            console.error(`Invalid date format for order ${order.id}: ${order.invoiceDate}`);
-        }
-      });
-
-      const newChartData = last6Months.map((month) => ({
-        month: month.slice(0, 3),
-        sales: salesByMonth[month],
-      }));
-
-      setChartData(newChartData);
-      setIsLoading(false);
     };
+    
+    setIsLoading(true);
 
-    if (isAuthenticated && activeCompanyId) {
-        fetchDashboardData();
-    } else if (isAuthenticated && !activeCompanyId) {
-        setIsLoading(false);
+    const role = localStorage.getItem("userRole");
+    const username = localStorage.getItem("loggedInUser");
+    
+    const ordersPath = `orders/${activeCompanyId}`;
+    const ordersRef = ref(db, ordersPath);
+    let ordersQuery = query(ordersRef);
+
+    if (role === "coordinator" && username) {
+      ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
     }
+
+    const unsubscribe = onValue(ordersQuery, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const ordersList: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+          setOrders(ordersList);
+        } else {
+          setOrders([]);
+        }
+
+        onValue(ref(db, ordersPath), (allOrdersSnapshot) => {
+            const allOrdersData = allOrdersSnapshot.val();
+            const allOrdersList: Order[] = allOrdersData ? Object.keys(allOrdersData).map(key => ({ id: key, ...allOrdersData[key] })) : [];
+            
+            const now = new Date();
+            const last6Months: string[] = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = subMonths(now, i);
+                last6Months.push(format(d, "MMMM"));
+            }
+
+            const salesByMonth = last6Months.reduce((acc, month) => {
+                acc[month] = 0;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const deliveredOrdersWithDate = allOrdersList.filter(
+                (o) => (o.status === "Delivered" || o.status === "Billed") && o.invoiceDate
+            );
+
+            deliveredOrdersWithDate.forEach((order) => {
+                if (!order.invoiceDate) return;
+                try {
+                    const month = format(new Date(order.invoiceDate), "MMMM");
+                    if (salesByMonth.hasOwnProperty(month)) {
+                    salesByMonth[month] += (order.totalAmount || 0);
+                    }
+                } catch (e) {
+                  //
+                }
+            });
+
+            const newChartData = last6Months.map((month) => ({
+                month: month.slice(0, 3),
+                sales: salesByMonth[month],
+            }));
+
+            setChartData(newChartData);
+            setIsLoading(false);
+        }, { onlyOnce: true });
+    });
+
+    return () => unsubscribe();
+
   }, [isAuthenticated, activeCompanyId]);
 
   const getBadgeVariant = (status: OrderStatus) => {
@@ -368,4 +354,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

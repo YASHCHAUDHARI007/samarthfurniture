@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -46,8 +45,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ShieldAlert, Trash2, Edit } from "lucide-react";
 import type { Company, Ledger } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
-
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, push, remove, update } from "firebase/database";
 
 const SafeFormatDate = ({ dateString }: { dateString: string }) => {
     try {
@@ -60,7 +59,6 @@ const SafeFormatDate = ({ dateString }: { dateString: string }) => {
     }
     return <>{dateString || 'Invalid Date'}</>;
 };
-
 
 export default function ManageCompaniesPage() {
   const router = useRouter();
@@ -86,19 +84,24 @@ export default function ManageCompaniesPage() {
       setHasAccess(true);
     }
     
-    const fetchCompanies = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase.from('companies').select('*');
-      if (error) {
-        toast({ variant: 'destructive', title: 'Error fetching companies', description: error.message });
-      } else {
-        setCompanies(data || []);
-      }
-      setIsLoading(false);
-    }
-    fetchCompanies();
+    const companiesRef = ref(db, 'companies');
+    const unsubscribe = onValue(companiesRef, (snapshot) => {
+        setIsLoading(true);
+        if (snapshot.exists()) {
+            const companiesData = snapshot.val();
+            const companiesList = Object.keys(companiesData).map(key => ({
+                id: key,
+                ...companiesData[key]
+            }));
+            setCompanies(companiesList);
+        } else {
+            setCompanies([]);
+        }
+        setIsLoading(false);
+    });
     
-  }, [toast]);
+    return () => unsubscribe();
+  }, []);
 
   const handleAddCompany = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -106,88 +109,85 @@ export default function ManageCompaniesPage() {
       toast({ variant: "destructive", title: "Missing Information" });
       return;
     }
-    const newCompany: Omit<Company, 'id'> = {
+    const newCompanyData: Omit<Company, 'id'> = {
       name: newCompanyName,
       financialYearStart: newFyStart,
       financialYearEnd: newFyEnd,
     };
 
-    const { data: insertedCompany, error } = await supabase.from('companies').insert(newCompany).select().single();
+    try {
+        const newCompanyRef = push(ref(db, 'companies'));
+        await set(newCompanyRef, newCompanyData);
+        const newCompanyId = newCompanyRef.key;
 
-    if (error) {
-       toast({ variant: "destructive", title: "Failed to create company", description: error.message });
-       return;
-    }
-    
-    setCompanies([...companies, insertedCompany]);
-    
-    // Auto-create essential ledgers for the new company
-    const initialLedgers: Omit<Ledger, 'id' | 'company_id'>[] = [
-        { name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
-        { name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
-        { name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
-        { name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
-    ];
-    const ledgersToInsert = initialLedgers.map(l => ({ ...l, company_id: insertedCompany.id }));
-    const { error: ledgerError } = await supabase.from('ledgers').insert(ledgersToInsert);
-    if (ledgerError) {
-        toast({ variant: 'destructive', title: 'Ledger setup failed', description: `Company created, but failed to create default ledgers: ${ledgerError.message}`});
-    }
+        if (!newCompanyId) throw new Error("Failed to get new company ID");
 
+        // Auto-create essential ledgers for the new company
+        const initialLedgers: { [key: string]: Omit<Ledger, 'id'> } = {
+            'PROFIT_LOSS': { name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
+            'SALES_ACCOUNT': { name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
+            'PURCHASE_ACCOUNT': { name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
+            'CASH_ACCOUNT': { name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
+        };
 
-    // If it's the first company, set it as active
-    if (!localStorage.getItem('activeCompanyId')) {
-        localStorage.setItem('activeCompanyId', insertedCompany.id);
-        window.location.reload(); // Reload to apply company context
+        await set(ref(db, `ledgers/${newCompanyId}`), initialLedgers);
+
+        // If it's the first company, set it as active
+        if (!localStorage.getItem('activeCompanyId')) {
+            localStorage.setItem('activeCompanyId', newCompanyId);
+            window.location.reload();
+        }
+        
+        toast({ title: "Company Created", description: `${newCompanyName} has been created successfully.` });
+        setNewCompanyName("");
+        setNewFyStart("");
+        setNewFyEnd("");
+
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to create company", description: error.message });
     }
-    
-    toast({ title: "Company Created", description: `${newCompanyName} has been created successfully.` });
-    setNewCompanyName("");
-    setNewFyStart("");
-    setNewFyEnd("");
   };
 
   const handleEditCompany = async () => {
     if (!companyToEdit || !editName || !editFyStart || !editFyEnd) return;
     
     const updates = { name: editName, financialYearStart: editFyStart, financialYearEnd: editFyEnd };
-    const { error } = await supabase.from('companies').update(updates).eq('id', companyToEdit.id);
-
-    if (error) {
-      toast({ variant: "destructive", title: "Update failed", description: error.message });
-    } else {
-      setCompanies(companies.map(c => 
-        c.id === companyToEdit.id ? { ...c, ...updates } : c
-      ));
-      toast({ title: "Company Updated" });
-      setCompanyToEdit(null);
+    try {
+        await update(ref(db, `companies/${companyToEdit.id}`), updates);
+        toast({ title: "Company Updated" });
+        setCompanyToEdit(null);
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Update failed", description: error.message });
     }
   };
   
   const handleDeleteCompany = async () => {
     if (!companyToDelete) return;
     
-    const tablesToDeleteFrom = ['orders', 'ledgers', 'purchases', 'ledger_entries', 'raw_materials', 'stock_items', 'locations', 'products'];
+    const companyId = companyToDelete.id;
+    const pathsToDelete = {
+      [`companies/${companyId}`]: null,
+      [`orders/${companyId}`]: null,
+      [`ledgers/${companyId}`]: null,
+      [`purchases/${companyId}`]: null,
+      [`ledger_entries/${companyId}`]: null,
+      [`raw_materials/${companyId}`]: null,
+      [`stock_items/${companyId}`]: null,
+      [`locations/${companyId}`]: null,
+      [`product_catalog/${companyId}`]: null,
+    };
     
-    for (const table of tablesToDeleteFrom) {
-      const { error } = await supabase.from(table).delete().eq('company_id', companyToDelete.id);
-       if (error) {
-          console.error(`Error deleting from ${table}:`, error.message);
-          // Optionally, show a more detailed error to the user.
-       }
-    }
-    
-    const { error } = await supabase.from('companies').delete().eq('id', companyToDelete.id);
-
-    if (error) {
-       toast({ title: "Company Deletion Failed", variant: "destructive", description: error.message });
-    } else {
-      setCompanies(companies.filter(c => c.id !== companyToDelete.id));
+    try {
+      await update(ref(db), pathsToDelete);
+      
       toast({ title: "Company Deleted", variant: "destructive" });
       if (localStorage.getItem('activeCompanyId') === companyToDelete.id) {
           localStorage.removeItem('activeCompanyId');
           window.location.reload();
       }
+
+    } catch(error: any) {
+       toast({ title: "Company Deletion Failed", variant: "destructive", description: error.message });
     }
     setCompanyToDelete(null);
   };

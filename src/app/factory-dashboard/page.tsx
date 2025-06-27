@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -51,8 +50,9 @@ import { Factory, ShieldAlert, History, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import type { Order, OrderStatus, StockItem, StockStatus, PaymentStatus } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
+import type { Order, OrderStatus, PaymentStatus } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { ref, onValue, update, remove, query, orderByChild, equalTo } from "firebase/database";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -91,79 +91,73 @@ export default function FactoryDashboardPage() {
         return;
     };
     
-    const fetchOrders = async () => {
+    const fetchOrders = () => {
         setIsLoading(true);
         const username = localStorage.getItem("loggedInUser");
         const role = localStorage.getItem("userRole");
 
-        let query = supabase.from('orders').select('*').eq('company_id', activeCompanyId);
+        const ordersRef = ref(db, `orders/${activeCompanyId}`);
+        let ordersQuery = query(ordersRef);
         
         if (role === "coordinator" && username) {
-            query = query.eq('createdBy', username);
+            ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
         }
         
-        const { data, error } = await query;
-        
-        if (error) {
+        const unsubscribe = onValue(ordersQuery, (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const ordersList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            setOrders(ordersList);
+          } else {
+            setOrders([]);
+          }
+          setIsLoading(false);
+        }, (error) => {
             toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
             setOrders([]);
-        } else {
-            setOrders(data || []);
-        }
-        setIsLoading(false);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
     }
-    fetchOrders();
+
+    const unsubscribe = fetchOrders();
+    return () => unsubscribe();
 
   }, [activeCompanyId, userRole, toast]);
 
-  const getStockStatus = (quantity: number, reorderLevel: number): StockStatus => {
-    if (quantity === 0) return "Out of Stock";
-    if (quantity > 0 && quantity <= reorderLevel) return "Low Stock";
-    return "In Stock";
-  };
-
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    const originalOrder = orders.find(o => o.id === orderId);
-    if (!originalOrder || !activeCompanyId) return;
+    if (!activeCompanyId) return;
     
-    // Optimistic UI update
-    const previousOrders = orders;
-    setOrders(currentOrders => currentOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-
-    const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
-
-    if (error) {
-        setOrders(previousOrders); // Revert on failure
+    try {
+      await update(ref(db, `orders/${activeCompanyId}/${orderId}`), { status: newStatus });
+      toast({
+        title: "Status Updated",
+        description: `Order ${orderId} status changed to ${newStatus}.`,
+      });
+    } catch(error: any) {
         toast({
             variant: 'destructive',
             title: "Status Update Failed",
             description: error.message,
         });
-        return;
     }
-    
-    toast({
-      title: "Status Updated",
-      description: `Order ${orderId} status changed to ${newStatus}.`,
-    });
   };
 
   const handleDeleteOrder = async () => {
     if (!orderToDelete || !activeCompanyId) return;
     
-    const { error } = await supabase.from('orders').delete().eq('id', orderToDelete.id);
-
-    if (error) {
-      toast({
-        title: "Order Deletion Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } else {
-      setOrders(orders.filter((order) => order.id !== orderToDelete.id));
+    try {
+      await remove(ref(db, `orders/${activeCompanyId}/${orderToDelete.id}`));
       toast({
         title: "Order Deleted",
         description: `Order ${orderToDelete.id} has been permanently deleted.`,
+        variant: "destructive"
+      });
+    } catch (error: any) {
+       toast({
+        title: "Order Deletion Failed",
+        description: error.message,
         variant: "destructive"
       });
     }
@@ -252,7 +246,7 @@ export default function FactoryDashboardPage() {
       (order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.customer && order.customer.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.item && order.item.toLowerCase().includes(searchTerm.toLowerCase()))
-  ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : -1);
+  ).sort((a, b) => ((b.invoiceDate || b.createdAt || '') > (a.invoiceDate || a.createdAt || '')) ? 1 : -1);
   
   const canDelete = userRole === "administrator";
 

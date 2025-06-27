@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { ref, get, set, query, orderByChild, equalTo } from "firebase/database";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,90 +27,85 @@ export default function LoginPage() {
 
   useEffect(() => {
     const seedInitialUsers = async () => {
-      // Check if users table is empty
-      const { error, count } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
+      try {
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
 
-      // If the table does not exist, Supabase returns an error.
-      // We can't create tables from client-side code for security reasons.
-      // So, we'll inform the user.
-      if (error && error.code === '42P01') { // 42P01: undefined_table
-          toast({
-              variant: "destructive",
-              title: "Database Setup Required",
-              description: "The 'users' table does not exist. Please create it in your Supabase project dashboard.",
-              duration: 10000,
-          });
-          return;
-      } else if (error) {
-          toast({
-              variant: "destructive",
-              title: "Database Connection Error",
-              description: error.message,
-          });
-          return;
-      }
-      
-      // If the table exists but is empty, seed it.
-      if (count === 0) {
-        const initialUsers: Omit<User, 'id'>[] = [
-          { username: "owner", password: "password123", role: "owner" },
-          { username: "coordinator", password: "password456", role: "coordinator" },
-          { username: "factory", password: "password789", role: "factory" },
-          { username: "admin", password: "password", role: "administrator" },
-        ];
-        
-        const { error: insertError } = await supabase.from('users').insert(initialUsers);
-        if (insertError) {
-          console.error("Failed to seed initial users:", insertError);
-          toast({ variant: "destructive", title: "Database setup error", description: "Could not create initial user accounts." });
-        } else {
-           toast({ title: "Setup Complete", description: "Default user accounts have been created." });
+        if (!snapshot.exists()) {
+          const initialUsers: { [key: string]: Omit<User, 'id'> } = {
+            "owner": { username: "owner", password: "password123", role: "owner" },
+            "coordinator": { username: "coordinator", password: "password456", role: "coordinator" },
+            "factory": { username: "factory", password: "password789", role: "factory" },
+            "admin": { username: "admin", password: "password", role: "administrator" },
+          };
+          
+          await set(usersRef, initialUsers);
+          toast({ title: "Setup Complete", description: "Default user accounts have been created." });
         }
+      } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Database Connection Error",
+            description: "Could not connect to Firebase. Check your config and that the database is created.",
+            duration: 10000,
+        });
       }
     }
     seedInitialUsers();
   }, [toast]);
 
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .eq('password', password)
-      .single();
+    try {
+      const usersRef = ref(db, 'users');
+      const q = query(usersRef, orderByChild('username'), equalTo(username));
+      const snapshot = await get(q);
+      
+      if (snapshot.exists()) {
+        const usersData = snapshot.val();
+        const userKey = Object.keys(usersData)[0];
+        const foundUser = usersData[userKey] as User;
 
-    if (error || !user) {
-       toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid username or password. Please try again.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (user) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('loggedInUser', user.username);
-        localStorage.setItem('userRole', user.role);
-      }
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to your dashboard...",
-      });
-      setTimeout(() => {
-        if (user.role === "factory") {
-            router.push("/factory-dashboard");
+        if (foundUser && foundUser.password === password) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('loggedInUser', foundUser.username);
+            localStorage.setItem('userRole', foundUser.role);
+          }
+          toast({
+            title: "Login Successful",
+            description: "Redirecting to your dashboard...",
+          });
+          setTimeout(() => {
+            if (foundUser.role === "factory") {
+                router.push("/factory-dashboard");
+            } else {
+                router.push("/");
+            }
+          }, 1000);
         } else {
-            router.push("/");
+          toast({
+            variant: "destructive",
+            title: "Login Failed",
+            description: "Invalid username or password. Please try again.",
+          });
         }
-      }, 1000);
+      } else {
+         toast({
+            variant: "destructive",
+            title: "Login Failed",
+            description: "Invalid username or password. Please try again.",
+          });
+      }
+    } catch(error: any) {
+      toast({
+          variant: "destructive",
+          title: "Login Error",
+          description: "An error occurred while trying to log in.",
+      });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 

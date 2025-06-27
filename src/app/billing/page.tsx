@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -39,7 +38,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, Search, IndianRupee } from "lucide-react";
 import type { Order, LineItem, PaymentStatus, LedgerEntry, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { ref, onValue, update, push, query, orderByChild, equalTo } from "firebase/database";
 
 
 export default function BillingPage() {
@@ -60,35 +60,16 @@ export default function BillingPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isReprintView, setIsReprintView] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-
-    const fetchOrders = async (companyId: string) => {
-        const role = localStorage.getItem("userRole");
-        const username = localStorage.getItem("loggedInUser");
-
-        let query = supabase.from('orders').select('*').eq('company_id', companyId);
-
-        if (role === 'coordinator' && username) {
-            query = query.eq('createdBy', username);
-        }
-
-        const { data, error } = await query;
-        if (error) {
-            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
-            setAllOrders([]);
-        } else {
-            setAllOrders(data || []);
-        }
-    };
-
+    
     useEffect(() => {
         const companyId = localStorage.getItem('activeCompanyId');
         if (companyId) {
-            fetchOrders(companyId);
-             const fetchCompanyDetails = async () => {
-                const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
-                if (!error && data) setActiveCompany(data);
-            }
-            fetchCompanyDetails();
+            const companyRef = ref(db, `companies/${companyId}`);
+            onValue(companyRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    setActiveCompany({ id: snapshot.key, ...snapshot.val() });
+                }
+            });
         }
 
         const role = localStorage.getItem("userRole");
@@ -97,6 +78,38 @@ export default function BillingPage() {
         }
         setIsLoading(false);
     }, []);
+
+    useEffect(() => {
+        if (!activeCompany?.id) return;
+        
+        const fetchOrders = (companyId: string) => {
+            const role = localStorage.getItem("userRole");
+            const username = localStorage.getItem("loggedInUser");
+    
+            const ordersRef = ref(db, `orders/${companyId}`);
+            let ordersQuery = query(ordersRef);
+    
+            if (role === 'coordinator' && username) {
+                ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
+            }
+    
+            return onValue(ordersQuery, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                    setAllOrders(list);
+                } else {
+                    setAllOrders([]);
+                }
+            }, (error) => {
+                 toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
+            });
+        };
+
+        const unsubscribe = fetchOrders(activeCompany.id);
+        return () => unsubscribe();
+
+    }, [activeCompany, toast]);
 
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer' && order.details) {
@@ -159,7 +172,7 @@ export default function BillingPage() {
         const invoiceDate = new Date().toISOString();
         const invoiceNumber = `INV-${new Date().getTime()}`;
 
-        const updatedOrder: Partial<Order> = {
+        const updatedOrderData: Partial<Order> = {
             status: "Billed",
             lineItems,
             subTotal,
@@ -179,54 +192,42 @@ export default function BillingPage() {
             qrCodeUrl: 'https://placehold.co/100x100.png',
         };
 
-        const { data: dbOrder, error: updateError } = await supabase
-            .from('orders')
-            .update(updatedOrder)
-            .eq('id', selectedOrder.id)
-            .select()
-            .single();
+        try {
+            await update(ref(db, `orders/${activeCompany.id}/${selectedOrder.id}`), updatedOrderData);
             
-        if (updateError) {
-             toast({ variant: 'destructive', title: 'Failed to update order', description: updateError.message });
-             return;
+            const customerDebitEntry: Omit<LedgerEntry, 'id'> = {
+                date: invoiceDate,
+                accountId: selectedOrder.customerInfo.id,
+                accountName: selectedOrder.customerInfo.name,
+                type: 'Sales',
+                details: `Invoice ${invoiceNumber}${reference ? ` (Ref: ${reference})` : ''}`,
+                debit: totalAmount,
+                credit: 0,
+                refId: selectedOrder.id,
+            };
+            const salesCreditEntry: Omit<LedgerEntry, 'id'> = {
+                date: invoiceDate,
+                accountId: 'SALES_ACCOUNT',
+                accountName: 'Sales Account',
+                type: 'Sales',
+                details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}${reference ? ` (Ref: ${reference})` : ''}`,
+                debit: 0,
+                credit: totalAmount,
+                refId: selectedOrder.id,
+            };
+
+            const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
+            await push(ledgerEntriesRef, customerDebitEntry);
+            await push(ledgerEntriesRef, salesCreditEntry);
+            
+            setInvoiceOrder({ ...selectedOrder, ...updatedOrderData });
+            setIsReprintView(false);
+            handleCancelCreation();
+            toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });
+
+        } catch(error: any) {
+             toast({ variant: 'destructive', title: 'Failed to generate invoice', description: error.message });
         }
-
-        // Create Ledger Entry for Sale
-        const customerDebitEntry: Omit<LedgerEntry, 'id' | 'company_id'> = {
-            date: invoiceDate,
-            accountId: selectedOrder.customerInfo.id,
-            accountName: selectedOrder.customerInfo.name,
-            type: 'Sales',
-            details: `Invoice ${invoiceNumber}${reference ? ` (Ref: ${reference})` : ''}`,
-            debit: totalAmount,
-            credit: 0,
-            refId: selectedOrder.id,
-        };
-        const salesCreditEntry: Omit<LedgerEntry, 'id' | 'company_id'> = {
-            date: invoiceDate,
-            accountId: 'SALES_ACCOUNT', // This should be a fixed ID for the sales ledger
-            accountName: 'Sales Account',
-            type: 'Sales',
-            details: `Against Inv ${invoiceNumber} to ${selectedOrder.customerInfo.name}${reference ? ` (Ref: ${reference})` : ''}`,
-            debit: 0,
-            credit: totalAmount,
-            refId: selectedOrder.id,
-        };
-        
-        const ledgerEntriesToInsert = [customerDebitEntry, salesCreditEntry].map(e => ({ ...e, company_id: activeCompany.id }));
-
-        const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
-
-        if (ledgerError) {
-            toast({ variant: 'destructive', title: 'Failed to create ledger entries', description: ledgerError.message });
-        }
-
-
-        await fetchOrders(activeCompany.id);
-        setInvoiceOrder({ ...selectedOrder, ...dbOrder });
-        setIsReprintView(false);
-        handleCancelCreation();
-        toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });
     };
     
     const getPaymentStatusVariant = (status?: PaymentStatus): BadgeProps["variant"] => {
@@ -285,8 +286,8 @@ export default function BillingPage() {
 
     const filteredBilledOrders = billedOrders.filter(order => 
         (order.invoiceNumber && order.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        order.customer.toLowerCase().includes(searchTerm.toLowerCase())
-    ).sort((a, b) => (b.invoiceDate && a.invoiceDate) ? new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() : 0);
+        (order.customer && order.customer.toLowerCase().includes(searchTerm.toLowerCase()))
+    ).sort((a, b) => ((b.invoiceDate || '') > (a.invoiceDate || '')) ? 1 : -1);
 
     return (
         <>
@@ -521,5 +522,3 @@ export default function BillingPage() {
         </>
     );
 }
-
-    

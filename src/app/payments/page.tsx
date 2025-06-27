@@ -40,7 +40,8 @@ import { cn } from "@/lib/utils";
 import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus, Company } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { ref, onValue, update, push } from "firebase/database";
 
 
 export default function PaymentsPage() {
@@ -80,43 +81,70 @@ export default function PaymentsPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     if (companyId) {
-        const fetchCompanyDetails = async () => {
-            const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single();
-            if (!error && data) setActiveCompany(data);
-        }
-        fetchCompanyDetails();
+        const companyRef = ref(db, `companies/${companyId}`);
+        onValue(companyRef, (snapshot) => {
+            if (snapshot.exists()) {
+                setActiveCompany({ id: snapshot.key, ...snapshot.val()});
+            }
+        });
     }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompany) {
+    if (!activeCompany?.id) {
         setLedgers([]);
         setOrders([]);
         setPurchases([]);
         return;
     }
     
-    const fetchAllData = async (companyId: string) => {
-        const { data: ledgersData, error: ledgersError } = await supabase.from('ledgers').select('*').eq('company_id', companyId);
-        if(ledgersData) setLedgers(ledgersData);
+    const companyId = activeCompany.id;
 
-        const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').eq('company_id', companyId);
-        if(ordersData) setOrders(ordersData);
+    const ledgersRef = ref(db, `ledgers/${companyId}`);
+    const ordersRef = ref(db, `orders/${companyId}`);
+    const purchasesRef = ref(db, `purchases/${companyId}`);
 
-        const { data: purchasesData, error: purchasesError } = await supabase.from('purchases').select('*').eq('company_id', companyId);
-        if(purchasesData) {
-            const initializedPurchases = purchasesData.map(p => ({
-                ...p,
-                paidAmount: p.paidAmount || 0,
-                balanceDue: p.balanceDue ?? p.totalAmount,
-                paymentStatus: p.paymentStatus || (p.totalAmount > 0 ? 'Unpaid' : 'Paid'),
-                payments: p.payments || [],
-            }));
-            setPurchases(initializedPurchases);
+    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setLedgers(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setLedgers([]);
         }
-    }
-    fetchAllData(activeCompany.id);
+    });
+
+    const unsubOrders = onValue(ordersRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+        } else {
+            setOrders([]);
+        }
+    });
+
+    const unsubPurchases = onValue(purchasesRef, (snapshot) => {
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            const list = Object.keys(data).map(key => ({
+                id: key,
+                ...data[key],
+                paidAmount: data[key].paidAmount || 0,
+                balanceDue: data[key].balanceDue ?? data[key].totalAmount,
+                paymentStatus: data[key].paymentStatus || (data[key].totalAmount > 0 ? 'Unpaid' : 'Paid'),
+                payments: data[key].payments || [],
+            }));
+            setPurchases(list);
+        } else {
+            setPurchases([]);
+        }
+    });
+
+    return () => {
+        unsubLedgers();
+        unsubOrders();
+        unsubPurchases();
+    };
 
   }, [activeCompany]);
 
@@ -184,27 +212,34 @@ export default function PaymentsPage() {
     const originalOrder = selectedInvoiceId ? orders.find(o => o.id === selectedInvoiceId) : null;
     const details = `Received via ${receiptMethod}. Ref: ${receiptRef || 'N/A'} ${originalOrder ? `against INV #${originalOrder.invoiceNumber}` : ''}`.trim();
     
-    const ledgerEntriesToInsert = [
-        { company_id: activeCompany.id, date: paymentDateISO, accountId: customer.id, accountName: customer.name, type: 'Receipt', details, debit: 0, credit: receiptAmount, refId: paymentId },
-        { company_id: activeCompany.id, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Receipt', details: `From ${customer.name}`, debit: receiptAmount, credit: 0, refId: paymentId }
-    ];
-
-    const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
-    if(ledgerError) {
-        toast({ variant: "destructive", title: "Ledger Entry Failed", description: ledgerError.message });
+    const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
+    const customerDebitEntry: Omit<LedgerEntry, 'id'> = {
+        date: paymentDateISO, accountId: customer.id, accountName: customer.name, type: 'Receipt', details, debit: 0, credit: Number(receiptAmount), refId: paymentId
+    };
+    const cashCreditEntry: Omit<LedgerEntry, 'id'> = {
+        date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Receipt', details: `From ${customer.name}`, debit: Number(receiptAmount), credit: 0, refId: paymentId
+    };
+    
+    try {
+      await push(ledgerEntriesRef, customerDebitEntry);
+      await push(ledgerEntriesRef, cashCreditEntry);
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Ledger Entry Failed", description: error.message });
         return;
     }
 
     if (originalOrder) {
-        const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: receiptAmount as number, method: receiptMethod };
+        const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: Number(receiptAmount), method: receiptMethod };
         const payments = [...(originalOrder.payments || []), newPayment];
         const paidAmount = payments.reduce((acc, p) => acc + p.amount, 0);
         const balanceDue = (originalOrder.totalAmount || 0) - paidAmount;
         const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
         
-        const { error: orderUpdateError } = await supabase.from('orders').update({ payments, paidAmount, balanceDue, paymentStatus }).eq('id', originalOrder.id);
-        if (orderUpdateError) {
-             toast({ variant: "destructive", title: "Order Update Failed", description: orderUpdateError.message });
+        const orderUpdates = { payments, paidAmount, balanceDue, paymentStatus };
+        try {
+            await update(ref(db, `orders/${activeCompany.id}/${originalOrder.id}`), orderUpdates);
+        } catch(error: any) {
+             toast({ variant: "destructive", title: "Order Update Failed", description: error.message });
         }
     }
     
@@ -237,27 +272,34 @@ export default function PaymentsPage() {
     const originalPurchase = selectedPurchaseId ? purchases.find(p => p.id === selectedPurchaseId) : null;
     const details = `Paid via ${paymentMethod}. Ref: ${paymentRef || 'N/A'} ${originalPurchase ? `against Bill #${originalPurchase.billNumber}` : ''}`.trim();
 
-    const ledgerEntriesToInsert = [
-        { company_id: activeCompany.id, date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: paymentAmount, credit: 0, refId: paymentId },
-        { company_id: activeCompany.id, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: paymentAmount, refId: paymentId }
-    ];
-    
-    const { error: ledgerError } = await supabase.from('ledger_entries').insert(ledgerEntriesToInsert);
-    if(ledgerError) {
-        toast({ variant: "destructive", title: "Ledger Entry Failed", description: ledgerError.message });
+    const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
+    const supplierCreditEntry: Omit<LedgerEntry, 'id'> = {
+        date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: Number(paymentAmount), credit: 0, refId: paymentId
+    };
+    const cashDebitEntry: Omit<LedgerEntry, 'id'> = {
+        date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: Number(paymentAmount), refId: paymentId
+    };
+
+    try {
+        await push(ledgerEntriesRef, supplierCreditEntry);
+        await push(ledgerEntriesRef, cashDebitEntry);
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Ledger Entry Failed", description: error.message });
         return;
     }
 
      if (originalPurchase) {
-      const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: paymentAmount as number, method: paymentMethod };
+      const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: Number(paymentAmount), method: paymentMethod };
       const payments = [...(originalPurchase.payments || []), newPayment];
       const paidAmount = payments.reduce((acc, pay) => acc + pay.amount, 0);
       const balanceDue = originalPurchase.totalAmount - paidAmount;
       const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
       
-      const { error: purchaseUpdateError } = await supabase.from('purchases').update({ payments, paidAmount, balanceDue, paymentStatus }).eq('id', originalPurchase.id);
-      if (purchaseUpdateError) {
-            toast({ variant: "destructive", title: "Purchase Update Failed", description: purchaseUpdateError.message });
+      const purchaseUpdates = { payments, paidAmount, balanceDue, paymentStatus };
+      try {
+        await update(ref(db, `purchases/${activeCompany.id}/${originalPurchase.id}`), purchaseUpdates);
+      } catch(error: any) {
+         toast({ variant: "destructive", title: "Purchase Update Failed", description: error.message });
       }
     }
 
@@ -499,5 +541,3 @@ export default function PaymentsPage() {
     </>
   );
 }
-
-    
