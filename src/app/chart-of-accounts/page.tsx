@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -43,8 +42,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BookUser, ShieldAlert, Trash2, Edit, PlusCircle, IndianRupee } from "lucide-react";
 import type { Ledger, LedgerGroup } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, update, remove } from "firebase/database";
 
 const ledgerGroups: LedgerGroup[] = [
     'Sundry Debtors',
@@ -102,24 +99,12 @@ export default function ChartOfAccountsPage() {
         return;
     }
     setIsLoading(true);
-    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
-    return onValue(ledgersRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const list = Object.keys(data)
-          .map(key => ({ id: key, ...data[key] }))
-          // Exclude the primary accounts from being edited here
-          .filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id));
-        setLedgers(list);
-      } else {
-        setLedgers([]);
-      }
-      setIsLoading(false);
-    }, (error) => {
-        toast({ variant: 'destructive', title: 'Error fetching ledgers', description: error.message });
-        setIsLoading(false);
-    });
-  }, [activeCompanyId, toast]);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    const filteredLedgers = allLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id));
+    setLedgers(filteredLedgers);
+    setIsLoading(false);
+  }, [activeCompanyId]);
 
   const resetForm = () => {
     setName("");
@@ -147,46 +132,51 @@ export default function ChartOfAccountsPage() {
       toast({ variant: "destructive", title: "Missing Fields" });
       return;
     }
+    
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    let allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
 
-    const ledgerData = {
-        name,
-        group,
-        email,
-        address,
-        gstin,
-        openingBalance: Number(openingBalance) || 0
-    };
-
-    try {
-      if (ledgerToEdit) {
-        // Edit mode
-        await update(ref(db, `ledgers/${activeCompanyId}/${ledgerToEdit.id}`), ledgerData);
-        toast({ title: "Ledger Updated" });
-      } else {
-        // Add mode
-        if (ledgers.some(l => l.name.toLowerCase() === name.toLowerCase())) {
-          toast({ variant: "destructive", title: "Ledger exists", description: "A ledger with this name already exists." });
-          return;
-        }
-        const ledgerId = `LEDG-${Date.now()}`;
-        await set(ref(db, `ledgers/${activeCompanyId}/${ledgerId}`), {id: ledgerId, ...ledgerData});
-        toast({ title: "Ledger Created" });
+    if (ledgerToEdit) {
+      // Edit mode
+      const updatedLedgers = allLedgers.map(l => l.id === ledgerToEdit.id ? { ...l, name, group, email, address, gstin, openingBalance: Number(openingBalance) || 0 } : l);
+      localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(updatedLedgers));
+      setLedgers(updatedLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
+      toast({ title: "Ledger Updated" });
+    } else {
+      // Add mode
+      if (allLedgers.some(l => l.name.toLowerCase() === name.toLowerCase())) {
+        toast({ variant: "destructive", title: "Ledger exists", description: "A ledger with this name already exists." });
+        return;
       }
-      setIsDialogOpen(false);
-      resetForm();
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Operation failed", description: error.message });
+      const ledgerId = `LEDG-${Date.now()}`;
+      const newLedger: Ledger = {
+          id: ledgerId,
+          name,
+          group,
+          email,
+          address,
+          gstin,
+          openingBalance: Number(openingBalance) || 0
+      };
+      allLedgers.push(newLedger);
+      localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(allLedgers));
+      setLedgers(allLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
+      toast({ title: "Ledger Created" });
     }
+    setIsDialogOpen(false);
+    resetForm();
   };
 
   const handleDeleteLedger = async () => {
     if (!ledgerToDelete || !activeCompanyId) return;
-    try {
-        await remove(ref(db, `ledgers/${activeCompanyId}/${ledgerToDelete.id}`));
-        toast({ title: "Ledger Deleted", variant: "destructive" });
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Deletion failed", description: error.message });
-    }
+    
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    let allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    const updatedLedgers = allLedgers.filter(l => l.id !== ledgerToDelete.id);
+    localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(updatedLedgers));
+    setLedgers(updatedLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
+    
+    toast({ title: "Ledger Deleted", variant: "destructive" });
     setLedgerToDelete(null);
   };
 
@@ -330,5 +320,3 @@ export default function ChartOfAccountsPage() {
     </>
   );
 }
-
-    

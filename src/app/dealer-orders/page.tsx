@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -38,8 +37,6 @@ import {
 import { Trash2 } from "lucide-react";
 import type { Order, Product, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, push, remove, update } from "firebase/database";
 
 type OrderItem = {
   id: string;
@@ -82,31 +79,13 @@ export default function DealerOrderPage() {
       return;
     };
     
-    const catalogRef = ref(db, `product_catalog/${activeCompanyId}`);
-    const unsubCatalog = onValue(catalogRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            setProductCatalog(Object.keys(data).map(key => ({ id: key, ...data[key]})));
-        } else {
-            setProductCatalog([]);
-        }
-    });
+    const catalogJson = localStorage.getItem(`product_catalog_${activeCompanyId}`);
+    setProductCatalog(catalogJson ? JSON.parse(catalogJson) : []);
 
-    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
-    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
-            setAllDealers(list.filter(c => c.group === 'Sundry Debtors'));
-        } else {
-            setAllDealers([]);
-        }
-    });
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    setAllDealers(ledgers.filter(c => c.group === 'Sundry Debtors'));
 
-    return () => {
-        unsubCatalog();
-        unsubLedgers();
-    }
   }, [activeCompanyId]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,58 +169,62 @@ export default function DealerOrderPage() {
       return;
     }
 
-    try {
-        let dealer = allDealers.find(c => c.name.toLowerCase() === dealerName.toLowerCase());
-        let contactId = dealer?.id;
-        
-        if (!dealer) {
-            contactId = `LEDG-${Date.now()}`;
-            const newDealerData = {
-                id: contactId,
-                name: dealerName,
-                group: 'Sundry Debtors' as const,
-                dealerId: dealerId,
-            };
-            await set(ref(db, `ledgers/${activeCompanyId}/${contactId}`), newDealerData);
-        } else {
-            if (dealer.dealerId !== dealerId) {
-                await update(ref(db, `ledgers/${activeCompanyId}/${contactId}`), { dealerId: dealerId });
-            }
-        }
-
-        const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
-        const loggedInUser = localStorage.getItem("loggedInUser");
-
-        const newOrder: Omit<Order, 'id'> = {
-          customer: dealerName,
-          item: `Bulk Order: ${summary}`,
-          status: "Pending",
-          type: "Dealer",
-          details: orderDescription,
-          createdBy: loggedInUser || undefined,
-          createdAt: new Date().toISOString(),
-          customerInfo: {
-            id: contactId!,
+    // Manage ledgers
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    let ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    let dealer = ledgers.find(c => c.name.toLowerCase() === dealerName.toLowerCase());
+    let contactId = dealer?.id;
+    
+    if (!dealer) {
+        contactId = `LEDG-${Date.now()}`;
+        const newDealerData: Ledger = {
+            id: contactId,
             name: dealerName,
+            group: 'Sundry Debtors',
             dealerId: dealerId,
-          },
         };
-
-        await push(ref(db, `orders/${activeCompanyId}`), newOrder);
-
-        toast({
-          title: "Dealer Order Placed!",
-          description: "The bulk order has been sent to the factory.",
-        });
-
-        setOrderItems([]);
-        setDealerName("");
-        setDealerId("");
-        (e.target as HTMLFormElement).reset();
-
-    } catch(error: any) {
-        toast({ variant: 'destructive', title: 'Failed to place order', description: error.message });
+        ledgers.push(newDealerData);
+    } else {
+        dealer.dealerId = dealerId;
+        ledgers = ledgers.map(l => l.id === contactId ? dealer! : l);
     }
+    localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(ledgers));
+    
+    // Manage orders
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
+
+    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+    const loggedInUser = localStorage.getItem("loggedInUser");
+
+    const newOrder: Order = {
+      id: `ord-${Date.now()}`,
+      customer: dealerName,
+      item: `Bulk Order: ${summary}`,
+      status: "Pending",
+      type: "Dealer",
+      details: orderDescription,
+      createdBy: loggedInUser || undefined,
+      createdAt: new Date().toISOString(),
+      customerInfo: {
+        id: contactId!,
+        name: dealerName,
+        dealerId: dealerId,
+      },
+    };
+
+    allOrders.push(newOrder);
+    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(allOrders));
+
+    toast({
+      title: "Dealer Order Placed!",
+      description: "The bulk order has been sent to the factory.",
+    });
+
+    setOrderItems([]);
+    setDealerName("");
+    setDealerId("");
+    (e.target as HTMLFormElement).reset();
   };
 
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -257,35 +240,36 @@ export default function DealerOrderPage() {
         return;
     }
 
-    const newProduct: Omit<Product, 'id'> = {
+    const newProduct: Product = {
+      id: `prod-${Date.now()}`,
       name: newItemName,
       sku: newItemSku,
       image: "https://placehold.co/100x100.png",
       aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
     };
     
-    try {
-        await push(ref(db, `product_catalog/${activeCompanyId}`), newProduct);
-        toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
-        setNewItemName("");
-        setNewItemSku("");
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Failed to add product", description: error.message });
-    }
+    const updatedCatalog = [...productCatalog, newProduct];
+    setProductCatalog(updatedCatalog);
+    localStorage.setItem(`product_catalog_${activeCompanyId}`, JSON.stringify(updatedCatalog));
+    
+    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
+    setNewItemName("");
+    setNewItemSku("");
   };
 
   const handleDeleteItem = async () => {
     if (!itemToDelete || !activeCompanyId) return;
-    try {
-        await remove(ref(db, `product_catalog/${activeCompanyId}/${itemToDelete.id}`));
-        toast({
-          title: "Product Deleted",
-          description: `${itemToDelete.name} has been removed from the catalog.`,
-          variant: "destructive",
-        });
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Failed to delete product", description: error.message });
-    }
+    
+    const updatedCatalog = productCatalog.filter(p => p.id !== itemToDelete.id);
+    setProductCatalog(updatedCatalog);
+    localStorage.setItem(`product_catalog_${activeCompanyId}`, JSON.stringify(updatedCatalog));
+
+    toast({
+      title: "Product Deleted",
+      description: `${itemToDelete.name} has been removed from the catalog.`,
+      variant: "destructive",
+    });
+
     setItemToDelete(null);
   };
 
@@ -523,5 +507,3 @@ export default function DealerOrderPage() {
     </>
   );
 }
-
-    

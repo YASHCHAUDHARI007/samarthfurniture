@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,8 +23,6 @@ import {
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
 import type { Order, StockItem, StockStatus } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
 
 export default function DailyReportPage() {
   const router = useRouter();
@@ -59,31 +56,13 @@ export default function DailyReportPage() {
     }
     setIsLoading(true);
     
-    const ordersRef = ref(db, `orders/${activeCompanyId}`);
-    const unsubOrders = onValue(ordersRef, (snapshot) => {
-      if(snapshot.exists()) {
-        const data = snapshot.val();
-        setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-      } else {
-        setOrders([]);
-      }
-    });
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    setOrders(ordersJson ? JSON.parse(ordersJson) : []);
 
-    const stockItemsRef = ref(db, `stock_items/${activeCompanyId}`);
-    const unsubStock = onValue(stockItemsRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setStockItems(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setStockItems([]);
-        }
-        setIsLoading(false);
-    });
+    const stockItemsJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
+    setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
     
-    return () => {
-        unsubOrders();
-        unsubStock();
-    };
+    setIsLoading(false);
   }, [activeCompanyId]);
 
 
@@ -279,5 +258,3 @@ export default function DailyReportPage() {
     </div>
   );
 }
-
-    

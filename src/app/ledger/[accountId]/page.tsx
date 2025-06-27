@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -29,8 +28,6 @@ import { Button } from "@/components/ui/button";
 import { BookText, IndianRupee } from "lucide-react";
 import type { Ledger, LedgerEntry, Order, Purchase, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
 
 export default function LedgerDetailPage({ params }: { params: { accountId: string } }) {
   const { accountId } = params;
@@ -51,46 +48,22 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
   useEffect(() => {
     if (!activeCompanyId) return;
 
-    onValue(ref(db, `companies/${activeCompanyId}`), (snapshot) => {
-        if(snapshot.exists()) setActiveCompany({ id: activeCompanyId, ...snapshot.val() });
-    });
+    const companiesJson = localStorage.getItem('companies');
+    const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+    setActiveCompany(companies.find(c => c.id === activeCompanyId) || null);
 
-    onValue(ref(db, `ledger_entries/${activeCompanyId}`), (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setAllLedgerEntries(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setAllLedgerEntries([]);
-        }
-    });
-    
-    onValue(ref(db, `ledgers/${activeCompanyId}`), (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            const foundAccount = Object.values(data as {[key:string]: Ledger}).find(acc => acc.id === accountId);
-            setAccount(foundAccount || null);
-        } else {
-            setAccount(null);
-        }
-    });
-    
-    onValue(ref(db, `orders/${activeCompanyId}`), (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setAllOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setAllOrders([]);
-        }
-    });
+    const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompanyId}`);
+    setAllLedgerEntries(ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : []);
 
-    onValue(ref(db, `purchases/${activeCompanyId}`), (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setAllPurchases(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setAllPurchases([]);
-        }
-    });
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    setAccount(ledgers.find(acc => acc.id === accountId) || null);
+    
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    setAllOrders(ordersJson ? JSON.parse(ordersJson) : []);
+    
+    const purchasesJson = localStorage.getItem(`purchases_${activeCompanyId}`);
+    setAllPurchases(purchasesJson ? JSON.parse(purchasesJson) : []);
 
   }, [accountId, activeCompanyId]);
 
@@ -113,11 +86,11 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
 
   const handleViewBill = (entry: LedgerEntry) => {
     if (entry.type === 'Sales') {
-        const order = allOrders.find(o => o.invoiceNumber === entry.details.split(' ')[1] || o.id === entry.refId);
+        const order = allOrders.find(o => o.id === entry.refId);
         if(order) setBillToView(order);
     }
     if (entry.type === 'Purchase') {
-        const purchase = allPurchases.find(p => p.billNumber === entry.details.split('#')[1]?.split(' ')[0] || p.id === entry.refId);
+        const purchase = allPurchases.find(p => p.id === entry.refId);
         if(purchase) setBillToView(purchase);
     }
   };
@@ -292,5 +265,3 @@ export default function LedgerDetailPage({ params }: { params: { accountId: stri
     </>
   );
 }
-
-    

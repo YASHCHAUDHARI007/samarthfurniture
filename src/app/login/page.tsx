@@ -15,8 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, get, set, query, orderByChild, equalTo } from "firebase/database";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,32 +24,21 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const seedInitialUsers = async () => {
-      try {
-        const usersRef = ref(db, 'users');
-        const snapshot = await get(usersRef);
-
-        if (!snapshot.exists()) {
-          const initialUsers: { [key: string]: Omit<User, 'id'> } = {
-            "owner": { username: "owner", password: "password123", role: "owner" },
-            "coordinator": { username: "coordinator", password: "password456", role: "coordinator" },
-            "factory": { username: "factory", password: "password789", role: "factory" },
-            "admin": { username: "admin", password: "password", role: "administrator" },
-          };
-          
-          await set(usersRef, initialUsers);
-          toast({ title: "Setup Complete", description: "Default user accounts have been created." });
-        }
-      } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Database Connection Error",
-            description: "Could not connect to Firebase. Check your config and that the database is created.",
-            duration: 10000,
-        });
-      }
+    // On initial load, check if users exist in localStorage. If not, seed them.
+    const usersJson = localStorage.getItem("users");
+    if (!usersJson) {
+      const initialUsers: User[] = [
+        { id: "user-1", username: "owner", password: "password123", role: "owner" },
+        { id: "user-2", username: "coordinator", password: "password456", role: "coordinator" },
+        { id: "user-3", username: "factory", password: "password789", role: "factory" },
+        { id: "user-4", username: "admin", password: "password", role: "administrator" },
+      ];
+      localStorage.setItem("users", JSON.stringify(initialUsers));
+      toast({
+        title: "Setup Complete",
+        description: "Default user accounts have been created in localStorage.",
+      });
     }
-    seedInitialUsers();
   }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -59,38 +46,29 @@ export default function LoginPage() {
     setIsSubmitting(true);
     
     try {
-      const usersRef = ref(db, 'users');
-      const q = query(usersRef, orderByChild('username'), equalTo(username));
-      const snapshot = await get(q);
+      const usersJson = localStorage.getItem("users");
+      const users: User[] = usersJson ? JSON.parse(usersJson) : [];
       
-      if (snapshot.exists()) {
-        const usersData = snapshot.val();
-        const userKey = Object.keys(usersData)[0];
-        const foundUser = usersData[userKey] as User;
-
-        if (foundUser && foundUser.password === password) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('loggedInUser', foundUser.username);
-            localStorage.setItem('userRole', foundUser.role);
-          }
-          toast({
-            title: "Login Successful",
-            description: "Redirecting to your dashboard...",
-          });
-          setTimeout(() => {
-            if (foundUser.role === "factory") {
-                router.push("/factory-dashboard");
-            } else {
-                router.push("/");
-            }
-          }, 1000);
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Login Failed",
-            description: "Invalid username or password. Please try again.",
-          });
+      const foundUser = users.find(
+        (user) => user.username === username && user.password === password
+      );
+      
+      if (foundUser) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('loggedInUser', foundUser.username);
+          localStorage.setItem('userRole', foundUser.role);
         }
+        toast({
+          title: "Login Successful",
+          description: "Redirecting to your dashboard...",
+        });
+        setTimeout(() => {
+          if (foundUser.role === "factory") {
+              router.push("/factory-dashboard");
+          } else {
+              router.push("/");
+          }
+        }, 1000);
       } else {
          toast({
             variant: "destructive",

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,8 +26,6 @@ import { Wrench, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set } from "firebase/database";
 
 export default function RawMaterialsPage() {
   const router = useRouter();
@@ -65,32 +62,14 @@ export default function RawMaterialsPage() {
     }
     setIsLoading(true);
 
-    const materialsRef = ref(db, `raw_materials/${activeCompanyId}`);
-    const unsubMaterials = onValue(materialsRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setMaterials(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setMaterials([]);
-        }
-    });
+    const materialsJson = localStorage.getItem(`raw_materials_${activeCompanyId}`);
+    setMaterials(materialsJson ? JSON.parse(materialsJson) : []);
     
-    const locationsRef = ref(db, `locations/${activeCompanyId}`);
-    const unsubLocations = onValue(locationsRef, (snapshot) => {
-        if(snapshot.exists()){
-            const data = snapshot.val();
-            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setLocations([]);
-        }
-    });
+    const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+    setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
     setIsLoading(false);
 
-    return () => {
-        unsubMaterials();
-        unsubLocations();
-    }
   }, [activeCompanyId]);
   
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -126,19 +105,18 @@ export default function RawMaterialsPage() {
       locationName: location.name,
     };
     
-    try {
-        await set(ref(db, `raw_materials/${activeCompanyId}/${newItemId}`), newItem);
-        toast({
-          title: "Material Added",
-          description: `${newItem.name} has been added. Use the Purchases page to add more stock.`,
-        });
-        setNewItemName("");
-        setNewItemUnit("");
-        setNewItemQuantity("");
-        setNewItemLocationId("");
-    } catch(error: any) {
-        toast({ variant: 'destructive', title: 'Failed to add material', description: error.message });
-    }
+    const updatedMaterials = [...materials, newItem];
+    setMaterials(updatedMaterials);
+    localStorage.setItem(`raw_materials_${activeCompanyId}`, JSON.stringify(updatedMaterials));
+
+    toast({
+      title: "Material Added",
+      description: `${newItem.name} has been added. Use the Purchases page to add more stock.`,
+    });
+    setNewItemName("");
+    setNewItemUnit("");
+    setNewItemQuantity("");
+    setNewItemLocationId("");
   };
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
@@ -284,5 +262,3 @@ export default function RawMaterialsPage() {
     </div>
   );
 }
-
-    

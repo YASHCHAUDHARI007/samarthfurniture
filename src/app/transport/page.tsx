@@ -35,9 +35,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
 import type { Order, Company } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { db } from "@/lib/firebase";
-import { ref, onValue, query, orderByChild, equalTo, update } from "firebase/database";
-
 
 const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order: Order, company: Company | null, addPageBreakBefore?: boolean }) => (
     <div className={cn(
@@ -109,63 +106,44 @@ const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order
 export default function TransportPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersForTransport, setOrdersForTransport] = useState<Order[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     
     const companyId = localStorage.getItem('activeCompanyId');
+    setActiveCompanyId(companyId);
+
     if (companyId) {
-      const companyRef = ref(db, `companies/${companyId}`);
-      onValue(companyRef, (snapshot) => {
-        if(snapshot.exists()) {
-          setActiveCompany({ id: snapshot.key, ...snapshot.val() });
-        }
-      });
+      const companiesJson = localStorage.getItem('companies');
+      const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+      setActiveCompany(companies.find(c => c.id === companyId) || null);
     }
     
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if(!activeCompany?.id) return;
+    if(!activeCompanyId) return;
     
-    const fetchOrders = (companyId: string) => {
-        setIsLoading(true);
+    setIsLoading(true);
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
+    setOrdersForTransport(allOrders.filter(o => o.status === 'Billed'));
+    setIsLoading(false);
 
-        const ordersRef = ref(db, `orders/${companyId}`);
-        const ordersQuery = query(ordersRef, orderByChild('status'), equalTo('Billed'));
-        
-        const unsubscribe = onValue(ordersQuery, (snapshot) => {
-          if(snapshot.exists()) {
-            const data = snapshot.val();
-            const ordersList: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setOrders(ordersList);
-          } else {
-            setOrders([]);
-          }
-          setIsLoading(false);
-        }, (error) => {
-            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
-            setIsLoading(false);
-        });
-        return unsubscribe;
-    }
-    
-    const unsubscribe = fetchOrders(activeCompany.id);
-    return () => unsubscribe();
-
-  }, [activeCompany, toast]);
+  }, [activeCompanyId, toast]);
 
   const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedOrder || !activeCompany) return;
+    if (!selectedOrder || !activeCompanyId) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
     const transportDetails = {
@@ -178,22 +156,24 @@ export default function TransportPage() {
     const deliveredAt = new Date().toISOString();
     
     const orderUpdates = {
-      status: "Delivered",
+      status: "Delivered" as const,
       transportDetails,
       deliveredAt,
     };
     
-    try {
-      await update(ref(db, `orders/${activeCompany.id}/${selectedOrder.id}`), orderUpdates);
-      toast({
-        title: "Order Dispatched!",
-        description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
-      });
-      setReceiptOrder({ ...selectedOrder, ...orderUpdates });
-      setSelectedOrder(null);
-    } catch (error: any) {
-       toast({ variant: 'destructive', title: 'Failed to dispatch order', description: error.message });
-    }
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
+    const updatedOrders = allOrders.map(o => o.id === selectedOrder.id ? { ...o, ...orderUpdates } : o);
+    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedOrders));
+
+    setOrdersForTransport(updatedOrders.filter(o => o.status === 'Billed'));
+    
+    toast({
+      title: "Order Dispatched!",
+      description: `Order ${selectedOrder.id} is on its way and marked as Delivered.`,
+    });
+    setReceiptOrder({ ...selectedOrder, ...orderUpdates });
+    setSelectedOrder(null);
   };
   
   const handlePrint = () => {
@@ -238,7 +218,6 @@ export default function TransportPage() {
     );
   }
 
-  const ordersForTransport = orders;
   const canDispatch = userRole === "factory" || userRole === "owner" || userRole === "administrator";
 
   return (

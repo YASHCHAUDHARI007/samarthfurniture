@@ -51,8 +51,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, PaymentStatus } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue, update, remove, query, orderByChild, equalTo } from "firebase/database";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
@@ -91,76 +89,55 @@ export default function FactoryDashboardPage() {
         return;
     };
     
-    const fetchOrders = () => {
-        setIsLoading(true);
-        const username = localStorage.getItem("loggedInUser");
-        const role = localStorage.getItem("userRole");
+    setIsLoading(true);
+    const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
 
-        const ordersRef = ref(db, `orders/${activeCompanyId}`);
-        let ordersQuery = query(ordersRef);
-        
-        if (role === "coordinator" && username) {
-            ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
-        }
-        
-        const unsubscribe = onValue(ordersQuery, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            const ordersList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setOrders(ordersList);
-          } else {
-            setOrders([]);
-          }
-          setIsLoading(false);
-        }, (error) => {
-            toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
-            setOrders([]);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
+    
+    let userOrders = allOrders;
+    if (role === "coordinator" && username) {
+        userOrders = allOrders.filter(o => o.createdBy === username);
     }
+    setOrders(userOrders);
+    setIsLoading(false);
 
-    const unsubscribe = fetchOrders();
-    return () => unsubscribe();
-
-  }, [activeCompanyId, userRole, toast]);
+  }, [activeCompanyId, userRole]);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!activeCompanyId) return;
     
-    try {
-      await update(ref(db, `orders/${activeCompanyId}/${orderId}`), { status: newStatus });
-      toast({
-        title: "Status Updated",
-        description: `Order ${orderId} status changed to ${newStatus}.`,
-      });
-    } catch(error: any) {
-        toast({
-            variant: 'destructive',
-            title: "Status Update Failed",
-            description: error.message,
-        });
-    }
+    const updatedOrders = orders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
+    setOrders(updatedOrders);
+    
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
+    const updatedAllOrders = allOrders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
+    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedAllOrders));
+    
+    toast({
+      title: "Status Updated",
+      description: `Order ${orderId} status changed to ${newStatus}.`,
+    });
   };
 
   const handleDeleteOrder = async () => {
     if (!orderToDelete || !activeCompanyId) return;
     
-    try {
-      await remove(ref(db, `orders/${activeCompanyId}/${orderToDelete.id}`));
-      toast({
-        title: "Order Deleted",
-        description: `Order ${orderToDelete.id} has been permanently deleted.`,
-        variant: "destructive"
-      });
-    } catch (error: any) {
-       toast({
-        title: "Order Deletion Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    const updatedOrders = orders.filter(o => o.id !== orderToDelete.id);
+    setOrders(updatedOrders);
+    
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
+    const updatedAllOrders = allOrders.filter(o => o.id !== orderToDelete.id);
+    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedAllOrders));
+    
+    toast({
+      title: "Order Deleted",
+      description: `Order ${orderToDelete.id} has been permanently deleted.`,
+      variant: "destructive"
+    });
     setOrderToDelete(null);
   };
 

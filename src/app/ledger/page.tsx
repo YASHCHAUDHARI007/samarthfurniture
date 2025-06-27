@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -17,8 +16,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookText, Search, ShieldAlert } from "lucide-react";
 import type { Ledger } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
 
 export default function LedgerPage() {
   const router = useRouter();
@@ -45,18 +42,10 @@ export default function LedgerPage() {
         return;
     };
     setIsLoading(true);
-    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
-    const unsubscribe = onValue(ledgersRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setAllLedgers(list.sort((a,b) => a.name.localeCompare(b.name)));
-        } else {
-            setAllLedgers([]);
-        }
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    setAllLedgers(ledgers.sort((a,b) => a.name.localeCompare(b.name)));
+    setIsLoading(false);
   }, [activeCompanyId]);
 
   const filteredAccounts = useMemo(() => {
@@ -155,5 +144,3 @@ export default function LedgerPage() {
     </div>
   );
 }
-
-    

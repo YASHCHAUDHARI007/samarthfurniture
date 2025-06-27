@@ -32,8 +32,6 @@ import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order, OrderStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/firebase";
-import { ref, onValue, query, orderByChild, equalTo } from "firebase/database";
 
 const chartConfig = {
   sales: {
@@ -50,11 +48,13 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  
+  const loggedInUser = typeof window !== 'undefined' ? localStorage.getItem("loggedInUser") : null;
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem("userRole") : null;
 
   useEffect(() => {
     setIsClient(true);
-    const username = localStorage.getItem("loggedInUser");
-    if (!username) {
+    if (!loggedInUser) {
       router.push("/login");
       return;
     }
@@ -62,7 +62,7 @@ export default function Dashboard() {
     
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
-  }, [router]);
+  }, [router, loggedInUser]);
 
   useEffect(() => {
     if (!isAuthenticated || !activeCompanyId) {
@@ -74,71 +74,52 @@ export default function Dashboard() {
     
     setIsLoading(true);
 
-    const role = localStorage.getItem("userRole");
-    const username = localStorage.getItem("loggedInUser");
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
     
-    const ordersPath = `orders/${activeCompanyId}`;
-    const ordersRef = ref(db, ordersPath);
-    let ordersQuery = query(ordersRef);
+    let userOrders = allOrders;
+    if (userRole === "coordinator" && loggedInUser) {
+        userOrders = allOrders.filter(o => o.createdBy === loggedInUser);
+    }
+    setOrders(userOrders);
 
-    if (role === "coordinator" && username) {
-      ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
+    const now = new Date();
+    const last6Months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = subMonths(now, i);
+        last6Months.push(format(d, "MMMM"));
     }
 
-    const unsubscribe = onValue(ordersQuery, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const ordersList: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-          setOrders(ordersList);
-        } else {
-          setOrders([]);
-        }
+    const salesByMonth = last6Months.reduce((acc, month) => {
+        acc[month] = 0;
+        return acc;
+    }, {} as Record<string, number>);
 
-        onValue(ref(db, ordersPath), (allOrdersSnapshot) => {
-            const allOrdersData = allOrdersSnapshot.val();
-            const allOrdersList: Order[] = allOrdersData ? Object.keys(allOrdersData).map(key => ({ id: key, ...allOrdersData[key] })) : [];
-            
-            const now = new Date();
-            const last6Months: string[] = [];
-            for (let i = 5; i >= 0; i--) {
-                const d = subMonths(now, i);
-                last6Months.push(format(d, "MMMM"));
+    const deliveredOrdersWithDate = allOrders.filter(
+        (o) => (o.status === "Delivered" || o.status === "Billed") && o.invoiceDate
+    );
+
+    deliveredOrdersWithDate.forEach((order) => {
+        if (!order.invoiceDate) return;
+        try {
+            const month = format(new Date(order.invoiceDate), "MMMM");
+            if (salesByMonth.hasOwnProperty(month)) {
+            salesByMonth[month] += (order.totalAmount || 0);
             }
-
-            const salesByMonth = last6Months.reduce((acc, month) => {
-                acc[month] = 0;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const deliveredOrdersWithDate = allOrdersList.filter(
-                (o) => (o.status === "Delivered" || o.status === "Billed") && o.invoiceDate
-            );
-
-            deliveredOrdersWithDate.forEach((order) => {
-                if (!order.invoiceDate) return;
-                try {
-                    const month = format(new Date(order.invoiceDate), "MMMM");
-                    if (salesByMonth.hasOwnProperty(month)) {
-                    salesByMonth[month] += (order.totalAmount || 0);
-                    }
-                } catch (e) {
-                  //
-                }
-            });
-
-            const newChartData = last6Months.map((month) => ({
-                month: month.slice(0, 3),
-                sales: salesByMonth[month],
-            }));
-
-            setChartData(newChartData);
-            setIsLoading(false);
-        }, { onlyOnce: true });
+        } catch (e) {
+          //
+        }
     });
 
-    return () => unsubscribe();
+    const newChartData = last6Months.map((month) => ({
+        month: month.slice(0, 3),
+        sales: salesByMonth[month],
+    }));
 
-  }, [isAuthenticated, activeCompanyId]);
+    setChartData(newChartData);
+    setIsLoading(false);
+
+  }, [isAuthenticated, activeCompanyId, loggedInUser, userRole]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {

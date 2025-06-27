@@ -46,8 +46,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
@@ -138,24 +136,12 @@ function CompanySwitcher() {
     const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
     useEffect(() => {
-        const companiesRef = ref(db, 'companies');
-        const unsubscribe = onValue(companiesRef, (snapshot) => {
-            if (snapshot.exists()) {
-                const companiesData = snapshot.val();
-                const companiesList = Object.keys(companiesData).map(key => ({
-                    id: key,
-                    ...companiesData[key]
-                }));
-                setCompanies(companiesList);
-            } else {
-                setCompanies([]);
-            }
-        });
+        const companiesJson = localStorage.getItem('companies');
+        const companiesList: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+        setCompanies(companiesList);
         
         const storedActiveId = localStorage.getItem('activeCompanyId');
         setActiveCompanyId(storedActiveId);
-
-        return () => unsubscribe();
     }, []);
 
     const handleCompanyChange = (companyId: string) => {

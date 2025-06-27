@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -38,8 +37,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { StockItem, StockStatus, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, remove } from "firebase/database";
 
 export default function StockTurnoverPage() {
   const router = useRouter();
@@ -77,31 +74,13 @@ export default function StockTurnoverPage() {
         return;
     }
     setIsLoading(true);
-    const stockRef = ref(db, `stock_items/${activeCompanyId}`);
-    const unsubStock = onValue(stockRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setStock(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setStock([]);
-        }
-    });
+    const stockJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
+    setStock(stockJson ? JSON.parse(stockJson) : []);
     
-    const locationsRef = ref(db, `locations/${activeCompanyId}`);
-    const unsubLocations = onValue(locationsRef, (snapshot) => {
-        if(snapshot.exists()){
-            const data = snapshot.val();
-            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setLocations([]);
-        }
-    });
+    const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+    setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
     setIsLoading(false);
-    return () => {
-        unsubStock();
-        unsubLocations();
-    }
   }, [activeCompanyId]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
@@ -167,34 +146,34 @@ export default function StockTurnoverPage() {
       locationName: location.name,
     };
 
-    try {
-        await set(ref(db, `stock_items/${activeCompanyId}/${newItemId}`), newItem);
-        toast({
-          title: "Item Added",
-          description: `${newItem.name} has been added to the stock.`,
-        });
-        setNewItemName("");
-        setNewItemSku("");
-        setNewItemQuantity("");
-        setNewItemReorderLevel("");
-        setNewItemLocationId("");
-    } catch(error: any) {
-        toast({ variant: 'destructive', title: 'Failed to add item', description: error.message });
-    }
+    const updatedStock = [...stock, newItem];
+    setStock(updatedStock);
+    localStorage.setItem(`stock_items_${activeCompanyId}`, JSON.stringify(updatedStock));
+
+    toast({
+      title: "Item Added",
+      description: `${newItem.name} has been added to the stock.`,
+    });
+    setNewItemName("");
+    setNewItemSku("");
+    setNewItemQuantity("");
+    setNewItemReorderLevel("");
+    setNewItemLocationId("");
   };
   
   const handleDeleteItem = async () => {
     if (!itemToDelete || !activeCompanyId) return;
-    try {
-        await remove(ref(db, `stock_items/${activeCompanyId}/${itemToDelete.id}`));
-        toast({
-          title: "Item Deleted",
-          description: `${itemToDelete.name} has been removed from the stock.`,
-          variant: "destructive",
-        });
-    } catch(error: any) {
-        toast({ variant: 'destructive', title: 'Failed to delete item', description: error.message });
-    }
+
+    const updatedStock = stock.filter(item => item.id !== itemToDelete.id);
+    setStock(updatedStock);
+    localStorage.setItem(`stock_items_${activeCompanyId}`, JSON.stringify(updatedStock));
+
+    toast({
+      title: "Item Deleted",
+      description: `${itemToDelete.name} has been removed from the stock.`,
+      variant: "destructive",
+    });
+
     setItemToDelete(null);
   };
 
@@ -420,5 +399,3 @@ export default function StockTurnoverPage() {
     </>
   );
 }
-
-    

@@ -42,8 +42,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Users, ShieldAlert, Trash2 } from "lucide-react";
 import type { User, UserRole } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, push, remove, query, orderByChild, equalTo, get } from "firebase/database";
 
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -75,21 +73,10 @@ export default function ManageUsersPage() {
 
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
-      const usersRef = ref(db, 'users');
-      const unsubscribe = onValue(usersRef, (snapshot) => {
-        if(snapshot.exists()){
-          const data = snapshot.val();
-          const usersList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-          setUsers(usersList);
-        } else {
-          setUsers([]);
-        }
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-        setIsLoading(false);
+      const usersJson = localStorage.getItem('users');
+      setUsers(usersJson ? JSON.parse(usersJson) : []);
     }
+    setIsLoading(false);
   }, []);
 
   const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,12 +90,8 @@ export default function ManageUsersPage() {
       return;
     }
 
-    const usersRef = ref(db, 'users');
-    const q = query(usersRef, orderByChild('username'), equalTo(newUserName));
-    const snapshot = await get(q);
-
-    if (snapshot.exists()) {
-      toast({
+    if (users.some(u => u.username.toLowerCase() === newUserName.toLowerCase())) {
+        toast({
             variant: "destructive",
             title: "Error",
             description: "A user with this username already exists.",
@@ -116,25 +99,24 @@ export default function ManageUsersPage() {
         return;
     }
 
-    const newUser: Omit<User, 'id'> = { 
+    const newUser: User = { 
+        id: `user-${Date.now()}`,
         username: newUserName, 
         password: newUserPassword, 
         role: newUserRole 
     };
 
-    try {
-        const newUserRef = push(usersRef);
-        await set(newUserRef, newUser);
-        toast({
-            title: "User Added",
-            description: `User ${newUserName} has been added and can now log in.`,
-        });
-        setNewUserName("");
-        setNewUserPassword("");
-        setNewUserRole("coordinator");
-    } catch (error: any) {
-       toast({ variant: 'destructive', title: 'Error adding user', description: error.message });
-    }
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    toast({
+        title: "User Added",
+        description: `User ${newUserName} has been added and can now log in.`,
+    });
+    setNewUserName("");
+    setNewUserPassword("");
+    setNewUserRole("coordinator");
   };
 
   const handleDeleteUser = async () => {
@@ -145,17 +127,16 @@ export default function ManageUsersPage() {
       setUserToDelete(null);
       return;
     }
+    
+    const updatedUsers = users.filter(u => u.id !== userToDelete.id);
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
 
-    try {
-        await remove(ref(db, `users/${userToDelete.id}`));
-        toast({
-            title: "User Deleted",
-            description: `User account for ${userToDelete.username} has been removed.`,
-            variant: "destructive"
-        });
-    } catch(error: any) {
-        toast({ variant: 'destructive', title: 'Error deleting user', description: error.message });
-    }
+    toast({
+        title: "User Deleted",
+        description: `User account for ${userToDelete.username} has been removed.`,
+        variant: "destructive"
+    });
     
     setUserToDelete(null);
   };

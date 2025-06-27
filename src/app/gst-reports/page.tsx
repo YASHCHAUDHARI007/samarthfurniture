@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -24,8 +23,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, Printer, IndianRupee, ShieldAlert } from "lucide-react";
 import type { Order, Purchase, Ledger } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
 
 export default function GstReportsPage() {
   const router = useRouter();
@@ -53,42 +50,16 @@ export default function GstReportsPage() {
     };
     setIsLoading(true);
 
-    const ordersRef = ref(db, `orders/${activeCompanyId}`);
-    const unsubOrders = onValue(ordersRef, (snapshot) => {
-        if(snapshot.exists()){
-            const data = snapshot.val();
-            setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setOrders([]);
-        }
-    });
+    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    setOrders(ordersJson ? JSON.parse(ordersJson) : []);
 
-    const purchasesRef = ref(db, `purchases/${activeCompanyId}`);
-    const unsubPurchases = onValue(purchasesRef, (snapshot) => {
-        if(snapshot.exists()){
-            const data = snapshot.val();
-            setPurchases(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setPurchases([]);
-        }
-    });
+    const purchasesJson = localStorage.getItem(`purchases_${activeCompanyId}`);
+    setPurchases(purchasesJson ? JSON.parse(purchasesJson) : []);
 
-    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
-    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
-        if(snapshot.exists()){
-            const data = snapshot.val();
-            setLedgers(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setLedgers([]);
-        }
-        setIsLoading(false);
-    });
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    setLedgers(ledgersJson ? JSON.parse(ledgersJson) : []);
 
-    return () => {
-        unsubOrders();
-        unsubPurchases();
-        unsubLedgers();
-    };
+    setIsLoading(false);
 
   }, [activeCompanyId]);
 
@@ -326,5 +297,3 @@ export default function GstReportsPage() {
     </>
   );
 }
-
-    

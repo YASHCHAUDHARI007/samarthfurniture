@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -36,8 +35,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Warehouse, ShieldAlert, Trash2 } from "lucide-react";
 import type { Location } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, remove } from "firebase/database";
 
 export default function ManageLocationsPage() {
   const router = useRouter();
@@ -68,17 +65,9 @@ export default function ManageLocationsPage() {
           return;
       }
       setIsLoading(true);
-      const locationsRef = ref(db, `locations/${activeCompanyId}`);
-      const unsubscribe = onValue(locationsRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setLocations(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setLocations([]);
-        }
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
+      const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+      setLocations(locationsJson ? JSON.parse(locationsJson) : []);
+      setIsLoading(false);
   }, [activeCompanyId]);
 
 
@@ -101,26 +90,24 @@ export default function ManageLocationsPage() {
       address: newLocationAddress || undefined,
     };
     
-    try {
-        await set(ref(db, `locations/${activeCompanyId}/${newLocationId}`), newLocation);
-        toast({ title: "Location Created", description: `${newLocationName} has been created successfully.` });
-        setNewLocationName("");
-        setNewLocationAddress("");
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Failed to create location", description: error.message });
-    }
+    const updatedLocations = [...locations, newLocation];
+    setLocations(updatedLocations);
+    localStorage.setItem(`locations_${activeCompanyId}`, JSON.stringify(updatedLocations));
+    
+    toast({ title: "Location Created", description: `${newLocationName} has been created successfully.` });
+    setNewLocationName("");
+    setNewLocationAddress("");
   };
 
   const handleDeleteLocation = async () => {
     if (!locationToDelete || !activeCompanyId) return;
 
     // TODO: Add check to prevent deleting a location if it has stock.
-    try {
-        await remove(ref(db, `locations/${activeCompanyId}/${locationToDelete.id}`));
-        toast({ title: "Location Deleted", variant: "destructive" });
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Deletion failed", description: error.message });
-    }
+    const updatedLocations = locations.filter(loc => loc.id !== locationToDelete.id);
+    setLocations(updatedLocations);
+    localStorage.setItem(`locations_${activeCompanyId}`, JSON.stringify(updatedLocations));
+
+    toast({ title: "Location Deleted", variant: "destructive" });
     setLocationToDelete(null);
   };
 
@@ -252,5 +239,3 @@ export default function ManageLocationsPage() {
     </>
   );
 }
-
-    

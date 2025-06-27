@@ -45,8 +45,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ShieldAlert, Trash2, Edit } from "lucide-react";
 import type { Company, Ledger } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, push, remove, update } from "firebase/database";
 
 const SafeFormatDate = ({ dateString }: { dateString: string }) => {
     try {
@@ -84,23 +82,9 @@ export default function ManageCompaniesPage() {
       setHasAccess(true);
     }
     
-    const companiesRef = ref(db, 'companies');
-    const unsubscribe = onValue(companiesRef, (snapshot) => {
-        setIsLoading(true);
-        if (snapshot.exists()) {
-            const companiesData = snapshot.val();
-            const companiesList = Object.keys(companiesData).map(key => ({
-                id: key,
-                ...companiesData[key]
-            }));
-            setCompanies(companiesList);
-        } else {
-            setCompanies([]);
-        }
-        setIsLoading(false);
-    });
-    
-    return () => unsubscribe();
+    const companiesJson = localStorage.getItem('companies');
+    setCompanies(companiesJson ? JSON.parse(companiesJson) : []);
+    setIsLoading(false);
   }, []);
 
   const handleAddCompany = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -109,86 +93,75 @@ export default function ManageCompaniesPage() {
       toast({ variant: "destructive", title: "Missing Information" });
       return;
     }
-    const newCompanyData: Omit<Company, 'id'> = {
+
+    const newCompanyId = `comp-${Date.now()}`;
+    const newCompany: Company = {
+      id: newCompanyId,
       name: newCompanyName,
       financialYearStart: newFyStart,
       financialYearEnd: newFyEnd,
     };
 
-    try {
-        const newCompanyRef = push(ref(db, 'companies'));
-        await set(newCompanyRef, newCompanyData);
-        const newCompanyId = newCompanyRef.key;
+    const updatedCompanies = [...companies, newCompany];
+    setCompanies(updatedCompanies);
+    localStorage.setItem('companies', JSON.stringify(updatedCompanies));
 
-        if (!newCompanyId) throw new Error("Failed to get new company ID");
+    // Auto-create essential ledgers for the new company
+    const initialLedgers: { [key: string]: Ledger } = {
+        'PROFIT_LOSS': { id: 'PROFIT_LOSS', name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
+        'SALES_ACCOUNT': { id: 'SALES_ACCOUNT', name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
+        'PURCHASE_ACCOUNT': { id: 'PURCHASE_ACCOUNT', name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
+        'CASH_ACCOUNT': { id: 'CASH_ACCOUNT', name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
+    };
+    localStorage.setItem(`ledgers_${newCompanyId}`, JSON.stringify(Object.values(initialLedgers)));
 
-        // Auto-create essential ledgers for the new company
-        const initialLedgers: { [key: string]: Omit<Ledger, 'id'> } = {
-            'PROFIT_LOSS': { name: 'Profit & Loss A/c', group: 'Primary', openingBalance: 0 },
-            'SALES_ACCOUNT': { name: 'Sales Account', group: 'Sales Accounts', openingBalance: 0 },
-            'PURCHASE_ACCOUNT': { name: 'Purchase Account', group: 'Purchase Accounts', openingBalance: 0 },
-            'CASH_ACCOUNT': { name: 'Cash', group: 'Cash-in-hand', openingBalance: 0 },
-        };
-
-        await set(ref(db, `ledgers/${newCompanyId}`), initialLedgers);
-
-        // If it's the first company, set it as active
-        if (!localStorage.getItem('activeCompanyId')) {
-            localStorage.setItem('activeCompanyId', newCompanyId);
-            window.location.reload();
-        }
-        
-        toast({ title: "Company Created", description: `${newCompanyName} has been created successfully.` });
-        setNewCompanyName("");
-        setNewFyStart("");
-        setNewFyEnd("");
-
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Failed to create company", description: error.message });
+    // If it's the first company, set it as active
+    if (!localStorage.getItem('activeCompanyId')) {
+        localStorage.setItem('activeCompanyId', newCompanyId);
+        window.location.reload();
     }
+    
+    toast({ title: "Company Created", description: `${newCompanyName} has been created successfully.` });
+    setNewCompanyName("");
+    setNewFyStart("");
+    setNewFyEnd("");
   };
 
   const handleEditCompany = async () => {
     if (!companyToEdit || !editName || !editFyStart || !editFyEnd) return;
     
-    const updates = { name: editName, financialYearStart: editFyStart, financialYearEnd: editFyEnd };
-    try {
-        await update(ref(db, `companies/${companyToEdit.id}`), updates);
-        toast({ title: "Company Updated" });
-        setCompanyToEdit(null);
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Update failed", description: error.message });
-    }
+    const updatedCompanies = companies.map(c => 
+      c.id === companyToEdit.id 
+        ? { ...c, name: editName, financialYearStart: editFyStart, financialYearEnd: editFyEnd }
+        : c
+    );
+    setCompanies(updatedCompanies);
+    localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+    toast({ title: "Company Updated" });
+    setCompanyToEdit(null);
   };
   
   const handleDeleteCompany = async () => {
     if (!companyToDelete) return;
     
     const companyId = companyToDelete.id;
-    const pathsToDelete = {
-      [`companies/${companyId}`]: null,
-      [`orders/${companyId}`]: null,
-      [`ledgers/${companyId}`]: null,
-      [`purchases/${companyId}`]: null,
-      [`ledger_entries/${companyId}`]: null,
-      [`raw_materials/${companyId}`]: null,
-      [`stock_items/${companyId}`]: null,
-      [`locations/${companyId}`]: null,
-      [`product_catalog/${companyId}`]: null,
-    };
+    const updatedCompanies = companies.filter(c => c.id !== companyId);
+    setCompanies(updatedCompanies);
+    localStorage.setItem('companies', JSON.stringify(updatedCompanies));
     
-    try {
-      await update(ref(db), pathsToDelete);
+    // Delete all data associated with the company
+    Object.keys(localStorage).forEach(key => {
+        if (key.endsWith(`_${companyId}`)) {
+            localStorage.removeItem(key);
+        }
+    });
       
-      toast({ title: "Company Deleted", variant: "destructive" });
-      if (localStorage.getItem('activeCompanyId') === companyToDelete.id) {
-          localStorage.removeItem('activeCompanyId');
-          window.location.reload();
-      }
-
-    } catch(error: any) {
-       toast({ title: "Company Deletion Failed", variant: "destructive", description: error.message });
+    toast({ title: "Company Deleted", variant: "destructive" });
+    if (localStorage.getItem('activeCompanyId') === companyId) {
+        localStorage.removeItem('activeCompanyId');
+        window.location.reload();
     }
+
     setCompanyToDelete(null);
   };
 

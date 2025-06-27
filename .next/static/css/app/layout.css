@@ -1844,9 +1844,6 @@ video {
 .ease-linear {
   animation-timing-function: linear;
 }
-.\[key\:string\] {
-  key: string;
-}
 
 body {
   font-family: Arial, Helvetica, sans-serif;
