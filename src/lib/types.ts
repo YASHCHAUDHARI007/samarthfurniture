@@ -7,7 +7,7 @@ export type LineItem = {
   description: string;
   quantity: number;
   price: number;
-  hsn?: string;
+  hsn: string;
 };
 
 export type Payment = {
