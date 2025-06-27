@@ -92,7 +92,7 @@ export default function DealerOrderPage() {
     setProductCatalog(storedCatalog ? JSON.parse(storedCatalog) : []);
     
     const storedLedgers: Ledger[] = JSON.parse(localStorage.getItem(ledgersKey) || '[]');
-    setAllDealers(storedLedgers.filter(c => c.group === 'Sundry Debtors'));
+    setAllDealers(storedLedgers.filter((c): c is Ledger => c !== undefined).filter(c => c.group === 'Sundry Debtors'));
 
   }, [activeCompanyId]);
 
