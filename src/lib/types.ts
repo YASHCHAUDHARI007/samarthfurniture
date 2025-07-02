@@ -44,6 +44,7 @@ export type Order = {
     email?: string;
     address?: string;
     dealerId?: string;
+    gstin?: string;
   };
   transportDetails?: {
     driverName: string;

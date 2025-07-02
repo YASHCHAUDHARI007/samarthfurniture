@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Order, StockItem, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 type OrderItem = {
   id: string; // StockItem ID
@@ -51,8 +52,12 @@ export default function DealerOrderPage() {
   const [allDealers, setAllDealers] = useState<Ledger[]>([]);
   const [suggestions, setSuggestions] = useState<Ledger[]>([]);
   
+  // Dealer Information State
   const [dealerName, setDealerName] = useState("");
   const [dealerId, setDealerId] = useState("");
+  const [dealerEmail, setDealerEmail] = useState("");
+  const [dealerAddress, setDealerAddress] = useState("");
+  const [dealerGstin, setDealerGstin] = useState("");
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   
@@ -91,11 +96,20 @@ export default function DealerOrderPage() {
     } else {
       setSuggestions([]);
     }
+    
+    // Clear other fields if name is being changed manually
+    setDealerId("");
+    setDealerEmail("");
+    setDealerAddress("");
+    setDealerGstin("");
   };
 
   const handleSelectDealer = (dealer: Ledger) => {
     setDealerName(dealer.name);
     setDealerId(dealer.dealerId || "");
+    setDealerEmail(dealer.email || "");
+    setDealerAddress(dealer.address || "");
+    setDealerGstin(dealer.gstin || "");
     setSuggestions([]);
   };
 
@@ -217,15 +231,20 @@ export default function DealerOrderPage() {
             name: dealerName,
             group: 'Sundry Debtors',
             dealerId: finalDealerId,
+            email: dealerEmail,
+            address: dealerAddress,
+            gstin: dealerGstin,
         };
         ledgers.push(newDealerData);
     } else {
         contactId = dealer.id;
-        if (dealerId && dealer.dealerId !== dealerId) {
-            dealer.dealerId = dealerId;
-            ledgers = ledgers.map(l => l.id === contactId ? dealer! : l);
-        }
-        finalDealerId = dealer.dealerId || dealerId || `DEALER-${Date.now()}`;
+        // Update existing dealer info
+        dealer.dealerId = dealerId || dealer.dealerId || `DEALER-${Date.now()}`;
+        dealer.email = dealerEmail;
+        dealer.address = dealerAddress;
+        dealer.gstin = dealerGstin;
+        ledgers = ledgers.map(l => l.id === contactId ? dealer! : l);
+        finalDealerId = dealer.dealerId;
     }
     localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(ledgers));
     
@@ -251,6 +270,9 @@ export default function DealerOrderPage() {
         id: contactId!,
         name: dealerName,
         dealerId: finalDealerId,
+        email: dealerEmail,
+        address: dealerAddress,
+        gstin: dealerGstin,
       },
     };
 
@@ -266,6 +288,9 @@ export default function DealerOrderPage() {
     setCustomItems([]);
     setDealerName("");
     setDealerId("");
+    setDealerEmail("");
+    setDealerAddress("");
+    setDealerGstin("");
     (e.target as HTMLFormElement).reset();
   };
 
@@ -302,7 +327,7 @@ export default function DealerOrderPage() {
           <CardHeader>
             <CardTitle>Dealer Information</CardTitle>
             <CardDescription>
-              Enter the dealer's information for this bulk order.
+              Select an existing dealer or enter details for a new one.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -350,6 +375,22 @@ export default function DealerOrderPage() {
                 />
               </div>
             </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="dealerEmail">Dealer Email</Label>
+                    <Input id="dealerEmail" name="dealerEmail" type="email" placeholder="dealer@example.com" value={dealerEmail} onChange={e => setDealerEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="dealerGstin">Dealer GSTIN</Label>
+                    <Input id="dealerGstin" name="dealerGstin" placeholder="29ABCDE1234F1Z5" value={dealerGstin} onChange={e => setDealerGstin(e.target.value)} />
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="dealerAddress">Dealer Address</Label>
+                <Textarea id="dealerAddress" name="dealerAddress" placeholder="123 Main St, Anytown" value={dealerAddress} onChange={e => setDealerAddress(e.target.value)} rows={2} />
+            </div>
+
 
             <Separator />
 
@@ -479,4 +520,3 @@ export default function DealerOrderPage() {
     </>
   );
 }
-
