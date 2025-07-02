@@ -98,6 +98,15 @@ function Menu({ userRole }: { userRole: string | null }) {
 
   const filteredNavItems = useMemo(() => {
     if (!userRole) return [];
+    
+    // Explicitly hide these pages for the coordinator role
+    if (userRole === "coordinator") {
+        return navItems.filter(item => 
+            item.roles.includes(userRole as UserRole) &&
+            !['/direct-sale', '/billing'].includes(item.path)
+        );
+    }
+
     return navItems.filter(item => item.roles.includes(userRole as UserRole));
   }, [userRole]);
 
@@ -216,15 +225,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         setUserAvatar(username.substring(0, 2).toUpperCase());
       }
       
-      // For coordinators, if no company is active, set the first one as default.
       if (role === 'coordinator') {
         const activeCompanyId = localStorage.getItem('activeCompanyId');
         if (!activeCompanyId) {
             const companiesJson = localStorage.getItem('companies');
             const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
             if (companies.length > 0) {
-                // If no company is active, set the first one as default and reload
-                localStorage.setItem('activeCompanyId', companies[0].id);
+                // Sort companies by financialYearStart date in descending order to find the most recent
+                companies.sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
+                const mostRecentCompany = companies[0];
+                localStorage.setItem('activeCompanyId', mostRecentCompany.id);
                 window.location.reload();
             }
         }
