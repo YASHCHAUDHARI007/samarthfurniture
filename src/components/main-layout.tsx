@@ -188,12 +188,11 @@ function CompanySwitcher() {
 }
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState("U");
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isCompanyContextReady, setIsCompanyContextReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const fKeyRoutes: { [key: string]: string } = navItems.reduce((acc, item) => {
@@ -226,28 +225,28 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         setUserAvatar(username.substring(0, 2).toUpperCase());
       }
       
-      if (!role) {
-        if (pathname !== '/login') {
-            setIsCompanyContextReady(true);
-        }
+      if (!username) {
+        router.push("/login");
         return;
       }
       
-      let companyId = localStorage.getItem('activeCompanyId');
+      const activeCompanyId = localStorage.getItem('activeCompanyId');
 
-      if ((role === 'coordinator' || role === 'factory') && !companyId) {
+      if ((role === 'coordinator' || role === 'factory') && !activeCompanyId) {
           const companiesJson = localStorage.getItem('companies');
           const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
           if (companies.length > 0) {
               companies.sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
               const mostRecentCompany = companies[0];
               localStorage.setItem('activeCompanyId', mostRecentCompany.id);
+              window.location.reload(); // Reload to apply the new context everywhere
+              return; // Prevent setting isReady to true before reload
           }
       }
       
-      setIsCompanyContextReady(true);
+      setIsReady(true);
     }
-  }, [pathname]);
+  }, [router]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -325,7 +324,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        {isCompanyContextReady ? children : (
+        {isReady ? children : (
             <div className="flex-1 flex items-center justify-center p-4">
                 <p className="text-muted-foreground">Loading Company Data...</p>
             </div>
