@@ -42,7 +42,11 @@ import { Textarea } from "@/components/ui/textarea";
 export default function ProductCatalogPage() {
   const router = useRouter();
   const { toast } = useToast();
+  
+  // States for access control
   const [hasAccess, setHasAccess] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
@@ -57,11 +61,19 @@ export default function ProductCatalogPage() {
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
-    if (role === "owner" || role === "administrator") {
+    
+    // Check for view access
+    if (role === "owner" || role === "administrator" || role === "coordinator") {
       setHasAccess(true);
     }
+    // Check for edit access
+    if (role === "owner" || role === "administrator") {
+      setCanEdit(true);
+    }
+
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
+    // Note: Don't set isLoading to false here, let the data-loading useEffect do it.
   }, []);
   
   useEffect(() => {
@@ -142,7 +154,7 @@ export default function ProductCatalogPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive" /> Access Denied</CardTitle>
           </CardHeader>
-          <CardContent><p>You do not have permission to manage the product catalog.</p></CardContent>
+          <CardContent><p>You do not have permission to view the product catalog.</p></CardContent>
           <CardFooter><Button onClick={() => router.push("/")}>Return to Dashboard</Button></CardFooter>
         </Card>
       </div>
@@ -169,44 +181,48 @@ export default function ProductCatalogPage() {
           <h2 className="text-3xl font-bold tracking-tight">Product Catalog</h2>
         </div>
         <p className="text-muted-foreground">
-          Create and manage the products available for dealer orders.
+          {canEdit
+            ? "Create and manage the products available for dealer orders."
+            : "A list of all products available for dealer orders."}
         </p>
         <Separator />
 
         <div className="grid md:grid-cols-3 gap-8 pt-4">
-          <div className="md:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add New Product</CardTitle>
-                <CardDescription>Create a new product for your catalog.</CardDescription>
-              </CardHeader>
-              <form onSubmit={handleAddItem}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="newItemName">Product Name</Label>
-                    <Input id="newItemName" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required placeholder="e.g. Velvet Armchair" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newItemSku">SKU</Label>
-                    <Input id="newItemSku" value={newItemSku} onChange={(e) => setNewItemSku(e.target.value)} required placeholder="e.g. ARM-VEL-01" />
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="newItemDescription">Description (Optional)</Label>
-                    <Textarea id="newItemDescription" value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="e.g. A comfortable armchair with blue velvet upholstery." rows={3} />
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="newItemPhoto">Product Photo</Label>
-                    <Input id="newItemPhoto" type="file" accept="image/*" onChange={handlePhotoChange} />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit">Add Product</Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </div>
+          {canEdit && (
+            <div className="md:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add New Product</CardTitle>
+                  <CardDescription>Create a new product for your catalog.</CardDescription>
+                </CardHeader>
+                <form onSubmit={handleAddItem}>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newItemName">Product Name</Label>
+                      <Input id="newItemName" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required placeholder="e.g. Velvet Armchair" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newItemSku">SKU</Label>
+                      <Input id="newItemSku" value={newItemSku} onChange={(e) => setNewItemSku(e.target.value)} required placeholder="e.g. ARM-VEL-01" />
+                    </div>
+                     <div className="space-y-2">
+                      <Label htmlFor="newItemDescription">Description (Optional)</Label>
+                      <Textarea id="newItemDescription" value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="e.g. A comfortable armchair with blue velvet upholstery." rows={3} />
+                    </div>
+                     <div className="space-y-2">
+                      <Label htmlFor="newItemPhoto">Product Photo</Label>
+                      <Input id="newItemPhoto" type="file" accept="image/*" onChange={handlePhotoChange} />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button type="submit">Add Product</Button>
+                  </CardFooter>
+                </form>
+              </Card>
+            </div>
+          )}
 
-          <div className="md:col-span-2">
+          <div className={canEdit ? "md:col-span-2" : "md:col-span-3"}>
             <Card>
                 <CardHeader>
                 <CardTitle>Catalog Products</CardTitle>
@@ -219,7 +235,7 @@ export default function ProductCatalogPage() {
                         <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead>SKU</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        {canEdit && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -239,20 +255,22 @@ export default function ProductCatalogPage() {
                                 </div>
                             </TableCell>
                             <TableCell>{item.sku}</TableCell>
-                            <TableCell className="text-right space-x-1">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setItemToDelete(item)}
-                                className="text-destructive hover:text-destructive"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                            </TableCell>
+                            {canEdit && (
+                              <TableCell className="text-right space-x-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setItemToDelete(item)}
+                                    className="text-destructive hover:text-destructive"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
                         </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center">No products created yet.</TableCell>
+                                <TableCell colSpan={canEdit ? 3 : 2} className="h-24 text-center">No products created yet.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -264,22 +282,24 @@ export default function ProductCatalogPage() {
         </div>
       </div>
 
-      <AlertDialog open={!!itemToDelete} onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the product <span className="font-semibold">{itemToDelete?.name}</span> from the catalog. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Product
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {itemToDelete && (
+        <AlertDialog open={!!itemToDelete} onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                This will permanently delete the product <span className="font-semibold">{itemToDelete.name}</span> from the catalog. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete Product
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

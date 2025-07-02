@@ -80,6 +80,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/billing/page.js"
+    ],
+    "/product-catalog/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/product-catalog/page.js"
     ]
   }
 }
