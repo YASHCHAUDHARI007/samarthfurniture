@@ -76,14 +76,6 @@ export type User = {
     role: UserRole;
 };
 
-export type Product = {
-  id: string;
-  name: string;
-  sku: string;
-  image: string;
-  aiHint: string;
-};
-
 export type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
 export type StockItem = {

@@ -24,36 +24,21 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
-import type { Order, Product, Ledger } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import type { Order, StockItem, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 type OrderItem = {
-  id: string;
+  id: string; // StockItem ID
   quantity: number;
 };
 
 export default function DealerOrderPage() {
   const router = useRouter();
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
   
-  const [productCatalog, setProductCatalog] = useState<Product[]>([]);
-  const [canEdit, setCanEdit] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<Product | null>(null);
-
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemSku, setNewItemSku] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
 
   const [allDealers, setAllDealers] = useState<Ledger[]>([]);
   const [suggestions, setSuggestions] = useState<Ledger[]>([]);
@@ -64,23 +49,20 @@ export default function DealerOrderPage() {
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    if (role === "factory" || role === "administrator" || role === "owner") {
-      setCanEdit(true);
-    }
     const companyId = localStorage.getItem('activeCompanyId');
     setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
     if (!activeCompanyId) {
-      setProductCatalog([]);
+      setStockItems([]);
       setAllDealers([]);
       return;
     };
     
-    const catalogJson = localStorage.getItem(`product_catalog_${activeCompanyId}`);
-    setProductCatalog(catalogJson ? JSON.parse(catalogJson) : []);
+    // Use finished product stock as the catalog
+    const stockJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
+    setStockItems(stockJson ? JSON.parse(stockJson) : []);
 
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
@@ -108,28 +90,44 @@ export default function DealerOrderPage() {
 
 
   const handleCheckboxChange = (
-    productId: string,
+    stockItemId: string,
     checked: boolean | "indeterminate"
   ) => {
     if (checked) {
-      setOrderItems([...orderItems, { id: productId, quantity: 1 }]);
+      setOrderItems([...orderItems, { id: stockItemId, quantity: 1 }]);
     } else {
-      setOrderItems(orderItems.filter((item) => item.id !== productId));
+      setOrderItems(orderItems.filter((item) => item.id !== stockItemId));
     }
   };
 
-  const handleQuantityChange = (productId: string, quantity: number) => {
-    const itemExists = orderItems.some((item) => item.id === productId);
+  const handleQuantityChange = (stockItemId: string, quantity: number) => {
+    const itemExists = orderItems.some((item) => item.id === stockItemId);
     if (!itemExists) return;
 
-    setOrderItems(
-      orderItems.map((item) =>
-        item.id === productId
-          ? { ...item, quantity: Math.max(0, quantity) }
-          : item
-      )
-    );
+    const stockItem = stockItems.find(item => item.id === stockItemId);
+
+    if (stockItem && quantity > stockItem.quantity) {
+        toast({
+            variant: "destructive",
+            title: "Stock limit exceeded",
+            description: `Only ${stockItem.quantity} units of ${stockItem.name} are available.`
+        });
+        setOrderItems(orderItems.map(item => item.id === stockItemId ? { ...item, quantity: stockItem.quantity } : item));
+    } else {
+        setOrderItems(
+          orderItems.map((item) =>
+            item.id === stockItemId
+              ? { ...item, quantity: Math.max(0, quantity) }
+              : item
+          )
+        );
+    }
   };
+  
+  const getQuantityForItem = (itemId: string) => {
+      const orderItem = orderItems.find(oi => oi.id === itemId);
+      return orderItem ? orderItem.quantity : '';
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -155,7 +153,7 @@ export default function DealerOrderPage() {
     const orderDescription = orderItems
       .filter((item) => item.quantity > 0)
       .map((item) => {
-        const product = productCatalog.find((p) => p.id === item.id);
+        const product = stockItems.find((p) => p.id === item.id);
         return `${item.quantity}x ${product?.name} (SKU: ${product?.sku})`;
       })
       .join("\n");
@@ -227,54 +225,9 @@ export default function DealerOrderPage() {
     (e.target as HTMLFormElement).reset();
   };
 
-  const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!activeCompanyId) return;
 
-    if (!newItemName || !newItemSku) {
-      toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a name and SKU." });
-      return;
-    }
-    if (productCatalog.some(p => p.sku.toLowerCase() === newItemSku.toLowerCase())) {
-        toast({ variant: "destructive", title: "SKU Exists", description: "A product with this SKU already exists." });
-        return;
-    }
-
-    const newProduct: Product = {
-      id: `prod-${Date.now()}`,
-      name: newItemName,
-      sku: newItemSku,
-      image: "https://placehold.co/100x100.png",
-      aiHint: "product " + newItemName.split(" ")[0]?.toLowerCase(),
-    };
-    
-    const updatedCatalog = [...productCatalog, newProduct];
-    setProductCatalog(updatedCatalog);
-    localStorage.setItem(`product_catalog_${activeCompanyId}`, JSON.stringify(updatedCatalog));
-    
-    toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
-    setNewItemName("");
-    setNewItemSku("");
-  };
-
-  const handleDeleteItem = async () => {
-    if (!itemToDelete || !activeCompanyId) return;
-    
-    const updatedCatalog = productCatalog.filter(p => p.id !== itemToDelete.id);
-    setProductCatalog(updatedCatalog);
-    localStorage.setItem(`product_catalog_${activeCompanyId}`, JSON.stringify(updatedCatalog));
-
-    toast({
-      title: "Product Deleted",
-      description: `${itemToDelete.name} has been removed from the catalog.`,
-      variant: "destructive",
-    });
-
-    setItemToDelete(null);
-  };
-
-  const isProductSelected = (productId: string) => {
-    return orderItems.some((item) => item.id === productId);
+  const isItemSelected = (stockItemId: string) => {
+    return orderItems.some((item) => item.id === stockItemId);
   };
   
   if (!activeCompanyId) {
@@ -296,49 +249,9 @@ export default function DealerOrderPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">New Dealer Order</h2>
       <p className="text-muted-foreground">
-        Create a new bulk order for a registered dealer.
+        Create a new bulk order for a registered dealer from available finished stock.
       </p>
       <Separator />
-
-      {canEdit && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Manage Product Catalog</CardTitle>
-              <CardDescription>
-                Add or remove products from the catalog. These changes will be reflected for all users creating dealer orders.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleAddItem}>
-              <CardContent className="space-y-4">
-                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="newItemName">Product Name</Label>
-                    <Input
-                      id="newItemName"
-                      value={newItemName}
-                      onChange={(e) => setNewItemName(e.target.value)}
-                      placeholder="e.g. Modern Bookshelf"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newItemSku">SKU</Label>
-                    <Input
-                      id="newItemSku"
-                      value={newItemSku}
-                      onChange={(e) => setNewItemSku(e.target.value)}
-                      placeholder="e.g. BKS-MOD-WHT"
-                      required
-                    />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit">Add Product to Catalog</Button>
-              </CardFooter>
-            </form>
-          </Card>
-        )}
 
       <form onSubmit={handleSubmit}>
         <Card className="mt-6">
@@ -399,7 +312,7 @@ export default function DealerOrderPage() {
 
             <CardTitle className="pt-4">Product Catalog</CardTitle>
             <CardDescription>
-              Select products and specify quantities for the order.
+              Select products and specify quantities for the order. To manage stock levels, go to the Finished Stock page.
             </CardDescription>
             <div className="rounded-md border">
               <Table>
@@ -408,68 +321,60 @@ export default function DealerOrderPage() {
                     <TableHead className="w-[50px]"></TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead className="w-[120px]">Quantity</TableHead>
-                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead className="w-[120px]">Available</TableHead>
+                    <TableHead className="w-[120px]">Order Qty</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productCatalog.length > 0 ? productCatalog.map((product) => (
-                    <TableRow key={product.id}>
+                  {stockItems.length > 0 ? stockItems.map((item) => (
+                    <TableRow key={item.id} data-state={isItemSelected(item.id) ? 'selected' : undefined}>
                       <TableCell>
                         <Checkbox
-                          id={`select-${product.id}`}
-                          onCheckedChange={(checked) =>
-                            handleCheckboxChange(product.id, checked)
-                          }
-                          checked={isProductSelected(product.id)}
+                          id={`select-${item.id}`}
+                          onCheckedChange={(checked) => handleCheckboxChange(item.id, checked)}
+                          checked={isItemSelected(item.id)}
+                          disabled={item.quantity <= 0}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <Image
-                            src={product.image}
-                            alt={product.name}
+                            src="https://placehold.co/40x40.png"
+                            alt={item.name}
                             width={40}
                             height={40}
                             className="rounded-md"
-                            data-ai-hint={product.aiHint}
+                            data-ai-hint={`product ${item.name.split(" ")[0]?.toLowerCase()}`}
                           />
-                          <span>{product.name}</span>
+                          <div>
+                            <span>{item.name}</span>
+                             {item.quantity <= 0 && <Badge variant="destructive" className="ml-2 text-xs">Out of Stock</Badge>}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>{product.sku}</TableCell>
+                      <TableCell>{item.sku}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           min="0"
-                          defaultValue={1}
-                          disabled={!isProductSelected(product.id)}
+                          max={item.quantity > 0 ? item.quantity : undefined}
+                          value={getQuantityForItem(item.id)}
                           onChange={(e) =>
                             handleQuantityChange(
-                              product.id,
+                              item.id,
                               parseInt(e.target.value, 10) || 0
                             )
                           }
                           className="w-24"
+                          disabled={!isItemSelected(item.id) || item.quantity <= 0}
+                          placeholder="0"
                         />
                       </TableCell>
-                       {canEdit && (
-                        <TableCell className="text-right">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-destructive"
-                                onClick={(e) => { e.preventDefault(); setItemToDelete(product); }}
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Delete Item</span>
-                            </Button>
-                        </TableCell>
-                      )}
                     </TableRow>
                   )) : (
                     <TableRow>
-                        <TableCell colSpan={canEdit ? 5: 4} className="h-24 text-center">No products in catalog. Add one above.</TableCell>
+                        <TableCell colSpan={5} className="h-24 text-center">No finished goods in stock. Add items on the Finished Stock page.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -482,28 +387,6 @@ export default function DealerOrderPage() {
         </Card>
       </form>
     </div>
-
-    <AlertDialog open={!!itemToDelete} onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}>
-    <AlertDialogContent>
-        <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the product
-                <span className="font-semibold"> {itemToDelete?.name} </span>
-                from the catalog.
-            </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-                onClick={handleDeleteItem}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-                Delete
-            </AlertDialogAction>
-        </AlertDialogFooter>
-    </AlertDialogContent>
-    </AlertDialog>
     </>
   );
 }
