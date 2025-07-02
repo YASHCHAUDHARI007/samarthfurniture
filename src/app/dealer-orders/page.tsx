@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -27,11 +28,18 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import type { Order, StockItem, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 type OrderItem = {
   id: string; // StockItem ID
   quantity: number;
 };
+
+type CustomItem = {
+  id: string;
+  name: string;
+  quantity: number;
+}
 
 export default function DealerOrderPage() {
   const router = useRouter();
@@ -47,6 +55,10 @@ export default function DealerOrderPage() {
   const [dealerId, setDealerId] = useState("");
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  
+  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemQuantity, setCustomItemQuantity] = useState<number | "">(1);
 
   useEffect(() => {
     const companyId = localStorage.getItem('activeCompanyId');
@@ -60,7 +72,6 @@ export default function DealerOrderPage() {
       return;
     };
     
-    // Use finished product stock as the catalog
     const stockJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
     setStockItems(stockJson ? JSON.parse(stockJson) : []);
 
@@ -87,7 +98,6 @@ export default function DealerOrderPage() {
     setDealerId(dealer.dealerId || "");
     setSuggestions([]);
   };
-
 
   const handleCheckboxChange = (
     stockItemId: string,
@@ -129,6 +139,24 @@ export default function DealerOrderPage() {
       return orderItem ? orderItem.quantity : '';
   }
 
+  const handleAddCustomItem = () => {
+    if (!customItemName || !customItemQuantity || customItemQuantity <= 0) {
+        toast({
+            variant: "destructive",
+            title: "Invalid Custom Item",
+            description: "Please provide a name and a valid quantity."
+        });
+        return;
+    }
+    setCustomItems(current => [...current, { id: `custom-${Date.now()}`, name: customItemName, quantity: Number(customItemQuantity) }]);
+    setCustomItemName("");
+    setCustomItemQuantity(1);
+  };
+
+  const handleRemoveCustomItem = (id: string) => {
+      setCustomItems(current => current.filter(item => item.id !== id));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCompanyId) {
@@ -141,28 +169,35 @@ export default function DealerOrderPage() {
         return;
     }
 
-    if (orderItems.length === 0) {
+    const finalOrderItems = orderItems.filter(item => item.quantity > 0);
+
+    if (finalOrderItems.length === 0 && customItems.length === 0) {
       toast({
         variant: "destructive",
-        title: "No Items Selected",
-        description: "Please select at least one product for the order.",
+        title: "No Items in Order",
+        description: "Please select products from the catalog or add custom items.",
       });
       return;
     }
 
-    const orderDescription = orderItems
-      .filter((item) => item.quantity > 0)
+    const stockItemsDescription = finalOrderItems
       .map((item) => {
         const product = stockItems.find((p) => p.id === item.id);
         return `${item.quantity}x ${product?.name} (SKU: ${product?.sku})`;
       })
       .join("\n");
 
+    const customItemsDescription = customItems
+      .map(item => `${item.quantity}x ${item.name} (Custom)`)
+      .join("\n");
+      
+    const orderDescription = [stockItemsDescription, customItemsDescription].filter(Boolean).join("\n");
+
     if (!orderDescription) {
       toast({
         variant: "destructive",
         title: "No Quantities Specified",
-        description: "Please specify a quantity for the selected items.",
+        description: "Please specify a quantity for the selected or custom items.",
       });
       return;
     }
@@ -198,7 +233,9 @@ export default function DealerOrderPage() {
     const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
 
-    const summary = `${orderItems.reduce((acc, item) => acc + item.quantity, 0)} total units`;
+    const totalStockUnits = finalOrderItems.reduce((acc, item) => acc + item.quantity, 0);
+    const totalCustomUnits = customItems.reduce((acc, item) => acc + item.quantity, 0);
+    const summary = `${totalStockUnits + totalCustomUnits} total units`;
     const loggedInUser = localStorage.getItem("loggedInUser");
 
     const newOrder: Order = {
@@ -226,6 +263,7 @@ export default function DealerOrderPage() {
     });
 
     setOrderItems([]);
+    setCustomItems([]);
     setDealerName("");
     setDealerId("");
     (e.target as HTMLFormElement).reset();
@@ -385,6 +423,52 @@ export default function DealerOrderPage() {
                 </TableBody>
               </Table>
             </div>
+            
+            <Separator className="my-6" />
+
+            <CardTitle className="pt-4">Add Custom/Out-of-Stock Items</CardTitle>
+            <CardDescription>
+              Add products that are not in the current stock catalog. These will be treated as made-to-order.
+            </CardDescription>
+
+            <div className="flex items-end gap-2 py-4">
+                <div className="grid flex-grow gap-1.5">
+                    <Label htmlFor="customItemName">Product Name</Label>
+                    <Input id="customItemName" placeholder="e.g. Special Edition Chair" value={customItemName} onChange={(e) => setCustomItemName(e.target.value)} />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="customItemQty">Quantity</Label>
+                    <Input id="customItemQty" type="number" className="w-24" placeholder="1" value={customItemQuantity} onChange={(e) => setCustomItemQuantity(e.target.value === '' ? '' : parseInt(e.target.value, 10))} />
+                </div>
+                <Button type="button" variant="outline" onClick={handleAddCustomItem}>Add Item</Button>
+            </div>
+
+            {customItems.length > 0 && (
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Custom Item</TableHead>
+                                <TableHead className="w-[120px]">Quantity</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {customItems.map((item) => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomItem(item.id)}>
+                                            <Trash2 className="h-4 w-4 text-destructive"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
           </CardContent>
           <CardFooter>
             <Button type="submit">Place Bulk Order</Button>
@@ -395,3 +479,4 @@ export default function DealerOrderPage() {
     </>
   );
 }
+
