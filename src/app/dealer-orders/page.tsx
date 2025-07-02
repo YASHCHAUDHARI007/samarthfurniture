@@ -136,8 +136,8 @@ export default function DealerOrderPage() {
         return;
     }
     
-    if (!dealerName || !dealerId) {
-        toast({ variant: "destructive", title: "Missing Dealer Info", description: "Please fill in all dealer details."});
+    if (!dealerName) {
+        toast({ variant: "destructive", title: "Missing Dealer Name", description: "Please select an existing dealer or enter a name for a new one."});
         return;
     }
 
@@ -172,19 +172,25 @@ export default function DealerOrderPage() {
     let ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     let dealer = ledgers.find(c => c.name.toLowerCase() === dealerName.toLowerCase());
     let contactId = dealer?.id;
+    let finalDealerId = dealerId;
     
     if (!dealer) {
         contactId = `LEDG-${Date.now()}`;
+        finalDealerId = dealerId || `DEALER-${Date.now()}`;
         const newDealerData: Ledger = {
             id: contactId,
             name: dealerName,
             group: 'Sundry Debtors',
-            dealerId: dealerId,
+            dealerId: finalDealerId,
         };
         ledgers.push(newDealerData);
     } else {
-        dealer.dealerId = dealerId;
-        ledgers = ledgers.map(l => l.id === contactId ? dealer! : l);
+        contactId = dealer.id;
+        if (dealerId && dealer.dealerId !== dealerId) {
+            dealer.dealerId = dealerId;
+            ledgers = ledgers.map(l => l.id === contactId ? dealer! : l);
+        }
+        finalDealerId = dealer.dealerId || dealerId || `DEALER-${Date.now()}`;
     }
     localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(ledgers));
     
@@ -207,7 +213,7 @@ export default function DealerOrderPage() {
       customerInfo: {
         id: contactId!,
         name: dealerName,
-        dealerId: dealerId,
+        dealerId: finalDealerId,
       },
     };
 
@@ -300,8 +306,7 @@ export default function DealerOrderPage() {
                 <Input
                   id="dealerId"
                   name="dealerId"
-                  placeholder="e.g. DEALER-12345"
-                  required
+                  placeholder="Auto-generated if new"
                   value={dealerId}
                   onChange={(e) => setDealerId(e.target.value)}
                 />

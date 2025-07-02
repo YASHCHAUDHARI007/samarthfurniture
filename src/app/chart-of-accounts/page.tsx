@@ -82,6 +82,7 @@ export default function ChartOfAccountsPage() {
   const [address, setAddress] = useState("");
   const [gstin, setGstin] = useState("");
   const [openingBalance, setOpeningBalance] = useState<number | "">(0);
+  const [dealerId, setDealerId] = useState("");
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -113,6 +114,7 @@ export default function ChartOfAccountsPage() {
     setAddress("");
     setGstin("");
     setOpeningBalance(0);
+    setDealerId("");
     setLedgerToEdit(null);
   };
   
@@ -124,6 +126,7 @@ export default function ChartOfAccountsPage() {
     setAddress(ledger.address || "");
     setGstin(ledger.gstin || "");
     setOpeningBalance(ledger.openingBalance || 0);
+    setDealerId(ledger.dealerId || "");
     setIsDialogOpen(true);
   };
 
@@ -138,7 +141,7 @@ export default function ChartOfAccountsPage() {
 
     if (ledgerToEdit) {
       // Edit mode
-      const updatedLedgers = allLedgers.map(l => l.id === ledgerToEdit.id ? { ...l, name, group, email, address, gstin, openingBalance: Number(openingBalance) || 0 } : l);
+      const updatedLedgers = allLedgers.map(l => l.id === ledgerToEdit.id ? { ...l, name, group, email, address, gstin, openingBalance: Number(openingBalance) || 0, dealerId: dealerId || undefined } : l);
       localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(updatedLedgers));
       setLedgers(updatedLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
       toast({ title: "Ledger Updated" });
@@ -149,6 +152,7 @@ export default function ChartOfAccountsPage() {
         return;
       }
       const ledgerId = `LEDG-${Date.now()}`;
+      const finalDealerId = (group === 'Sundry Debtors' && !dealerId) ? `DEALER-${Date.now()}` : dealerId;
       const newLedger: Ledger = {
           id: ledgerId,
           name,
@@ -156,7 +160,8 @@ export default function ChartOfAccountsPage() {
           email,
           address,
           gstin,
-          openingBalance: Number(openingBalance) || 0
+          openingBalance: Number(openingBalance) || 0,
+          dealerId: finalDealerId || undefined,
       };
       allLedgers.push(newLedger);
       localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(allLedgers));
@@ -298,6 +303,12 @@ export default function ChartOfAccountsPage() {
                     <Label htmlFor="gstin" className="text-right">GSTIN</Label>
                     <Input id="gstin" value={gstin} onChange={e => setGstin(e.target.value)} className="col-span-3" />
                 </div>
+                {group === 'Sundry Debtors' && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="dealerId" className="text-right">Dealer ID</Label>
+                      <Input id="dealerId" value={dealerId} onChange={e => setDealerId(e.target.value)} className="col-span-3" placeholder="Auto-generated if empty" />
+                  </div>
+                )}
             </div>
             <DialogFooter>
                 <Button onClick={handleFormSubmit}>{ledgerToEdit ? 'Save Changes' : 'Create Ledger'}</Button>
