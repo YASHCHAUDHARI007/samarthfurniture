@@ -46,7 +46,6 @@ export default function Dashboard() {
   const router = useRouter();
   const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
   
   const loggedInUser = typeof window !== 'undefined' ? localStorage.getItem("loggedInUser") : null;
   const userRole = typeof window !== 'undefined' ? localStorage.getItem("userRole") as UserRole | null : null;
@@ -54,17 +53,12 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   
   useEffect(() => {
-    if (isCompanyLoading) return; // Wait for company context to be ready
-
     if (!activeCompany) {
-        setPageIsLoading(false);
         setOrders([]);
         setChartData([]);
         return;
     };
     
-    setPageIsLoading(true);
-
     const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
     
@@ -108,9 +102,8 @@ export default function Dashboard() {
     }));
 
     setChartData(newChartData);
-    setPageIsLoading(false);
 
-  }, [activeCompany, isCompanyLoading, loggedInUser, userRole]);
+  }, [activeCompany, loggedInUser, userRole]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -139,7 +132,7 @@ export default function Dashboard() {
     .filter((o) => o.status === "Delivered" || o.status === 'Billed')
     .reduce((acc, order) => acc + (order.totalAmount || 0), 0);
 
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>

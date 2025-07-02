@@ -49,7 +49,6 @@ export default function ProductCatalogPage() {
   const [hasAccess, setHasAccess] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   
-  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
 
   // Form state
@@ -72,19 +71,14 @@ export default function ProductCatalogPage() {
   }, []);
   
   useEffect(() => {
-      if (isCompanyLoading) return;
-      
-      setPageIsLoading(true);
       if (!activeCompany) {
           setCatalogItems([]);
-          setPageIsLoading(false);
           return;
       }
       
       const itemsJson = localStorage.getItem(`catalog_items_${activeCompany.id}`);
       setCatalogItems(itemsJson ? JSON.parse(itemsJson) : []);
-      setPageIsLoading(false);
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -141,7 +135,7 @@ export default function ProductCatalogPage() {
     setItemToDelete(null);
   };
 
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

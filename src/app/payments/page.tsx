@@ -45,12 +45,11 @@ import { useCompany } from "@/contexts/company-context";
 export default function PaymentsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   
   // States for Receipt Voucher
   const [receiptContactId, setReceiptContactId] = useState("");
@@ -77,7 +76,6 @@ export default function PaymentsPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -296,7 +294,7 @@ export default function PaymentsPage() {
   const customers = ledgers.filter(c => c.group === 'Sundry Debtors');
   const suppliers = ledgers.filter(c => c.group === 'Sundry Creditors');
   
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 

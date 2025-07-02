@@ -38,11 +38,10 @@ type PurchaseItem = {
 export default function PurchasesPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [allSuppliers, setAllSuppliers] = useState<Ledger[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   // State for supplier autocomplete
   const [supplierSuggestions, setSupplierSuggestions] = useState<Ledger[]>([]);
@@ -74,10 +73,8 @@ export default function PurchasesPage() {
     if (!activeCompany) {
         setAllSuppliers([]);
         setAllRawMaterials([]);
-        setIsLoading(false);
         return;
     }
-    setIsLoading(true);
     
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
@@ -86,7 +83,6 @@ export default function PurchasesPage() {
     const materialsJson = localStorage.getItem(`raw_materials_${activeCompany.id}`);
     setAllRawMaterials(materialsJson ? JSON.parse(materialsJson) : []);
 
-    setIsLoading(false);
   }, [activeCompany]);
 
   // Supplier handlers
@@ -255,7 +251,7 @@ export default function PurchasesPage() {
     }
   };
 
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 

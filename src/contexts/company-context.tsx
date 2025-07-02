@@ -26,16 +26,19 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
 
     let initialActiveId = localStorage.getItem('activeCompanyId');
 
-    // If a coordinator logs in and has no active company, find the most recent one.
+    // If a coordinator/factory worker logs in without an active company,
+    // find the most recent one, set it, and force a reload to ensure context is correct everywhere.
     if (!initialActiveId && (userRole === 'coordinator' || userRole === 'factory') && allCompanies.length > 0) {
       const sortedCompanies = [...allCompanies].sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
       initialActiveId = sortedCompanies[0].id;
       localStorage.setItem('activeCompanyId', initialActiveId);
+      window.location.reload(); // Force reload to ensure all components get the new context
+      return; // Stop execution to allow reload to happen
     }
     
     _setActiveCompanyId(initialActiveId);
     setIsLoading(false);
-  }, []); // Empty dependency array ensures it runs once.
+  }, []); // Empty dependency array ensures it runs once on mount.
 
   const setActiveCompanyId = (id: string | null) => {
     if (id) {
@@ -43,9 +46,7 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
     } else {
         localStorage.removeItem('activeCompanyId');
     }
-    _setActiveCompanyId(id);
-    // A page reload can be jarring, but it's the simplest way to ensure all data is re-fetched
-    // correctly for the new company context across all pages.
+    // Instead of setting state here, we reload. The useEffect on mount will pick up the new value.
     window.location.reload(); 
   };
 

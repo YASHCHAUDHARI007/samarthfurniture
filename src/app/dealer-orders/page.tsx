@@ -54,7 +54,7 @@ export default function DealerOrderPage() {
   const [dealerGstin, setDealerGstin] = useState("");
   
   useEffect(() => {
-    if (isCompanyLoading || !activeCompany) {
+    if (!activeCompany) {
       setCatalogItems([]);
       setAllDealers([]);
       return;
@@ -67,7 +67,7 @@ export default function DealerOrderPage() {
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDealers(ledgers.filter(c => c.group === 'Sundry Debtors'));
 
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

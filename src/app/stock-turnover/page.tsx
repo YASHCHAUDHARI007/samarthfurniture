@@ -48,7 +48,6 @@ export default function StockTurnoverPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
@@ -65,13 +64,9 @@ export default function StockTurnoverPage() {
   }, []);
 
   useEffect(() => {
-    if (isCompanyLoading) return;
-    
-    setPageIsLoading(true);
     if (!activeCompany) {
         setStock([]);
         setLocations([]);
-        setPageIsLoading(false);
         return;
     }
 
@@ -81,8 +76,7 @@ export default function StockTurnoverPage() {
     const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
-    setPageIsLoading(false);
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity <= 0) return "Out of Stock";
@@ -182,7 +176,7 @@ export default function StockTurnoverPage() {
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
   
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

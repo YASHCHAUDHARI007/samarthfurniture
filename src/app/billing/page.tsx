@@ -47,7 +47,6 @@ export default function BillingPage() {
     const { activeCompany, isLoading: isCompanyLoading } = useCompany();
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [hasAccess, setHasAccess] = useState(false);
-    const [pageIsLoading, setPageIsLoading] = useState(true);
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
@@ -67,12 +66,8 @@ export default function BillingPage() {
     }, []);
 
     useEffect(() => {
-        if (isCompanyLoading) return;
-
-        setPageIsLoading(true);
         if (!activeCompany) {
             setAllOrders([]);
-            setPageIsLoading(false);
             return;
         };
         
@@ -80,9 +75,8 @@ export default function BillingPage() {
         const ordersJson = localStorage.getItem(`orders_${companyId}`);
         const allCompanyOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
         setAllOrders(allCompanyOrders);
-        setPageIsLoading(false);
 
-    }, [activeCompany, isCompanyLoading]);
+    }, [activeCompany]);
 
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer' && order.details) {
@@ -232,7 +226,7 @@ export default function BillingPage() {
         window.print();
     };
 
-    if (isCompanyLoading || pageIsLoading) {
+    if (isCompanyLoading) {
         return <div className="flex-1 p-8 pt-6">Loading...</div>;
     }
 

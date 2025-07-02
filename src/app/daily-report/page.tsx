@@ -29,7 +29,6 @@ export default function DailyReportPage() {
   const router = useRouter();
   const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,13 +48,9 @@ export default function DailyReportPage() {
   }, []);
 
   useEffect(() => {
-    if (isCompanyLoading) return;
-
-    setPageIsLoading(true);
     if (!activeCompany) {
         setOrders([]);
         setStockItems([]);
-        setPageIsLoading(false);
         return;
     }
     
@@ -65,8 +60,7 @@ export default function DailyReportPage() {
     const stockItemsJson = localStorage.getItem(`stock_items_${activeCompany.id}`);
     setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
     
-    setPageIsLoading(false);
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
 
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
@@ -82,7 +76,7 @@ export default function DailyReportPage() {
     }
   };
   
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

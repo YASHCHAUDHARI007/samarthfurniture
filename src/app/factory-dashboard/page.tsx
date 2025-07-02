@@ -79,7 +79,7 @@ export default function FactoryDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isCompanyLoading || !activeCompany) {
+    if (!activeCompany) {
         setOrders([]);
         return;
     };
@@ -96,7 +96,7 @@ export default function FactoryDashboardPage() {
     }
     setOrders(userOrders);
 
-  }, [activeCompany, userRole, isCompanyLoading]);
+  }, [activeCompany, userRole]);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!activeCompany) return;

@@ -110,7 +110,6 @@ export default function TransportPage() {
   const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [ordersForTransport, setOrdersForTransport] = useState<Order[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
 
@@ -120,21 +119,16 @@ export default function TransportPage() {
   }, []);
 
   useEffect(() => {
-    if(isCompanyLoading) return;
-    
-    setPageIsLoading(true);
     if(!activeCompany) {
         setOrdersForTransport([]);
-        setPageIsLoading(false);
         return;
     };
     
     const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
     setOrdersForTransport(allOrders.filter(o => o.status === 'Billed'));
-    setPageIsLoading(false);
 
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
   const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -175,7 +169,7 @@ export default function TransportPage() {
     window.print();
   };
 
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

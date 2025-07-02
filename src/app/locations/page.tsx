@@ -40,9 +40,8 @@ import { useCompany } from "@/contexts/company-context";
 export default function ManageLocationsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
 
   const [newLocationName, setNewLocationName] = useState("");
@@ -60,13 +59,10 @@ export default function ManageLocationsPage() {
   useEffect(() => {
       if (!activeCompany) {
           setLocations([]);
-          setIsLoading(false);
           return;
       }
-      setIsLoading(true);
       const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
       setLocations(locationsJson ? JSON.parse(locationsJson) : []);
-      setIsLoading(false);
   }, [activeCompany]);
 
 
@@ -110,7 +106,7 @@ export default function ManageLocationsPage() {
     setLocationToDelete(null);
   };
 
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 

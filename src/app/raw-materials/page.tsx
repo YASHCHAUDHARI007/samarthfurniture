@@ -36,7 +36,6 @@ export default function RawMaterialsPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
@@ -52,13 +51,9 @@ export default function RawMaterialsPage() {
   }, []);
   
   useEffect(() => {
-    if (isCompanyLoading) return;
-    
-    setPageIsLoading(true);
     if (!activeCompany) {
         setMaterials([]);
         setLocations([]);
-        setPageIsLoading(false);
         return;
     }
 
@@ -68,9 +63,7 @@ export default function RawMaterialsPage() {
     const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
-    setPageIsLoading(false);
-
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
   
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -121,7 +114,7 @@ export default function RawMaterialsPage() {
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
 
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

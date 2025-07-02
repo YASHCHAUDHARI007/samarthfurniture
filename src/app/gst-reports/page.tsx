@@ -27,9 +27,8 @@ import { useCompany } from "@/contexts/company-context";
 
 export default function GstReportsPage() {
   const router = useRouter();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -47,10 +46,8 @@ export default function GstReportsPage() {
         setOrders([]);
         setPurchases([]);
         setLedgers([]);
-        setIsLoading(false);
         return;
     };
-    setIsLoading(true);
 
     const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     setOrders(ordersJson ? JSON.parse(ordersJson) : []);
@@ -60,8 +57,6 @@ export default function GstReportsPage() {
 
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     setLedgers(ledgersJson ? JSON.parse(ledgersJson) : []);
-
-    setIsLoading(false);
 
   }, [activeCompany]);
 
@@ -110,7 +105,7 @@ export default function GstReportsPage() {
 
   const handlePrint = () => window.print();
 
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
   

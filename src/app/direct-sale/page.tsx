@@ -76,7 +76,6 @@ export default function DirectSalePage() {
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
 
   const [hasAccess, setHasAccess] = useState(false);
-  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -86,13 +85,9 @@ export default function DirectSalePage() {
   }, []);
 
   useEffect(() => {
-    if (isCompanyLoading) return;
-
-    setPageIsLoading(true);
     if (!activeCompany) {
       setAllDebtors([]);
       setStockItems([]);
-      setPageIsLoading(false);
       return;
     };
     
@@ -105,9 +100,8 @@ export default function DirectSalePage() {
     setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
 
     addSaleItem();
-    setPageIsLoading(false);
 
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,7 +287,7 @@ export default function DirectSalePage() {
   const handlePrint = () => window.print();
   const totalQuantity = useMemo(() => saleItems.reduce((acc, item) => acc + Number(item.quantity || 0), 0), [saleItems]);
   
-  if (isCompanyLoading || pageIsLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 

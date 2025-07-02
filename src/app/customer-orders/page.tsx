@@ -37,7 +37,7 @@ export default function CustomerOrderPage() {
   const [partyType, setPartyType] = useState<'Customer' | 'Dealer'>('Customer');
 
   useEffect(() => {
-    if (isCompanyLoading || !activeCompany) {
+    if (!activeCompany) {
         setAllDebtors([]);
         return;
     };
@@ -45,7 +45,7 @@ export default function CustomerOrderPage() {
     const ledgersJson = localStorage.getItem(`ledgers_${companyId}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDebtors(ledgers.filter(c => c.group === 'Sundry Debtors'));
-  }, [activeCompany, isCompanyLoading]);
+  }, [activeCompany]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

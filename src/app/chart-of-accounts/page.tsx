@@ -67,9 +67,8 @@ const ledgerGroups: LedgerGroup[] = [
 export default function ChartOfAccountsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -95,15 +94,12 @@ export default function ChartOfAccountsPage() {
   useEffect(() => {
     if (!activeCompany) {
         setLedgers([]);
-        setIsLoading(false);
         return;
     }
-    setIsLoading(true);
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     const filteredLedgers = allLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id));
     setLedgers(filteredLedgers);
-    setIsLoading(false);
   }, [activeCompany]);
 
   const resetForm = () => {
@@ -184,7 +180,7 @@ export default function ChartOfAccountsPage() {
     setLedgerToDelete(null);
   };
 
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 

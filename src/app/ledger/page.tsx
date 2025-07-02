@@ -20,12 +20,11 @@ import { useCompany } from "@/contexts/company-context";
 
 export default function LedgerPage() {
   const router = useRouter();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [allLedgers, setAllLedgers] = useState<Ledger[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -37,14 +36,11 @@ export default function LedgerPage() {
   useEffect(() => {
     if (!activeCompany) {
         setAllLedgers([]);
-        setIsLoading(false);
         return;
     };
-    setIsLoading(true);
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllLedgers(ledgers.sort((a,b) => a.name.localeCompare(b.name)));
-    setIsLoading(false);
   }, [activeCompany]);
 
   const filteredAccounts = useMemo(() => {
@@ -58,7 +54,7 @@ export default function LedgerPage() {
     router.push(`/ledger/${accountId}`);
   };
 
-  if (isLoading) {
+  if (isCompanyLoading) {
     return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
   }
 
