@@ -44,10 +44,10 @@ import { useCompany } from "@/contexts/company-context";
 export default function BillingPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { activeCompany } = useCompany();
+    const { activeCompany, isLoading: isCompanyLoading } = useCompany();
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [hasAccess, setHasAccess] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [pageIsLoading, setPageIsLoading] = useState(true);
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
@@ -64,12 +64,15 @@ export default function BillingPage() {
         if (role === "owner" || role === "administrator") {
           setHasAccess(true);
         }
-        setIsLoading(false);
     }, []);
 
     useEffect(() => {
+        if (isCompanyLoading) return;
+
+        setPageIsLoading(true);
         if (!activeCompany) {
             setAllOrders([]);
+            setPageIsLoading(false);
             return;
         };
         
@@ -77,8 +80,9 @@ export default function BillingPage() {
         const ordersJson = localStorage.getItem(`orders_${companyId}`);
         const allCompanyOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
         setAllOrders(allCompanyOrders);
+        setPageIsLoading(false);
 
-    }, [activeCompany]);
+    }, [activeCompany, isCompanyLoading]);
 
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer' && order.details) {
@@ -228,8 +232,8 @@ export default function BillingPage() {
         window.print();
     };
 
-    if (isLoading) {
-        return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+    if (isCompanyLoading || pageIsLoading) {
+        return <div className="flex-1 p-8 pt-6">Loading...</div>;
     }
 
     if (!hasAccess) {

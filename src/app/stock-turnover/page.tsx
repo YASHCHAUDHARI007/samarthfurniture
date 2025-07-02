@@ -42,13 +42,13 @@ import { useCompany } from "@/contexts/company-context";
 export default function StockTurnoverPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemSku, setNewItemSku] = useState("");
@@ -65,21 +65,24 @@ export default function StockTurnoverPage() {
   }, []);
 
   useEffect(() => {
+    if (isCompanyLoading) return;
+    
+    setPageIsLoading(true);
     if (!activeCompany) {
         setStock([]);
         setLocations([]);
-        setIsLoading(false);
+        setPageIsLoading(false);
         return;
     }
-    setIsLoading(true);
+
     const stockJson = localStorage.getItem(`stock_items_${activeCompany.id}`);
     setStock(stockJson ? JSON.parse(stockJson) : []);
     
     const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
-    setIsLoading(false);
-  }, [activeCompany]);
+    setPageIsLoading(false);
+  }, [activeCompany, isCompanyLoading]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity <= 0) return "Out of Stock";
@@ -179,8 +182,8 @@ export default function StockTurnoverPage() {
   const uniqueProducts = stock.filter((item) => item.quantity > 0).length;
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
   
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (!hasAccess) {

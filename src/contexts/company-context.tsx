@@ -26,8 +26,8 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
 
     let initialActiveId = localStorage.getItem('activeCompanyId');
 
+    // If a coordinator logs in and has no active company, find the most recent one.
     if (!initialActiveId && (userRole === 'coordinator' || userRole === 'factory') && allCompanies.length > 0) {
-      // Find most recent company and set it as active
       const sortedCompanies = [...allCompanies].sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
       initialActiveId = sortedCompanies[0].id;
       localStorage.setItem('activeCompanyId', initialActiveId);
@@ -44,7 +44,9 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('activeCompanyId');
     }
     _setActiveCompanyId(id);
-    window.location.reload(); // Reload to ensure all components get the new context correctly.
+    // A page reload can be jarring, but it's the simplest way to ensure all data is re-fetched
+    // correctly for the new company context across all pages.
+    window.location.reload(); 
   };
 
   const activeCompany = companies.find(c => c.id === activeCompanyId) || null;

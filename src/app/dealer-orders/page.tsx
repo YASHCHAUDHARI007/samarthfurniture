@@ -38,7 +38,7 @@ type OrderItem = {
 export default function DealerOrderPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
@@ -54,7 +54,7 @@ export default function DealerOrderPage() {
   const [dealerGstin, setDealerGstin] = useState("");
   
   useEffect(() => {
-    if (!activeCompany) {
+    if (isCompanyLoading || !activeCompany) {
       setCatalogItems([]);
       setAllDealers([]);
       return;
@@ -67,7 +67,7 @@ export default function DealerOrderPage() {
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDealers(ledgers.filter(c => c.group === 'Sundry Debtors'));
 
-  }, [activeCompany]);
+  }, [activeCompany, isCompanyLoading]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -236,6 +236,10 @@ export default function DealerOrderPage() {
   const isItemSelected = (catalogItemId: string) => {
     return orderItems.some((item) => item.id === catalogItemId);
   };
+  
+  if (isCompanyLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
+  }
   
   if (!activeCompany) {
     return (

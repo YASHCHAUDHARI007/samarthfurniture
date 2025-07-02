@@ -107,32 +107,34 @@ const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order
 export default function TransportPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [ordersForTransport, setOrdersForTransport] = useState<Order[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
+    if(isCompanyLoading) return;
+    
+    setPageIsLoading(true);
     if(!activeCompany) {
         setOrdersForTransport([]);
+        setPageIsLoading(false);
         return;
     };
     
-    setIsLoading(true);
     const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
     setOrdersForTransport(allOrders.filter(o => o.status === 'Billed'));
-    setIsLoading(false);
+    setPageIsLoading(false);
 
-  }, [activeCompany]);
+  }, [activeCompany, isCompanyLoading]);
 
   const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -173,8 +175,8 @@ export default function TransportPage() {
     window.print();
   };
 
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (userRole !== "owner" && userRole !== "factory" && userRole !== "coordinator" && userRole !== "administrator") {

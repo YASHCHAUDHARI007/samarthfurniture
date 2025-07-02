@@ -44,9 +44,9 @@ const chartConfig = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
   
   const loggedInUser = typeof window !== 'undefined' ? localStorage.getItem("loggedInUser") : null;
   const userRole = typeof window !== 'undefined' ? localStorage.getItem("userRole") as UserRole | null : null;
@@ -54,14 +54,16 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   
   useEffect(() => {
+    if (isCompanyLoading) return; // Wait for company context to be ready
+
     if (!activeCompany) {
-        setIsLoading(false);
+        setPageIsLoading(false);
         setOrders([]);
         setChartData([]);
         return;
     };
     
-    setIsLoading(true);
+    setPageIsLoading(true);
 
     const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
@@ -106,9 +108,9 @@ export default function Dashboard() {
     }));
 
     setChartData(newChartData);
-    setIsLoading(false);
+    setPageIsLoading(false);
 
-  }, [activeCompany, loggedInUser, userRole]);
+  }, [activeCompany, isCompanyLoading, loggedInUser, userRole]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -136,6 +138,23 @@ export default function Dashboard() {
   const totalSales = orders
     .filter((o) => o.status === "Delivered" || o.status === 'Billed')
     .reduce((acc, order) => acc + (order.totalAmount || 0), 0);
+
+  if (isCompanyLoading || pageIsLoading) {
+    return (
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card><CardHeader><Skeleton className="h-4 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2" /></CardContent></Card>
+                <Card><CardHeader><Skeleton className="h-4 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2" /></CardContent></Card>
+                <Card><CardHeader><Skeleton className="h-4 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2" /></CardContent></Card>
+            </div>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4"><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-[300px] w-full" /></CardContent></Card>
+                <Card className="col-span-4 lg:col-span-3"><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-[300px] w-full" /></CardContent></Card>
+             </div>
+        </div>
+    );
+  }
 
   if (!activeCompany && (userRole === 'owner' || userRole === 'administrator')) {
     return (
@@ -168,11 +187,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-1/2" />
-            ) : (
-              <div className="text-2xl font-bold">{totalCustomizedOrders}</div>
-            )}
+            <div className="text-2xl font-bold">{totalCustomizedOrders}</div>
             <p className="text-xs text-muted-foreground">
               Total customized orders created.
             </p>
@@ -186,11 +201,7 @@ export default function Dashboard() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-1/2" />
-            ) : (
-              <div className="text-2xl font-bold">₹{totalSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-            )}
+            <div className="text-2xl font-bold">₹{totalSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
             <p className="text-xs text-muted-foreground">
               From your delivered or billed orders.
             </p>
@@ -204,11 +215,7 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-1/2" />
-            ) : (
-              <div className="text-2xl font-bold">{activeProductions}</div>
-            )}
+            <div className="text-2xl font-bold">{activeProductions}</div>
             <p className="text-xs text-muted-foreground">
               Your orders in pending or working state.
             </p>
@@ -222,27 +229,23 @@ export default function Dashboard() {
             <CardDescription>Total sales value per month across the company.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {!isLoading ? (
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <BarChart data={chartData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                    formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`}
-                  />
-                  <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <Skeleton className="h-[300px] w-full" />
-            )}
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <BarChart data={chartData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dot" />}
+                  formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`}
+                />
+                <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
+              </BarChart>
+            </ChartContainer>
           </CardContent>
         </Card>
         <Card className="col-span-4 lg:col-span-3">
@@ -260,21 +263,7 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : recentOrders.length > 0 ? (
+                {recentOrders.length > 0 ? (
                   recentOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell>

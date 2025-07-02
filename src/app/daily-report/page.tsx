@@ -27,9 +27,9 @@ import { useCompany } from "@/contexts/company-context";
 
 export default function DailyReportPage() {
   const router = useRouter();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,13 +49,15 @@ export default function DailyReportPage() {
   }, []);
 
   useEffect(() => {
+    if (isCompanyLoading) return;
+
+    setPageIsLoading(true);
     if (!activeCompany) {
         setOrders([]);
         setStockItems([]);
-        setIsLoading(false);
+        setPageIsLoading(false);
         return;
     }
-    setIsLoading(true);
     
     const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     setOrders(ordersJson ? JSON.parse(ordersJson) : []);
@@ -63,8 +65,8 @@ export default function DailyReportPage() {
     const stockItemsJson = localStorage.getItem(`stock_items_${activeCompany.id}`);
     setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
     
-    setIsLoading(false);
-  }, [activeCompany]);
+    setPageIsLoading(false);
+  }, [activeCompany, isCompanyLoading]);
 
 
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
@@ -80,8 +82,8 @@ export default function DailyReportPage() {
     }
   };
   
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (!hasAccess) {

@@ -43,13 +43,13 @@ import { useCompany } from "@/contexts/company-context";
 export default function ProductCatalogPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   
   // States for access control
   const [hasAccess, setHasAccess] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
 
   // Form state
@@ -63,28 +63,28 @@ export default function ProductCatalogPage() {
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     
-    // Check for view access
     if (role === "owner" || role === "administrator" || role === "coordinator") {
       setHasAccess(true);
     }
-    // Check for edit access
     if (role === "owner" || role === "administrator") {
       setCanEdit(true);
     }
-    // Note: Don't set isLoading to false here, let the data-loading useEffect do it.
   }, []);
   
   useEffect(() => {
+      if (isCompanyLoading) return;
+      
+      setPageIsLoading(true);
       if (!activeCompany) {
           setCatalogItems([]);
-          setIsLoading(false);
+          setPageIsLoading(false);
           return;
       }
-      setIsLoading(true);
+      
       const itemsJson = localStorage.getItem(`catalog_items_${activeCompany.id}`);
       setCatalogItems(itemsJson ? JSON.parse(itemsJson) : []);
-      setIsLoading(false);
-  }, [activeCompany]);
+      setPageIsLoading(false);
+  }, [activeCompany, isCompanyLoading]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -141,8 +141,8 @@ export default function ProductCatalogPage() {
     setItemToDelete(null);
   };
 
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (!hasAccess) {

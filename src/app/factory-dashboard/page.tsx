@@ -57,7 +57,7 @@ import { useCompany } from "@/contexts/company-context";
 export default function FactoryDashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -79,7 +79,7 @@ export default function FactoryDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!activeCompany) {
+    if (isCompanyLoading || !activeCompany) {
         setOrders([]);
         return;
     };
@@ -96,7 +96,7 @@ export default function FactoryDashboardPage() {
     }
     setOrders(userOrders);
 
-  }, [activeCompany, userRole]);
+  }, [activeCompany, userRole, isCompanyLoading]);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!activeCompany) return;
@@ -158,6 +158,10 @@ export default function FactoryDashboardPage() {
     }
   };
 
+  if (isCompanyLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
+  }
+  
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">

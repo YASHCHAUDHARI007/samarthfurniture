@@ -56,7 +56,7 @@ type SaleItem = {
 export default function DirectSalePage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   
@@ -76,20 +76,23 @@ export default function DirectSalePage() {
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
 
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "factory" || role === "administrator") {
         setHasAccess(true);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
+    if (isCompanyLoading) return;
+
+    setPageIsLoading(true);
     if (!activeCompany) {
       setAllDebtors([]);
       setStockItems([]);
+      setPageIsLoading(false);
       return;
     };
     
@@ -102,8 +105,9 @@ export default function DirectSalePage() {
     setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
 
     addSaleItem();
+    setPageIsLoading(false);
 
-  }, [activeCompany]);
+  }, [activeCompany, isCompanyLoading]);
 
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,8 +293,8 @@ export default function DirectSalePage() {
   const handlePrint = () => window.print();
   const totalQuantity = useMemo(() => saleItems.reduce((acc, item) => acc + Number(item.quantity || 0), 0), [saleItems]);
   
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (!hasAccess) {

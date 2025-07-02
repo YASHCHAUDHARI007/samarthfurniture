@@ -31,12 +31,12 @@ import { useCompany } from "@/contexts/company-context";
 export default function RawMaterialsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
 
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("");
@@ -52,13 +52,15 @@ export default function RawMaterialsPage() {
   }, []);
   
   useEffect(() => {
+    if (isCompanyLoading) return;
+    
+    setPageIsLoading(true);
     if (!activeCompany) {
         setMaterials([]);
         setLocations([]);
-        setIsLoading(false);
+        setPageIsLoading(false);
         return;
     }
-    setIsLoading(true);
 
     const materialsJson = localStorage.getItem(`raw_materials_${activeCompany.id}`);
     setMaterials(materialsJson ? JSON.parse(materialsJson) : []);
@@ -66,9 +68,9 @@ export default function RawMaterialsPage() {
     const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
-    setIsLoading(false);
+    setPageIsLoading(false);
 
-  }, [activeCompany]);
+  }, [activeCompany, isCompanyLoading]);
   
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -119,8 +121,8 @@ export default function RawMaterialsPage() {
   
   const canEdit = userRole === "factory" || userRole === "administrator" || userRole === "owner";
 
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
+  if (isCompanyLoading || pageIsLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
   }
 
   if (!hasAccess) {

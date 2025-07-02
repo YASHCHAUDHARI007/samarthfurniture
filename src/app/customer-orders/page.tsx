@@ -24,7 +24,7 @@ import { useCompany } from "@/contexts/company-context";
 export default function CustomerOrderPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoading: isCompanyLoading } = useCompany();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   
   const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
@@ -37,7 +37,7 @@ export default function CustomerOrderPage() {
   const [partyType, setPartyType] = useState<'Customer' | 'Dealer'>('Customer');
 
   useEffect(() => {
-    if (!activeCompany) {
+    if (isCompanyLoading || !activeCompany) {
         setAllDebtors([]);
         return;
     };
@@ -45,7 +45,7 @@ export default function CustomerOrderPage() {
     const ledgersJson = localStorage.getItem(`ledgers_${companyId}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDebtors(ledgers.filter(c => c.group === 'Sundry Debtors'));
-  }, [activeCompany]);
+  }, [activeCompany, isCompanyLoading]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -170,6 +170,10 @@ export default function CustomerOrderPage() {
     setShippingAddress("");
     (e.target as HTMLFormElement).reset();
   };
+
+  if (isCompanyLoading) {
+    return <div className="flex-1 p-8 pt-6">Loading...</div>;
+  }
 
   if (!activeCompany) {
     return (
