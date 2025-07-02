@@ -215,6 +215,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       if (username) {
         setUserAvatar(username.substring(0, 2).toUpperCase());
       }
+      
+      // For coordinators, if no company is active, set the first one as default.
+      if (role === 'coordinator') {
+        const activeCompanyId = localStorage.getItem('activeCompanyId');
+        if (!activeCompanyId) {
+            const companiesJson = localStorage.getItem('companies');
+            const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+            if (companies.length > 0) {
+                // If no company is active, set the first one as default and reload
+                localStorage.setItem('activeCompanyId', companies[0].id);
+                window.location.reload();
+            }
+        }
+      }
     }
   }, [pathname]);
 
