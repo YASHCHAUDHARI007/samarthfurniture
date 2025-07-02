@@ -383,7 +383,7 @@ export default function DealerOrderPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="dealerGstin">Dealer GSTIN</Label>
-                    <Input id="dealerGstin" name="dealerGstin" placeholder="29ABCDE1234F1Z5" value={dealerGstin} onChange={e => setDealerGstin(e.target.value)} />
+                    <Input id="dealerGstin" name="dealerGstin" placeholder="29ABCDE1234F1Z5" value={dealerGstin} onChange={e => setDealerGstin(e.target.value.toUpperCase())} className="uppercase" />
                 </div>
             </div>
             <div className="space-y-2">

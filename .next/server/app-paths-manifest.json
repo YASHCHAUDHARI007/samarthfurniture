@@ -3,5 +3,6 @@
   "/login/page": "app/login/page.js",
   "/stock-turnover/page": "app/stock-turnover/page.js",
   "/dealer-orders/page": "app/dealer-orders/page.js",
-  "/manage-companies/page": "app/manage-companies/page.js"
+  "/manage-companies/page": "app/manage-companies/page.js",
+  "/chart-of-accounts/page": "app/chart-of-accounts/page.js"
 }
