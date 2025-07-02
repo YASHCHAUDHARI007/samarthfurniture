@@ -84,7 +84,7 @@ const navItems: {
   { path: "/chart-of-accounts", icon: BookUser, text: "Chart of Accounts", roles: ["owner", "administrator"] },
 ];
 
-function Menu({ userRole }: { userRole: string | null }) {
+function Menu({ userRole }: { userRole: UserRole | null }) {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -99,7 +99,6 @@ function Menu({ userRole }: { userRole: string | null }) {
   const filteredNavItems = useMemo(() => {
     if (!userRole) return [];
     
-    // Explicitly hide these pages for the coordinator role
     if (userRole === "coordinator") {
         return navItems.filter(item => 
             item.roles.includes(userRole as UserRole) &&
@@ -112,7 +111,7 @@ function Menu({ userRole }: { userRole: string | null }) {
 
   return (
     <SidebarMenu>
-      {filteredNavItems.map((item, index) => (
+      {filteredNavItems.map((item) => (
         <React.Fragment key={item.path}>
           {item.separator && (
             <SidebarMenuItem>
@@ -193,7 +192,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState("U");
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [isCompanyContextReady, setIsCompanyContextReady] = useState(false);
 
   useEffect(() => {
     const fKeyRoutes: { [key: string]: string } = navItems.reduce((acc, item) => {
@@ -218,27 +218,34 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const username = localStorage.getItem("loggedInUser");
-      const role = localStorage.getItem("userRole");
+      const role = localStorage.getItem("userRole") as UserRole | null;
+      
       setLoggedInUser(username);
       setUserRole(role);
       if (username) {
         setUserAvatar(username.substring(0, 2).toUpperCase());
       }
       
-      if (role === 'coordinator') {
-        const activeCompanyId = localStorage.getItem('activeCompanyId');
-        if (!activeCompanyId) {
-            const companiesJson = localStorage.getItem('companies');
-            const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-            if (companies.length > 0) {
-                // Sort companies by financialYearStart date in descending order to find the most recent
-                companies.sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
-                const mostRecentCompany = companies[0];
-                localStorage.setItem('activeCompanyId', mostRecentCompany.id);
-                window.location.reload();
-            }
+      if (!role) {
+        if (pathname !== '/login') {
+            setIsCompanyContextReady(true);
         }
+        return;
       }
+      
+      let companyId = localStorage.getItem('activeCompanyId');
+
+      if ((role === 'coordinator' || role === 'factory') && !companyId) {
+          const companiesJson = localStorage.getItem('companies');
+          const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+          if (companies.length > 0) {
+              companies.sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
+              const mostRecentCompany = companies[0];
+              localStorage.setItem('activeCompanyId', mostRecentCompany.id);
+          }
+      }
+      
+      setIsCompanyContextReady(true);
     }
   }, [pathname]);
 
@@ -317,7 +324,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        {isCompanyContextReady ? children : (
+            <div className="flex-1 flex items-center justify-center p-4">
+                <p className="text-muted-foreground">Loading Company Data...</p>
+            </div>
+        )}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

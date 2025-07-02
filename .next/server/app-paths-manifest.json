@@ -1,8 +1,7 @@
 {
-  "/direct-sale/page": "app/direct-sale/page.js",
-  "/product-catalog/page": "app/product-catalog/page.js",
   "/customer-orders/page": "app/customer-orders/page.js",
   "/factory-dashboard/page": "app/factory-dashboard/page.js",
   "/dealer-orders/page": "app/dealer-orders/page.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/manage-companies/page": "app/manage-companies/page.js"
 }
