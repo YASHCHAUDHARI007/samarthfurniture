@@ -1,8 +1,8 @@
 {
-  "/page": "app/page.js",
-  "/login/page": "app/login/page.js",
-  "/stock-turnover/page": "app/stock-turnover/page.js",
   "/dealer-orders/page": "app/dealer-orders/page.js",
-  "/manage-companies/page": "app/manage-companies/page.js",
-  "/chart-of-accounts/page": "app/chart-of-accounts/page.js"
+  "/factory-dashboard/page": "app/factory-dashboard/page.js",
+  "/billing/page": "app/billing/page.js",
+  "/direct-sale/page": "app/direct-sale/page.js",
+  "/transport/page": "app/transport/page.js",
+  "/page": "app/page.js"
 }

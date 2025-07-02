@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -33,6 +34,7 @@ import {
   Building2,
   BookUser,
   FileSpreadsheet,
+  GalleryVertical,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -71,6 +73,7 @@ const navItems: {
   { path: "/payments", icon: Banknote, text: "Vouchers", fkey: "F8", roles: ["owner", "administrator"] },
   { path: "/ledger", icon: BookText, text: "Ledger", fkey: "F9", roles: ["owner", "administrator"] },
   { path: "/transport", icon: Truck, text: "Transport", fkey: "F11", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/product-catalog", icon: GalleryVertical, text: "Product Catalog", roles: ["owner", "coordinator", "administrator"] },
   { path: "/stock-turnover", icon: Warehouse, text: "Finished Stock", fkey: "F10", roles: ["owner", "coordinator", "factory", "administrator"] },
   { path: "/raw-materials", icon: Wrench, text: "Raw Materials", fkey: "F12", roles: ["owner", "factory", "administrator"] },
   { path: "/daily-report", icon: ClipboardList, text: "Daily Report", roles: ["owner", "administrator"] },

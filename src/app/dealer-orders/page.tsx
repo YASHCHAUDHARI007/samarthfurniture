@@ -25,29 +25,21 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import type { Order, StockItem, Ledger } from "@/lib/types";
+import type { Order, CatalogItem, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 type OrderItem = {
-  id: string; // StockItem ID
+  id: string; // CatalogItem ID
   quantity: number;
 };
-
-type CustomItem = {
-  id: string;
-  name: string;
-  quantity: number;
-}
 
 export default function DealerOrderPage() {
   const router = useRouter();
   const { toast } = useToast();
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
 
   const [allDealers, setAllDealers] = useState<Ledger[]>([]);
   const [suggestions, setSuggestions] = useState<Ledger[]>([]);
@@ -60,10 +52,6 @@ export default function DealerOrderPage() {
   const [dealerGstin, setDealerGstin] = useState("");
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-  
-  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
-  const [customItemName, setCustomItemName] = useState("");
-  const [customItemQuantity, setCustomItemQuantity] = useState<number | "">(1);
 
   useEffect(() => {
     const companyId = localStorage.getItem('activeCompanyId');
@@ -72,13 +60,13 @@ export default function DealerOrderPage() {
 
   useEffect(() => {
     if (!activeCompanyId) {
-      setStockItems([]);
+      setCatalogItems([]);
       setAllDealers([]);
       return;
     };
     
-    const stockJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
-    setStockItems(stockJson ? JSON.parse(stockJson) : []);
+    const catalogJson = localStorage.getItem(`catalog_items_${activeCompanyId}`);
+    setCatalogItems(catalogJson ? JSON.parse(catalogJson) : []);
 
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
@@ -114,62 +102,33 @@ export default function DealerOrderPage() {
   };
 
   const handleCheckboxChange = (
-    stockItemId: string,
+    catalogItemId: string,
     checked: boolean | "indeterminate"
   ) => {
     if (checked) {
-      setOrderItems([...orderItems, { id: stockItemId, quantity: 1 }]);
+      setOrderItems([...orderItems, { id: catalogItemId, quantity: 1 }]);
     } else {
-      setOrderItems(orderItems.filter((item) => item.id !== stockItemId));
+      setOrderItems(orderItems.filter((item) => item.id !== catalogItemId));
     }
   };
 
-  const handleQuantityChange = (stockItemId: string, quantity: number) => {
-    const itemExists = orderItems.some((item) => item.id === stockItemId);
+  const handleQuantityChange = (catalogItemId: string, quantity: number) => {
+    const itemExists = orderItems.some((item) => item.id === catalogItemId);
     if (!itemExists) return;
 
-    const stockItem = stockItems.find(item => item.id === stockItemId);
-
-    if (stockItem && quantity > stockItem.quantity) {
-        toast({
-            variant: "destructive",
-            title: "Stock limit exceeded",
-            description: `Only ${stockItem.quantity} units of ${stockItem.name} are available.`
-        });
-        setOrderItems(orderItems.map(item => item.id === stockItemId ? { ...item, quantity: stockItem.quantity } : item));
-    } else {
-        setOrderItems(
-          orderItems.map((item) =>
-            item.id === stockItemId
-              ? { ...item, quantity: Math.max(0, quantity) }
-              : item
-          )
-        );
-    }
+    setOrderItems(
+      orderItems.map((item) =>
+        item.id === catalogItemId
+          ? { ...item, quantity: Math.max(0, quantity) }
+          : item
+      )
+    );
   };
   
   const getQuantityForItem = (itemId: string) => {
       const orderItem = orderItems.find(oi => oi.id === itemId);
       return orderItem ? orderItem.quantity : '';
   }
-
-  const handleAddCustomItem = () => {
-    if (!customItemName || !customItemQuantity || customItemQuantity <= 0) {
-        toast({
-            variant: "destructive",
-            title: "Invalid Custom Item",
-            description: "Please provide a name and a valid quantity."
-        });
-        return;
-    }
-    setCustomItems(current => [...current, { id: `custom-${Date.now()}`, name: customItemName, quantity: Number(customItemQuantity) }]);
-    setCustomItemName("");
-    setCustomItemQuantity(1);
-  };
-
-  const handleRemoveCustomItem = (id: string) => {
-      setCustomItems(current => current.filter(item => item.id !== id));
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -185,36 +144,21 @@ export default function DealerOrderPage() {
 
     const finalOrderItems = orderItems.filter(item => item.quantity > 0);
 
-    if (finalOrderItems.length === 0 && customItems.length === 0) {
+    if (finalOrderItems.length === 0) {
       toast({
         variant: "destructive",
         title: "No Items in Order",
-        description: "Please select products from the catalog or add custom items.",
+        description: "Please select products from the catalog and specify a quantity.",
       });
       return;
     }
 
-    const stockItemsDescription = finalOrderItems
+    const orderDescription = finalOrderItems
       .map((item) => {
-        const product = stockItems.find((p) => p.id === item.id);
+        const product = catalogItems.find((p) => p.id === item.id);
         return `${item.quantity}x ${product?.name} (SKU: ${product?.sku})`;
       })
       .join("\n");
-
-    const customItemsDescription = customItems
-      .map(item => `${item.quantity}x ${item.name} (Custom)`)
-      .join("\n");
-      
-    const orderDescription = [stockItemsDescription, customItemsDescription].filter(Boolean).join("\n");
-
-    if (!orderDescription) {
-      toast({
-        variant: "destructive",
-        title: "No Quantities Specified",
-        description: "Please specify a quantity for the selected or custom items.",
-      });
-      return;
-    }
 
     // Manage ledgers
     const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
@@ -252,9 +196,8 @@ export default function DealerOrderPage() {
     const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
 
-    const totalStockUnits = finalOrderItems.reduce((acc, item) => acc + item.quantity, 0);
-    const totalCustomUnits = customItems.reduce((acc, item) => acc + item.quantity, 0);
-    const summary = `${totalStockUnits + totalCustomUnits} total units`;
+    const totalUnits = finalOrderItems.reduce((acc, item) => acc + item.quantity, 0);
+    const summary = `${totalUnits} total units`;
     const loggedInUser = localStorage.getItem("loggedInUser");
 
     const newOrder: Order = {
@@ -285,7 +228,6 @@ export default function DealerOrderPage() {
     });
 
     setOrderItems([]);
-    setCustomItems([]);
     setDealerName("");
     setDealerId("");
     setDealerEmail("");
@@ -295,8 +237,8 @@ export default function DealerOrderPage() {
   };
 
 
-  const isItemSelected = (stockItemId: string) => {
-    return orderItems.some((item) => item.id === stockItemId);
+  const isItemSelected = (catalogItemId: string) => {
+    return orderItems.some((item) => item.id === catalogItemId);
   };
   
   if (!activeCompanyId) {
@@ -318,7 +260,7 @@ export default function DealerOrderPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight">New Dealer Order</h2>
       <p className="text-muted-foreground">
-        Create a new bulk order for a registered dealer from available finished stock.
+        Create a new bulk order for a registered dealer from the product catalog.
       </p>
       <Separator />
 
@@ -396,7 +338,7 @@ export default function DealerOrderPage() {
 
             <CardTitle className="pt-4">Product Catalog</CardTitle>
             <CardDescription>
-              Select products and specify quantities for the order. To manage stock levels, go to the Finished Stock page.
+              Select products and specify quantities for the order. To manage the catalog, go to the Product Catalog page.
             </CardDescription>
             <div className="rounded-md border">
               <Table>
@@ -405,44 +347,37 @@ export default function DealerOrderPage() {
                     <TableHead className="w-[50px]"></TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead className="w-[120px]">Available</TableHead>
                     <TableHead className="w-[120px]">Order Qty</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockItems.length > 0 ? stockItems.map((item) => (
+                  {catalogItems.length > 0 ? catalogItems.map((item) => (
                     <TableRow key={item.id} data-state={isItemSelected(item.id) ? 'selected' : undefined}>
                       <TableCell>
                         <Checkbox
                           id={`select-${item.id}`}
                           onCheckedChange={(checked) => handleCheckboxChange(item.id, checked)}
                           checked={isItemSelected(item.id)}
-                          disabled={item.quantity <= 0}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <Image
-                            src="https://placehold.co/40x40.png"
+                            src={item.photoDataUrl || "https://placehold.co/40x40.png"}
                             alt={item.name}
                             width={40}
                             height={40}
-                            className="rounded-md"
+                            className="rounded-md object-cover"
                             data-ai-hint={`product ${item.name.split(" ")[0]?.toLowerCase()}`}
                           />
-                          <div>
-                            <span>{item.name}</span>
-                             {item.quantity <= 0 && <Badge variant="destructive" className="ml-2 text-xs">Out of Stock</Badge>}
-                          </div>
+                          <span>{item.name}</span>
                         </div>
                       </TableCell>
                       <TableCell>{item.sku}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           min="0"
-                          max={item.quantity > 0 ? item.quantity : undefined}
                           value={getQuantityForItem(item.id)}
                           onChange={(e) =>
                             handleQuantityChange(
@@ -451,65 +386,20 @@ export default function DealerOrderPage() {
                             )
                           }
                           className="w-24"
-                          disabled={!isItemSelected(item.id) || item.quantity <= 0}
+                          disabled={!isItemSelected(item.id)}
                           placeholder="0"
                         />
                       </TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">No finished goods in stock. Add items on the Finished Stock page.</TableCell>
+                        <TableCell colSpan={4} className="h-24 text-center">No products in catalog. Add items on the Product Catalog page.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
             
-            <Separator className="my-6" />
-
-            <CardTitle className="pt-4">Add Custom/Out-of-Stock Items</CardTitle>
-            <CardDescription>
-              Add products that are not in the current stock catalog. These will be treated as made-to-order.
-            </CardDescription>
-
-            <div className="flex items-end gap-2 py-4">
-                <div className="grid flex-grow gap-1.5">
-                    <Label htmlFor="customItemName">Product Name</Label>
-                    <Input id="customItemName" placeholder="e.g. Special Edition Chair" value={customItemName} onChange={(e) => setCustomItemName(e.target.value)} />
-                </div>
-                <div className="grid gap-1.5">
-                    <Label htmlFor="customItemQty">Quantity</Label>
-                    <Input id="customItemQty" type="number" className="w-24" placeholder="1" value={customItemQuantity} onChange={(e) => setCustomItemQuantity(e.target.value === '' ? '' : parseInt(e.target.value, 10))} />
-                </div>
-                <Button type="button" variant="outline" onClick={handleAddCustomItem}>Add Item</Button>
-            </div>
-
-            {customItems.length > 0 && (
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Custom Item</TableHead>
-                                <TableHead className="w-[120px]">Quantity</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {customItems.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-medium">{item.name}</TableCell>
-                                    <TableCell>{item.quantity}</TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCustomItem(item.id)}>
-                                            <Trash2 className="h-4 w-4 text-destructive"/>
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            )}
           </CardContent>
           <CardFooter>
             <Button type="submit">Place Bulk Order</Button>

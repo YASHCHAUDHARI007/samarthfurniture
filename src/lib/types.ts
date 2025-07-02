@@ -1,3 +1,4 @@
+
 export type UserRole = "owner" | "coordinator" | "factory" | "administrator";
 
 export type OrderStatus = "Pending" | "Working" | "Completed" | "Billed" | "Delivered";
@@ -176,4 +177,12 @@ export type Location = {
   id: string;
   name: string;
   address?: string;
+};
+
+export type CatalogItem = {
+  id: string;
+  name: string;
+  sku: string;
+  description?: string;
+  photoDataUrl?: string;
 };
