@@ -26,10 +26,12 @@ import { Wrench, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCompany } from "@/contexts/company-context";
 
 export default function RawMaterialsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -41,20 +43,16 @@ export default function RawMaterialsPage() {
   const [newItemQuantity, setNewItemQuantity] = useState("");
   const [newItemLocationId, setNewItemLocationId] = useState("");
   
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     if (role === "owner" || role === "factory" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
   
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setMaterials([]);
         setLocations([]);
         setIsLoading(false);
@@ -62,19 +60,19 @@ export default function RawMaterialsPage() {
     }
     setIsLoading(true);
 
-    const materialsJson = localStorage.getItem(`raw_materials_${activeCompanyId}`);
+    const materialsJson = localStorage.getItem(`raw_materials_${activeCompany.id}`);
     setMaterials(materialsJson ? JSON.parse(materialsJson) : []);
     
-    const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+    const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
     setIsLoading(false);
 
-  }, [activeCompanyId]);
+  }, [activeCompany]);
   
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!activeCompanyId || !newItemName || !newItemUnit || !newItemLocationId) {
+    if (!activeCompany || !newItemName || !newItemUnit || !newItemLocationId) {
       toast({
         variant: "destructive",
         title: "Invalid Input",
@@ -107,7 +105,7 @@ export default function RawMaterialsPage() {
     
     const updatedMaterials = [...materials, newItem];
     setMaterials(updatedMaterials);
-    localStorage.setItem(`raw_materials_${activeCompanyId}`, JSON.stringify(updatedMaterials));
+    localStorage.setItem(`raw_materials_${activeCompany.id}`, JSON.stringify(updatedMaterials));
 
     toast({
       title: "Material Added",
@@ -141,7 +139,7 @@ export default function RawMaterialsPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

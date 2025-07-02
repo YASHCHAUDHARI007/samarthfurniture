@@ -38,10 +38,12 @@ import { useToast } from "@/hooks/use-toast";
 import { GalleryVertical, ShieldAlert, Trash2 } from "lucide-react";
 import type { CatalogItem } from "@/lib/types";
 import { Textarea } from "@/components/ui/textarea";
+import { useCompany } from "@/contexts/company-context";
 
 export default function ProductCatalogPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   
   // States for access control
   const [hasAccess, setHasAccess] = useState(false);
@@ -49,7 +51,6 @@ export default function ProductCatalogPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   // Form state
   const [newItemName, setNewItemName] = useState("");
@@ -70,23 +71,20 @@ export default function ProductCatalogPage() {
     if (role === "owner" || role === "administrator") {
       setCanEdit(true);
     }
-
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
     // Note: Don't set isLoading to false here, let the data-loading useEffect do it.
   }, []);
   
   useEffect(() => {
-      if (!activeCompanyId) {
+      if (!activeCompany) {
           setCatalogItems([]);
           setIsLoading(false);
           return;
       }
       setIsLoading(true);
-      const itemsJson = localStorage.getItem(`catalog_items_${activeCompanyId}`);
+      const itemsJson = localStorage.getItem(`catalog_items_${activeCompany.id}`);
       setCatalogItems(itemsJson ? JSON.parse(itemsJson) : []);
       setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -101,7 +99,7 @@ export default function ProductCatalogPage() {
 
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newItemName || !newItemSku || !activeCompanyId) {
+    if (!newItemName || !newItemSku || !activeCompany) {
       toast({ variant: "destructive", title: "Missing Name or SKU" });
       return;
     }
@@ -122,7 +120,7 @@ export default function ProductCatalogPage() {
     
     const updatedItems = [...catalogItems, newItem];
     setCatalogItems(updatedItems);
-    localStorage.setItem(`catalog_items_${activeCompanyId}`, JSON.stringify(updatedItems));
+    localStorage.setItem(`catalog_items_${activeCompany.id}`, JSON.stringify(updatedItems));
     
     toast({ title: "Product Added", description: `${newItemName} has been added to the catalog.` });
     setNewItemName("");
@@ -133,11 +131,11 @@ export default function ProductCatalogPage() {
   };
 
   const handleDeleteItem = async () => {
-    if (!itemToDelete || !activeCompanyId) return;
+    if (!itemToDelete || !activeCompany) return;
 
     const updatedItems = catalogItems.filter(item => item.id !== itemToDelete.id);
     setCatalogItems(updatedItems);
-    localStorage.setItem(`catalog_items_${activeCompanyId}`, JSON.stringify(updatedItems));
+    localStorage.setItem(`catalog_items_${activeCompany.id}`, JSON.stringify(updatedItems));
 
     toast({ title: "Product Deleted", variant: "destructive" });
     setItemToDelete(null);
@@ -161,7 +159,7 @@ export default function ProductCatalogPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">

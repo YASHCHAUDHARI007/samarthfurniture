@@ -23,24 +23,23 @@ import {
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ShieldAlert, ClipboardList, Package, Truck, Boxes, AlertTriangle } from "lucide-react";
 import type { Order, StockItem, StockStatus } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 export default function DailyReportPage() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
     
     setCurrentDate(new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -50,20 +49,22 @@ export default function DailyReportPage() {
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
+        setOrders([]);
+        setStockItems([]);
         setIsLoading(false);
         return;
     }
     setIsLoading(true);
     
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     setOrders(ordersJson ? JSON.parse(ordersJson) : []);
 
-    const stockItemsJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
+    const stockItemsJson = localStorage.getItem(`stock_items_${activeCompany.id}`);
     setStockItems(stockItemsJson ? JSON.parse(stockItemsJson) : []);
     
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
 
   const getStatusBadgeVariant = (status: StockStatus): BadgeProps["variant"] => {
@@ -106,7 +107,7 @@ export default function DailyReportPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

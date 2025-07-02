@@ -23,12 +23,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, Printer, IndianRupee, ShieldAlert } from "lucide-react";
 import type { Order, Purchase, Ledger } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 export default function GstReportsPage() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -39,29 +40,30 @@ export default function GstReportsPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
+        setOrders([]);
+        setPurchases([]);
+        setLedgers([]);
         setIsLoading(false);
         return;
     };
     setIsLoading(true);
 
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     setOrders(ordersJson ? JSON.parse(ordersJson) : []);
 
-    const purchasesJson = localStorage.getItem(`purchases_${activeCompanyId}`);
+    const purchasesJson = localStorage.getItem(`purchases_${activeCompany.id}`);
     setPurchases(purchasesJson ? JSON.parse(purchasesJson) : []);
 
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     setLedgers(ledgersJson ? JSON.parse(ledgersJson) : []);
 
     setIsLoading(false);
 
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const { gstr1Data, gstr2Data, gstr3bSummary } = useMemo(() => {
     // GSTR-1 Data (Sales)
@@ -126,7 +128,7 @@ export default function GstReportsPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">

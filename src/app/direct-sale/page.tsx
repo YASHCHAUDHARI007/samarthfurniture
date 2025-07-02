@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useCompany } from "@/contexts/company-context";
 
 type SaleItem = {
   key: string;
@@ -55,6 +56,7 @@ type SaleItem = {
 export default function DirectSalePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   
@@ -72,7 +74,6 @@ export default function DirectSalePage() {
 
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [activeItemInput, setActiveItemInput] = useState<string | null>(null);
-  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,18 +84,10 @@ export default function DirectSalePage() {
         setHasAccess(true);
     }
     setIsLoading(false);
-
-    const companyId = localStorage.getItem('activeCompanyId');
-    if(companyId){
-        const companiesJson = localStorage.getItem('companies');
-        const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-        const company = companies.find(c => c.id === companyId);
-        setActiveCompany(company || null);
-    }
   }, []);
 
   useEffect(() => {
-    if (!activeCompany?.id) {
+    if (!activeCompany) {
       setAllDebtors([]);
       setStockItems([]);
       return;
@@ -187,7 +180,7 @@ export default function DirectSalePage() {
 
 
   const handleSubmit = async () => {
-    if (!activeCompany?.id) {
+    if (!activeCompany) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating a sale." });
         return;
     }

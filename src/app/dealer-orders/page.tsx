@@ -28,6 +28,7 @@ import Image from "next/image";
 import type { Order, CatalogItem, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
+import { useCompany } from "@/contexts/company-context";
 
 type OrderItem = {
   id: string; // CatalogItem ID
@@ -37,6 +38,7 @@ type OrderItem = {
 export default function DealerOrderPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
@@ -51,28 +53,21 @@ export default function DealerOrderPage() {
   const [dealerAddress, setDealerAddress] = useState("");
   const [dealerGstin, setDealerGstin] = useState("");
   
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
   useEffect(() => {
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-  }, []);
-
-  useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
       setCatalogItems([]);
       setAllDealers([]);
       return;
     };
     
-    const catalogJson = localStorage.getItem(`catalog_items_${activeCompanyId}`);
+    const catalogJson = localStorage.getItem(`catalog_items_${activeCompany.id}`);
     setCatalogItems(catalogJson ? JSON.parse(catalogJson) : []);
 
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDealers(ledgers.filter(c => c.group === 'Sundry Debtors'));
 
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -132,10 +127,11 @@ export default function DealerOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating an order." });
         return;
     }
+    const activeCompanyId = activeCompany.id;
     
     if (!dealerName) {
         toast({ variant: "destructive", title: "Missing Dealer Name", description: "Please select an existing dealer or enter a name for a new one."});
@@ -241,7 +237,7 @@ export default function DealerOrderPage() {
     return orderItems.some((item) => item.id === catalogItemId);
   };
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

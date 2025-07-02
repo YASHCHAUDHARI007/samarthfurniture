@@ -42,6 +42,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BookUser, ShieldAlert, Trash2, Edit, PlusCircle, IndianRupee } from "lucide-react";
 import type { Ledger, LedgerGroup } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 const ledgerGroups: LedgerGroup[] = [
     'Sundry Debtors',
@@ -66,10 +67,10 @@ const ledgerGroups: LedgerGroup[] = [
 export default function ChartOfAccountsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [ledgerToEdit, setLedgerToEdit] = useState<Ledger | null>(null);
@@ -89,23 +90,21 @@ export default function ChartOfAccountsPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setLedgers([]);
         setIsLoading(false);
         return;
     }
     setIsLoading(true);
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     const filteredLedgers = allLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id));
     setLedgers(filteredLedgers);
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const resetForm = () => {
     setName("");
@@ -131,18 +130,18 @@ export default function ChartOfAccountsPage() {
   };
 
   const handleFormSubmit = async () => {
-    if (!name || !group || !activeCompanyId) {
+    if (!name || !group || !activeCompany) {
       toast({ variant: "destructive", title: "Missing Fields" });
       return;
     }
     
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     let allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
 
     if (ledgerToEdit) {
       // Edit mode
       const updatedLedgers = allLedgers.map(l => l.id === ledgerToEdit.id ? { ...l, name, group, email, address, gstin, openingBalance: Number(openingBalance) || 0, dealerId: dealerId || undefined } : l);
-      localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(updatedLedgers));
+      localStorage.setItem(`ledgers_${activeCompany.id}`, JSON.stringify(updatedLedgers));
       setLedgers(updatedLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
       toast({ title: "Ledger Updated" });
     } else {
@@ -164,7 +163,7 @@ export default function ChartOfAccountsPage() {
           dealerId: finalDealerId || undefined,
       };
       allLedgers.push(newLedger);
-      localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(allLedgers));
+      localStorage.setItem(`ledgers_${activeCompany.id}`, JSON.stringify(allLedgers));
       setLedgers(allLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
       toast({ title: "Ledger Created" });
     }
@@ -173,12 +172,12 @@ export default function ChartOfAccountsPage() {
   };
 
   const handleDeleteLedger = async () => {
-    if (!ledgerToDelete || !activeCompanyId) return;
+    if (!ledgerToDelete || !activeCompany) return;
     
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     let allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     const updatedLedgers = allLedgers.filter(l => l.id !== ledgerToDelete.id);
-    localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(updatedLedgers));
+    localStorage.setItem(`ledgers_${activeCompany.id}`, JSON.stringify(updatedLedgers));
     setLedgers(updatedLedgers.filter(ledger => !['PROFIT_LOSS', 'SALES_ACCOUNT', 'PURCHASE_ACCOUNT', 'CASH_ACCOUNT'].includes(ledger.id)));
     
     toast({ title: "Ledger Deleted", variant: "destructive" });
@@ -201,7 +200,7 @@ export default function ChartOfAccountsPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
          <div className="border p-4 rounded-md">

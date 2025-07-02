@@ -39,11 +39,13 @@ import { cn } from "@/lib/utils";
 import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus, Company } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
 import { useRouter } from "next/navigation";
+import { useCompany } from "@/contexts/company-context";
 
 
 export default function PaymentsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -69,25 +71,17 @@ export default function PaymentsPage() {
   const [selectedPurchaseId, setSelectedPurchaseId] = useState("");
 
   const [voucherToPrint, setVoucherToPrint] = useState<any | null>(null);
-  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    if (companyId) {
-        const companiesJson = localStorage.getItem('companies');
-        const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-        const company = companies.find(c => c.id === companyId);
-        setActiveCompany(company || null);
-    }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompany?.id) {
+    if (!activeCompany) {
         setLedgers([]);
         setOrders([]);
         setPurchases([]);

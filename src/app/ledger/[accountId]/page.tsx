@@ -28,44 +28,35 @@ import { Button } from "@/components/ui/button";
 import { BookText, IndianRupee } from "lucide-react";
 import type { Ledger, LedgerEntry, Order, Purchase, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
+import { useCompany } from "@/contexts/company-context";
 
 export default function LedgerDetailPage({ params }: { params: { accountId: string } }) {
   const { accountId } = params;
+  const { activeCompany } = useCompany();
   const [allLedgerEntries, setAllLedgerEntries] = useState<LedgerEntry[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allPurchases, setAllPurchases] = useState<Purchase[]>([]);
   const [account, setAccount] = useState<Ledger | null>(null);
-  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
 
   const [billToView, setBillToView] = useState<Order | Purchase | null>(null);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-  }, []);
+    if (!activeCompany) return;
 
-  useEffect(() => {
-    if (!activeCompanyId) return;
-
-    const companiesJson = localStorage.getItem('companies');
-    const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-    setActiveCompany(companies.find(c => c.id === activeCompanyId) || null);
-
-    const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompanyId}`);
+    const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompany.id}`);
     setAllLedgerEntries(ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : []);
 
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAccount(ledgers.find(acc => acc.id === accountId) || null);
     
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     setAllOrders(ordersJson ? JSON.parse(ordersJson) : []);
     
-    const purchasesJson = localStorage.getItem(`purchases_${activeCompanyId}`);
+    const purchasesJson = localStorage.getItem(`purchases_${activeCompany.id}`);
     setAllPurchases(purchasesJson ? JSON.parse(purchasesJson) : []);
 
-  }, [accountId, activeCompanyId]);
+  }, [accountId, activeCompany]);
 
   const displayedEntries = useMemo(() => {
     if (!account) return [];

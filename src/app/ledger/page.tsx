@@ -16,12 +16,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookText, Search, ShieldAlert } from "lucide-react";
 import type { Ledger } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 export default function LedgerPage() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [allLedgers, setAllLedgers] = useState<Ledger[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,22 +32,20 @@ export default function LedgerPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setAllLedgers([]);
         setIsLoading(false);
         return;
     };
     setIsLoading(true);
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllLedgers(ledgers.sort((a,b) => a.name.localeCompare(b.name)));
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const filteredAccounts = useMemo(() => {
     if (!searchTerm) {
@@ -79,7 +78,7 @@ export default function LedgerPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

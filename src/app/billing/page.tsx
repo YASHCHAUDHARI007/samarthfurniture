@@ -38,16 +38,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, Search, IndianRupee } from "lucide-react";
 import type { Order, LineItem, PaymentStatus, LedgerEntry, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
+import { useCompany } from "@/contexts/company-context";
 
 
 export default function BillingPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const { activeCompany } = useCompany();
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [hasAccess, setHasAccess] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeCompany, setActiveCompany] = useState<Company | null>(null);
-
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
@@ -60,14 +60,6 @@ export default function BillingPage() {
     const [isCreating, setIsCreating] = useState(false);
     
     useEffect(() => {
-        const companyId = localStorage.getItem('activeCompanyId');
-        if (companyId) {
-            const companiesJson = localStorage.getItem('companies');
-            const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-            const company = companies.find(c => c.id === companyId);
-            setActiveCompany(company || null);
-        }
-
         const role = localStorage.getItem("userRole");
         if (role === "owner" || role === "administrator") {
           setHasAccess(true);
@@ -76,7 +68,7 @@ export default function BillingPage() {
     }, []);
 
     useEffect(() => {
-        if (!activeCompany?.id) {
+        if (!activeCompany) {
             setAllOrders([]);
             return;
         };
@@ -86,7 +78,7 @@ export default function BillingPage() {
         const allCompanyOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
         setAllOrders(allCompanyOrders);
 
-    }, [activeCompany, toast]);
+    }, [activeCompany]);
 
     const handleSelectOrder = (order: Order) => {
         if (order.type === 'Dealer' && order.details) {

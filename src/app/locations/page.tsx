@@ -35,14 +35,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Warehouse, ShieldAlert, Trash2 } from "lucide-react";
 import type { Location } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 export default function ManageLocationsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   const [newLocationName, setNewLocationName] = useState("");
   const [newLocationAddress, setNewLocationAddress] = useState("");
@@ -54,26 +55,24 @@ export default function ManageLocationsPage() {
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
   
   useEffect(() => {
-      if (!activeCompanyId) {
+      if (!activeCompany) {
           setLocations([]);
           setIsLoading(false);
           return;
       }
       setIsLoading(true);
-      const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+      const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
       setLocations(locationsJson ? JSON.parse(locationsJson) : []);
       setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
 
   const handleAddLocation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newLocationName || !activeCompanyId) {
+    if (!newLocationName || !activeCompany) {
       toast({ variant: "destructive", title: "Missing Name" });
       return;
     }
@@ -92,7 +91,7 @@ export default function ManageLocationsPage() {
     
     const updatedLocations = [...locations, newLocation];
     setLocations(updatedLocations);
-    localStorage.setItem(`locations_${activeCompanyId}`, JSON.stringify(updatedLocations));
+    localStorage.setItem(`locations_${activeCompany.id}`, JSON.stringify(updatedLocations));
     
     toast({ title: "Location Created", description: `${newLocationName} has been created successfully.` });
     setNewLocationName("");
@@ -100,12 +99,12 @@ export default function ManageLocationsPage() {
   };
 
   const handleDeleteLocation = async () => {
-    if (!locationToDelete || !activeCompanyId) return;
+    if (!locationToDelete || !activeCompany) return;
 
     // TODO: Add check to prevent deleting a location if it has stock.
     const updatedLocations = locations.filter(loc => loc.id !== locationToDelete.id);
     setLocations(updatedLocations);
-    localStorage.setItem(`locations_${activeCompanyId}`, JSON.stringify(updatedLocations));
+    localStorage.setItem(`locations_${activeCompany.id}`, JSON.stringify(updatedLocations));
 
     toast({ title: "Location Deleted", variant: "destructive" });
     setLocationToDelete(null);
@@ -129,7 +128,7 @@ export default function ManageLocationsPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">

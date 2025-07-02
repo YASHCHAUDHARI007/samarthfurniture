@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Truck, ShieldAlert, Printer, Armchair } from "lucide-react";
 import type { Order, Company } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useCompany } from "@/contexts/company-context";
 
 const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order: Order, company: Company | null, addPageBreakBefore?: boolean }) => (
     <div className={cn(
@@ -106,44 +107,36 @@ const DeliveryReceipt = ({ order, company, addPageBreakBefore = false }: { order
 export default function TransportPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [ordersForTransport, setOrdersForTransport] = useState<Order[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-  const [activeCompany, setActiveCompany] = useState<Company | null>(null);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
-    
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-
-    if (companyId) {
-      const companiesJson = localStorage.getItem('companies');
-      const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-      setActiveCompany(companies.find(c => c.id === companyId) || null);
-    }
-    
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if(!activeCompanyId) return;
+    if(!activeCompany) {
+        setOrdersForTransport([]);
+        return;
+    };
     
     setIsLoading(true);
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
     setOrdersForTransport(allOrders.filter(o => o.status === 'Billed'));
     setIsLoading(false);
 
-  }, [activeCompanyId, toast]);
+  }, [activeCompany]);
 
   const handleDispatchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedOrder || !activeCompanyId) return;
+    if (!selectedOrder || !activeCompany) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
     const transportDetails = {
@@ -161,10 +154,10 @@ export default function TransportPage() {
       deliveredAt,
     };
     
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
     const updatedOrders = allOrders.map(o => o.id === selectedOrder.id ? { ...o, ...orderUpdates } : o);
-    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedOrders));
+    localStorage.setItem(`orders_${activeCompany.id}`, JSON.stringify(updatedOrders));
 
     setOrdersForTransport(updatedOrders.filter(o => o.status === 'Billed'));
     

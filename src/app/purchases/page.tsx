@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Ledger, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { useCompany } from "@/contexts/company-context";
 
 type PurchaseItem = {
   id: string; // Raw material stock ID
@@ -37,6 +38,7 @@ type PurchaseItem = {
 export default function PurchasesPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [allSuppliers, setAllSuppliers] = useState<Ledger[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<RawMaterial[]>([]);
   const [hasAccess, setHasAccess] = useState(false);
@@ -60,20 +62,16 @@ export default function PurchasesPage() {
   const [activeMaterialInput, setActiveMaterialInput] = useState<number | null>(null);
   const [materialSuggestions, setMaterialSuggestions] = useState<RawMaterial[]>([]);
   
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner" || role === "administrator") {
       setHasAccess(true);
     }
     setBillDate(new Date().toISOString().split("T")[0]);
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setAllSuppliers([]);
         setAllRawMaterials([]);
         setIsLoading(false);
@@ -81,15 +79,15 @@ export default function PurchasesPage() {
     }
     setIsLoading(true);
     
-    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompany.id}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllSuppliers(ledgers.filter(c => c.group === 'Sundry Creditors'));
     
-    const materialsJson = localStorage.getItem(`raw_materials_${activeCompanyId}`);
+    const materialsJson = localStorage.getItem(`raw_materials_${activeCompany.id}`);
     setAllRawMaterials(materialsJson ? JSON.parse(materialsJson) : []);
 
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   // Supplier handlers
   const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,10 +170,11 @@ export default function PurchasesPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company."});
         return;
     }
+    const activeCompanyId = activeCompany.id;
     
     const validItems = purchaseItems.filter(item => item.id && (item.quantity || 0) > 0 && (item.price || 0) >= 0);
 
@@ -276,7 +275,7 @@ export default function PurchasesPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

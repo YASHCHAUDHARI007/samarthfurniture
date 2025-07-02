@@ -37,10 +37,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { StockItem, StockStatus, Location } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCompany } from "@/contexts/company-context";
 
 export default function StockTurnoverPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -54,34 +56,30 @@ export default function StockTurnoverPage() {
   const [newItemReorderLevel, setNewItemReorderLevel] = useState("");
   const [newItemLocationId, setNewItemLocationId] = useState("");
 
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
     if (role === "owner" || role === "factory" || role === "coordinator" || role === "administrator") {
       setHasAccess(true);
     }
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setStock([]);
         setLocations([]);
         setIsLoading(false);
         return;
     }
     setIsLoading(true);
-    const stockJson = localStorage.getItem(`stock_items_${activeCompanyId}`);
+    const stockJson = localStorage.getItem(`stock_items_${activeCompany.id}`);
     setStock(stockJson ? JSON.parse(stockJson) : []);
     
-    const locationsJson = localStorage.getItem(`locations_${activeCompanyId}`);
+    const locationsJson = localStorage.getItem(`locations_${activeCompany.id}`);
     setLocations(locationsJson ? JSON.parse(locationsJson) : []);
 
     setIsLoading(false);
-  }, [activeCompanyId]);
+  }, [activeCompany]);
 
   const getStatus = (quantity: number, reorderLevel: number): StockStatus => {
     if (quantity <= 0) return "Out of Stock";
@@ -104,7 +102,7 @@ export default function StockTurnoverPage() {
 
   const handleAddItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!activeCompanyId) return;
+    if (!activeCompany) return;
 
     const quantity = parseInt(newItemQuantity, 10);
     const reorderLevel = parseInt(newItemReorderLevel, 10);
@@ -148,7 +146,7 @@ export default function StockTurnoverPage() {
 
     const updatedStock = [...stock, newItem];
     setStock(updatedStock);
-    localStorage.setItem(`stock_items_${activeCompanyId}`, JSON.stringify(updatedStock));
+    localStorage.setItem(`stock_items_${activeCompany.id}`, JSON.stringify(updatedStock));
 
     toast({
       title: "Item Added",
@@ -162,11 +160,11 @@ export default function StockTurnoverPage() {
   };
   
   const handleDeleteItem = async () => {
-    if (!itemToDelete || !activeCompanyId) return;
+    if (!itemToDelete || !activeCompany) return;
 
     const updatedStock = stock.filter(item => item.id !== itemToDelete.id);
     setStock(updatedStock);
-    localStorage.setItem(`stock_items_${activeCompanyId}`, JSON.stringify(updatedStock));
+    localStorage.setItem(`stock_items_${activeCompany.id}`, JSON.stringify(updatedStock));
 
     toast({
       title: "Item Deleted",
@@ -201,7 +199,7 @@ export default function StockTurnoverPage() {
     );
   }
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

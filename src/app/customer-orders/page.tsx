@@ -19,10 +19,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { Order, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useCompany } from "@/contexts/company-context";
 
 export default function CustomerOrderPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   
   const [allDebtors, setAllDebtors] = useState<Ledger[]>([]);
@@ -32,18 +34,18 @@ export default function CustomerOrderPage() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [partyType, setPartyType] = useState<'Customer' | 'Dealer'>('Customer');
 
   useEffect(() => {
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-    if (!companyId) return;
-
+    if (!activeCompany) {
+        setAllDebtors([]);
+        return;
+    };
+    const companyId = activeCompany.id;
     const ledgersJson = localStorage.getItem(`ledgers_${companyId}`);
     const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
     setAllDebtors(ledgers.filter(c => c.group === 'Sundry Debtors'));
-  }, []);
+  }, [activeCompany]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -79,10 +81,11 @@ export default function CustomerOrderPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         toast({ variant: "destructive", title: "No Active Company", description: "Please select a company before creating an order." });
         return;
     }
+    const activeCompanyId = activeCompany.id;
 
     const formData = new FormData(e.target as HTMLFormElement);
     const orderDetails = formData.get("details") as string;
@@ -168,7 +171,7 @@ export default function CustomerOrderPage() {
     (e.target as HTMLFormElement).reset();
   };
 
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">
