@@ -66,9 +66,9 @@ const navItems: {
   { path: "/", icon: LayoutDashboard, text: "Dashboard", fkey: "F1", roles: ["owner", "coordinator", "administrator"] },
   { path: "/customer-orders", icon: User, text: "Customized Orders", fkey: "F2", roles: ["owner", "coordinator", "administrator"] },
   { path: "/dealer-orders", icon: Building, text: "Dealer Orders", fkey: "F3", roles: ["owner", "coordinator", "administrator"] },
-  { path: "/direct-sale", icon: ShoppingBag, text: "Direct Sale", fkey: "F4", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/direct-sale", icon: ShoppingBag, text: "Direct Sale", fkey: "F4", roles: ["owner", "factory", "administrator"] },
   { path: "/factory-dashboard", icon: Factory, text: "Factory Dashboard", fkey: "F5", roles: ["owner", "coordinator", "factory", "administrator"] },
-  { path: "/billing", icon: Receipt, text: "Sales & Billing", fkey: "F6", roles: ["owner", "coordinator", "factory", "administrator"] },
+  { path: "/billing", icon: Receipt, text: "Sales & Billing", fkey: "F6", roles: ["owner", "administrator"] },
   { path: "/purchases", icon: ShoppingCart, text: "Purchases", fkey: "F7", roles: ["owner", "administrator"] },
   { path: "/payments", icon: Banknote, text: "Vouchers", fkey: "F8", roles: ["owner", "administrator"] },
   { path: "/ledger", icon: BookText, text: "Ledger", fkey: "F9", roles: ["owner", "administrator"] },
@@ -250,7 +250,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <CompanySwitcher />
+          { (userRole === "owner" || userRole === "administrator") && <CompanySwitcher /> }
           <Menu userRole={userRole} />
         </SidebarContent>
         <SidebarFooter>

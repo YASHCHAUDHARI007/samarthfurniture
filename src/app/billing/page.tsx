@@ -69,7 +69,7 @@ export default function BillingPage() {
         }
 
         const role = localStorage.getItem("userRole");
-        if (role === "owner" || role === "coordinator" || role === "administrator") {
+        if (role === "owner" || role === "administrator") {
           setHasAccess(true);
         }
         setIsLoading(false);
@@ -82,18 +82,9 @@ export default function BillingPage() {
         };
         
         const companyId = activeCompany.id;
-        const role = localStorage.getItem("userRole");
-        const username = localStorage.getItem("loggedInUser");
-
         const ordersJson = localStorage.getItem(`orders_${companyId}`);
         const allCompanyOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
-        
-        if (role === 'coordinator' && username) {
-            const userOrders = allCompanyOrders.filter(o => o.createdBy === username);
-            setAllOrders(userOrders);
-        } else {
-            setAllOrders(allCompanyOrders);
-        }
+        setAllOrders(allCompanyOrders);
 
     }, [activeCompany, toast]);
 
