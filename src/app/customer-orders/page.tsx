@@ -18,6 +18,7 @@ import { Upload, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, Ledger } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function CustomerOrderPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function CustomerOrderPage() {
   const [shippingAddress, setShippingAddress] = useState("");
   
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  const [partyType, setPartyType] = useState<'Customer' | 'Dealer'>('Customer');
 
   useEffect(() => {
     const companyId = localStorage.getItem('activeCompanyId');
@@ -110,11 +112,15 @@ export default function CustomerOrderPage() {
             group: 'Sundry Debtors',
             email: customerEmail,
             address: shippingAddress,
+            dealerId: partyType === 'Dealer' ? `DEALER-${Date.now()}` : undefined,
         };
         ledgers.push(newLedger);
     } else {
         customer.email = customerEmail;
         customer.address = shippingAddress;
+        if (partyType === 'Dealer' && !customer.dealerId) {
+            customer.dealerId = `DEALER-${Date.now()}`;
+        }
         ledgers = ledgers.map(l => l.id === customerId ? customer! : l);
     }
     localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(ledgers));
@@ -193,14 +199,31 @@ export default function CustomerOrderPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label>Order For</Label>
+              <RadioGroup
+                defaultValue="Customer"
+                onValueChange={(value) => setPartyType(value as 'Customer' | 'Dealer')}
+                className="flex gap-4 pt-1"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Customer" id="r-customer" />
+                  <Label htmlFor="r-customer" className="font-normal">Regular Customer</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Dealer" id="r-dealer" />
+                  <Label htmlFor="r-dealer" className="font-normal">Dealer</Label>
+                </div>
+              </RadioGroup>
+            </div>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Customer Name</Label>
+                <Label htmlFor="name">{partyType} Name</Label>
                 <div className="relative">
                   <Input
                     id="name"
                     name="name"
-                    placeholder="e.g. Jane Doe"
+                    placeholder={partyType === 'Customer' ? "e.g. Jane Doe" : "e.g. Modern Furnishings Co."}
                     required
                     value={customerName}
                     onChange={handleNameChange}
@@ -227,12 +250,12 @@ export default function CustomerOrderPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Customer Email</Label>
+                <Label htmlFor="email">{partyType} Email</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="e.g. jane.doe@example.com"
+                  placeholder="e.g. contact@example.com"
                   required
                   value={customerEmail}
                   onChange={e => setCustomerEmail(e.target.value)}
