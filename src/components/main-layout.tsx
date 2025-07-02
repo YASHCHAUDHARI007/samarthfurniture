@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { Company, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCompany } from "@/contexts/company-context";
 
 const FKeyShortcut = ({ children }: { children: React.ReactNode }) => (
   <span className="ml-auto text-xs tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
@@ -143,34 +144,22 @@ function Menu({ userRole }: { userRole: UserRole | null }) {
 }
 
 function CompanySwitcher() {
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const companiesJson = localStorage.getItem('companies');
-        const companiesList: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-        setCompanies(companiesList);
-        
-        const storedActiveId = localStorage.getItem('activeCompanyId');
-        setActiveCompanyId(storedActiveId);
-    }, []);
+    const { companies, activeCompany, setActiveCompanyId, isLoading } = useCompany();
 
     const handleCompanyChange = (companyId: string) => {
         if (companyId) {
-            localStorage.setItem('activeCompanyId', companyId);
             setActiveCompanyId(companyId);
-            window.location.reload();
         }
     };
 
-    if (companies.length === 0) return null;
+    if (isLoading || companies.length <= 1) return null;
 
     return (
         <div className="p-2 space-y-2">
             <label className="text-xs font-semibold text-sidebar-foreground/70 px-2">
                 Active Company
             </label>
-            <Select onValueChange={handleCompanyChange} value={activeCompanyId || ""}>
+            <Select onValueChange={handleCompanyChange} value={activeCompany?.id || ""}>
                 <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select a company..." />
                 </SelectTrigger>
@@ -189,10 +178,11 @@ function CompanySwitcher() {
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { isLoading: isCompanyLoading } = useCompany();
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState("U");
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
     const fKeyRoutes: { [key: string]: string } = navItems.reduce((acc, item) => {
@@ -230,21 +220,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      const activeCompanyId = localStorage.getItem('activeCompanyId');
-
-      if ((role === 'coordinator' || role === 'factory') && !activeCompanyId) {
-          const companiesJson = localStorage.getItem('companies');
-          const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
-          if (companies.length > 0) {
-              companies.sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
-              const mostRecentCompany = companies[0];
-              localStorage.setItem('activeCompanyId', mostRecentCompany.id);
-              window.location.reload(); // Reload to apply the new context everywhere
-              return; // Prevent setting isReady to true before reload
-          }
-      }
-      
-      setIsReady(true);
+      setIsAuthReady(true);
     }
   }, [router]);
 
@@ -256,6 +232,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     }
     router.push("/login");
   };
+  
+  const isReady = isAuthReady && !isCompanyLoading;
 
   return (
     <SidebarProvider>
@@ -326,7 +304,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         {isReady ? children : (
             <div className="flex-1 flex items-center justify-center p-4">
-                <p className="text-muted-foreground">Loading Company Data...</p>
+                <p className="text-muted-foreground">Loading Application Data...</p>
             </div>
         )}
       </SidebarInset>

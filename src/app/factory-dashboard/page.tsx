@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -51,19 +52,19 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, PaymentStatus } from "@/lib/types";
+import { useCompany } from "@/contexts/company-context";
 
 export default function FactoryDashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { activeCompany } = useCompany();
   const [hasAccess, setHasAccess] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -75,25 +76,18 @@ export default function FactoryDashboardPage() {
     if (role === "factory" || role === "owner" || role === "administrator") {
       setCanEdit(true);
     }
-
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!activeCompanyId) {
+    if (!activeCompany) {
         setOrders([]);
-        setIsLoading(false);
         return;
     };
     
-    setIsLoading(true);
     const username = localStorage.getItem("loggedInUser");
     const role = localStorage.getItem("userRole");
 
-    const ordersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const ordersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
     
     let userOrders = allOrders;
@@ -101,20 +95,19 @@ export default function FactoryDashboardPage() {
         userOrders = allOrders.filter(o => o.createdBy === username);
     }
     setOrders(userOrders);
-    setIsLoading(false);
 
-  }, [activeCompanyId, userRole]);
+  }, [activeCompany, userRole]);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    if (!activeCompanyId) return;
+    if (!activeCompany) return;
     
     const updatedOrders = orders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
     setOrders(updatedOrders);
     
-    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
     const updatedAllOrders = allOrders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
-    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedAllOrders));
+    localStorage.setItem(`orders_${activeCompany.id}`, JSON.stringify(updatedAllOrders));
     
     toast({
       title: "Status Updated",
@@ -123,15 +116,15 @@ export default function FactoryDashboardPage() {
   };
 
   const handleDeleteOrder = async () => {
-    if (!orderToDelete || !activeCompanyId) return;
+    if (!orderToDelete || !activeCompany) return;
     
     const updatedOrders = orders.filter(o => o.id !== orderToDelete.id);
     setOrders(updatedOrders);
     
-    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
     const updatedAllOrders = allOrders.filter(o => o.id !== orderToDelete.id);
-    localStorage.setItem(`orders_${activeCompanyId}`, JSON.stringify(updatedAllOrders));
+    localStorage.setItem(`orders_${activeCompany.id}`, JSON.stringify(updatedAllOrders));
     
     toast({
       title: "Order Deleted",
@@ -165,10 +158,6 @@ export default function FactoryDashboardPage() {
     }
   };
 
-  if (isLoading) {
-    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>;
-  }
-
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
@@ -193,7 +182,7 @@ export default function FactoryDashboardPage() {
     );
   }
   
-  if (!activeCompanyId) {
+  if (!activeCompany) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
           <Card className="max-w-md">

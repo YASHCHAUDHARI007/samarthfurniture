@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -30,8 +31,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Package, Users, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, UserRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { useCompany } from "@/contexts/company-context";
 
 const chartConfig = {
   sales: {
@@ -42,30 +44,17 @@ const chartConfig = {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   
   const loggedInUser = typeof window !== 'undefined' ? localStorage.getItem("loggedInUser") : null;
-  const userRole = typeof window !== 'undefined' ? localStorage.getItem("userRole") : null;
-
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem("userRole") as UserRole | null : null;
+  
+  const [chartData, setChartData] = useState<any[]>([]);
+  
   useEffect(() => {
-    setIsClient(true);
-    if (!loggedInUser) {
-      router.push("/login");
-      return;
-    }
-    setIsAuthenticated(true);
-    
-    const companyId = localStorage.getItem('activeCompanyId');
-    setActiveCompanyId(companyId);
-  }, [router, loggedInUser]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !activeCompanyId) {
+    if (!activeCompany) {
         setIsLoading(false);
         setOrders([]);
         setChartData([]);
@@ -74,7 +63,7 @@ export default function Dashboard() {
     
     setIsLoading(true);
 
-    const allOrdersJson = localStorage.getItem(`orders_${activeCompanyId}`);
+    const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
     const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
     
     let userOrders = allOrders;
@@ -119,7 +108,7 @@ export default function Dashboard() {
     setChartData(newChartData);
     setIsLoading(false);
 
-  }, [isAuthenticated, activeCompanyId, loggedInUser, userRole]);
+  }, [activeCompany, loggedInUser, userRole]);
 
   const getBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -134,10 +123,6 @@ export default function Dashboard() {
         return "outline";
     }
   };
-
-  if (!isClient || !isAuthenticated) {
-    return null;
-  }
   
   const recentOrders = [...orders].sort((a,b) => (b.createdAt && a.createdAt) ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0).slice(0, 4);
 
@@ -152,7 +137,7 @@ export default function Dashboard() {
     .filter((o) => o.status === "Delivered" || o.status === 'Billed')
     .reduce((acc, order) => acc + (order.totalAmount || 0), 0);
 
-  if (isClient && !activeCompanyId) {
+  if (!activeCompany && (userRole === 'owner' || userRole === 'administrator')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
@@ -237,7 +222,7 @@ export default function Dashboard() {
             <CardDescription>Total sales value per month across the company.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {isClient && !isLoading ? (
+            {!isLoading ? (
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <BarChart data={chartData}>
                   <CartesianGrid vertical={false} />
