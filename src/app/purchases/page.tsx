@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -26,8 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Trash2, IndianRupee, ShieldAlert } from "lucide-react";
 import type { RawMaterial, Ledger, Purchase, LedgerEntry } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, update, push } from "firebase/database";
 
 type PurchaseItem = {
   id: string; // Raw material stock ID
@@ -84,32 +81,14 @@ export default function PurchasesPage() {
     }
     setIsLoading(true);
     
-    const ledgersRef = ref(db, `ledgers/${activeCompanyId}`);
-    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            const list = Object.keys(data).map(key => ({ id: key, ...data[key]}));
-            setAllSuppliers(list.filter(c => c.group === 'Sundry Creditors'));
-        } else {
-            setAllSuppliers([]);
-        }
-    });
+    const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+    const ledgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+    setAllSuppliers(ledgers.filter(c => c.group === 'Sundry Creditors'));
     
-    const materialsRef = ref(db, `raw_materials/${activeCompanyId}`);
-    const unsubMaterials = onValue(materialsRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setAllRawMaterials(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setAllRawMaterials([]);
-        }
-    });
+    const materialsJson = localStorage.getItem(`raw_materials_${activeCompanyId}`);
+    setAllRawMaterials(materialsJson ? JSON.parse(materialsJson) : []);
 
     setIsLoading(false);
-    return () => {
-        unsubLedgers();
-        unsubMaterials();
-    }
   }, [activeCompanyId]);
 
   // Supplier handlers
@@ -206,21 +185,26 @@ export default function PurchasesPage() {
     }
     
     try {
-        let supplier = allSuppliers.find(c => c.id === selectedSupplierId);
+        const ledgersJson = localStorage.getItem(`ledgers_${activeCompanyId}`);
+        let allLedgers: Ledger[] = ledgersJson ? JSON.parse(ledgersJson) : [];
+        let supplier = allLedgers.find(c => c.id === selectedSupplierId);
         let supplierId: string;
 
         if (supplier) {
             supplierId = supplier.id;
             if(supplier.gstin !== supplierGstin) {
-                await update(ref(db, `ledgers/${activeCompanyId}/${supplierId}`), { gstin: supplierGstin });
+                allLedgers = allLedgers.map(l => l.id === supplierId ? { ...l, gstin: supplierGstin } : l);
+                localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(allLedgers));
             }
         } else {
             supplierId = `LEDG-${Date.now()}`;
-            await set(ref(db, `ledgers/${activeCompanyId}/${supplierId}`), { id: supplierId, name: supplierName, group: 'Sundry Creditors', gstin: supplierGstin });
+            allLedgers.push({ id: supplierId, name: supplierName, group: 'Sundry Creditors', gstin: supplierGstin });
+            localStorage.setItem(`ledgers_${activeCompanyId}`, JSON.stringify(allLedgers));
         }
         
-        const purchaseRef = push(ref(db, `purchases/${activeCompanyId}`));
-        const newPurchaseId = purchaseRef.key!;
+        const purchasesJson = localStorage.getItem(`purchases_${activeCompanyId}`);
+        const allPurchases: Purchase[] = purchasesJson ? JSON.parse(purchasesJson) : [];
+        const newPurchaseId = `pur-${Date.now()}`;
 
         const newPurchase: Purchase = {
             id: newPurchaseId,
@@ -235,27 +219,28 @@ export default function PurchasesPage() {
             balanceDue: totalAmount,
             paymentStatus: totalAmount > 0 ? "Unpaid" : "Paid",
         };
-        await set(purchaseRef, newPurchase);
+        allPurchases.push(newPurchase);
+        localStorage.setItem(`purchases_${activeCompanyId}`, JSON.stringify(allPurchases));
 
-        const materialUpdates: {[key: string]: any} = {};
+        const materialsJson = localStorage.getItem(`raw_materials_${activeCompanyId}`);
+        let currentMaterials: RawMaterial[] = materialsJson ? JSON.parse(materialsJson) : [];
         for (const item of newPurchase.items) {
-            const material = allRawMaterials.find(m => m.id === item.id);
-            if(material) {
-                const newQuantity = material.quantity + item.quantity;
-                materialUpdates[`raw_materials/${activeCompanyId}/${item.id}/quantity`] = newQuantity;
-            }
+            currentMaterials = currentMaterials.map(m => {
+                if (m.id === item.id) {
+                    return { ...m, quantity: m.quantity + item.quantity };
+                }
+                return m;
+            });
         }
-        await update(ref(db), materialUpdates);
+        localStorage.setItem(`raw_materials_${activeCompanyId}`, JSON.stringify(currentMaterials));
+        setAllRawMaterials(currentMaterials);
 
-        const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompanyId}`);
-        const purchaseDebitEntry: Omit<LedgerEntry, 'id'> = {
-            date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id,
-        };
-        const supplierCreditEntry: Omit<LedgerEntry, 'id'> = {
-            date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Against Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id,
-        };
-        await push(ledgerEntriesRef, purchaseDebitEntry);
-        await push(ledgerEntriesRef, supplierCreditEntry);
+        const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompanyId}`);
+        let ledgerEntries: LedgerEntry[] = ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : [];
+        const purchaseDebitEntry: LedgerEntry = { id: `le-${Date.now()}-1`, date: newPurchase.date, accountId: 'PURCHASE_ACCOUNT', accountName: 'Purchase Account', type: 'Purchase', details: `Bill #${billNumber} from ${supplierName}`, debit: totalAmount, credit: 0, refId: newPurchase.id };
+        const supplierCreditEntry: LedgerEntry = { id: `le-${Date.now()}-2`, date: newPurchase.date, accountId: supplierId, accountName: supplierName, type: 'Purchase', details: `Against Bill #${billNumber}`, debit: 0, credit: totalAmount, refId: newPurchase.id };
+        ledgerEntries.push(purchaseDebitEntry, supplierCreditEntry);
+        localStorage.setItem(`ledger_entries_${activeCompanyId}`, JSON.stringify(ledgerEntries));
 
         toast({ title: "Purchase Recorded", description: `Purchase from ${supplierName} has been saved.` });
         
@@ -440,5 +425,3 @@ export default function PurchasesPage() {
     </div>
   );
 }
-
-    

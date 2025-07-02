@@ -38,8 +38,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Receipt, ShieldAlert, Trash2, Printer, Search, IndianRupee } from "lucide-react";
 import type { Order, LineItem, PaymentStatus, LedgerEntry, Company } from "@/lib/types";
 import { Invoice } from "@/components/invoice";
-import { db } from "@/lib/firebase";
-import { ref, onValue, update, push, query, orderByChild, equalTo } from "firebase/database";
 
 
 export default function BillingPage() {
@@ -64,12 +62,10 @@ export default function BillingPage() {
     useEffect(() => {
         const companyId = localStorage.getItem('activeCompanyId');
         if (companyId) {
-            const companyRef = ref(db, `companies/${companyId}`);
-            onValue(companyRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    setActiveCompany({ id: snapshot.key, ...snapshot.val() });
-                }
-            });
+            const companiesJson = localStorage.getItem('companies');
+            const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+            const company = companies.find(c => c.id === companyId);
+            setActiveCompany(company || null);
         }
 
         const role = localStorage.getItem("userRole");
@@ -80,34 +76,24 @@ export default function BillingPage() {
     }, []);
 
     useEffect(() => {
-        if (!activeCompany?.id) return;
-        
-        const fetchOrders = (companyId: string) => {
-            const role = localStorage.getItem("userRole");
-            const username = localStorage.getItem("loggedInUser");
-    
-            const ordersRef = ref(db, `orders/${companyId}`);
-            let ordersQuery = query(ordersRef);
-    
-            if (role === 'coordinator' && username) {
-                ordersQuery = query(ordersRef, orderByChild('createdBy'), equalTo(username));
-            }
-    
-            return onValue(ordersQuery, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-                    setAllOrders(list);
-                } else {
-                    setAllOrders([]);
-                }
-            }, (error) => {
-                 toast({ variant: 'destructive', title: 'Error fetching orders', description: error.message });
-            });
+        if (!activeCompany?.id) {
+            setAllOrders([]);
+            return;
         };
+        
+        const companyId = activeCompany.id;
+        const role = localStorage.getItem("userRole");
+        const username = localStorage.getItem("loggedInUser");
 
-        const unsubscribe = fetchOrders(activeCompany.id);
-        return () => unsubscribe();
+        const ordersJson = localStorage.getItem(`orders_${companyId}`);
+        const allCompanyOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];
+        
+        if (role === 'coordinator' && username) {
+            const userOrders = allCompanyOrders.filter(o => o.createdBy === username);
+            setAllOrders(userOrders);
+        } else {
+            setAllOrders(allCompanyOrders);
+        }
 
     }, [activeCompany, toast]);
 
@@ -193,9 +179,21 @@ export default function BillingPage() {
         };
 
         try {
-            await update(ref(db, `orders/${activeCompany.id}/${selectedOrder.id}`), updatedOrderData);
+            // Update order in localStorage
+            const allCompanyOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
+            let allCompanyOrders: Order[] = allCompanyOrdersJson ? JSON.parse(allCompanyOrdersJson) : [];
+            const updatedAllCompanyOrders = allCompanyOrders.map(o => o.id === selectedOrder.id ? { ...o, ...updatedOrderData } : o);
+            localStorage.setItem(`orders_${activeCompany.id}`, JSON.stringify(updatedAllCompanyOrders));
             
-            const customerDebitEntry: Omit<LedgerEntry, 'id'> = {
+            // This is a direct state update, so the page reflects the change immediately.
+            setAllOrders(allOrders.map(o => o.id === selectedOrder.id ? { ...o, ...updatedOrderData } as Order : o));
+
+            // Add ledger entries
+            const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompany.id}`);
+            let ledgerEntries: LedgerEntry[] = ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : [];
+
+            const customerDebitEntry: LedgerEntry = {
+                id: `le-${Date.now()}-1`,
                 date: invoiceDate,
                 accountId: selectedOrder.customerInfo.id,
                 accountName: selectedOrder.customerInfo.name,
@@ -205,7 +203,8 @@ export default function BillingPage() {
                 credit: 0,
                 refId: selectedOrder.id,
             };
-            const salesCreditEntry: Omit<LedgerEntry, 'id'> = {
+            const salesCreditEntry: LedgerEntry = {
+                id: `le-${Date.now()}-2`,
                 date: invoiceDate,
                 accountId: 'SALES_ACCOUNT',
                 accountName: 'Sales Account',
@@ -215,12 +214,11 @@ export default function BillingPage() {
                 credit: totalAmount,
                 refId: selectedOrder.id,
             };
-
-            const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
-            await push(ledgerEntriesRef, customerDebitEntry);
-            await push(ledgerEntriesRef, salesCreditEntry);
             
-            setInvoiceOrder({ ...selectedOrder, ...updatedOrderData });
+            ledgerEntries.push(customerDebitEntry, salesCreditEntry);
+            localStorage.setItem(`ledger_entries_${activeCompany.id}`, JSON.stringify(ledgerEntries));
+            
+            setInvoiceOrder({ ...selectedOrder, ...updatedOrderData } as Order);
             setIsReprintView(false);
             handleCancelCreation();
             toast({ title: "Invoice Generated", description: `Order ${selectedOrder.id} is now billed.` });

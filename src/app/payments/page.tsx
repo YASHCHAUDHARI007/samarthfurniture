@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -40,8 +39,6 @@ import { cn } from "@/lib/utils";
 import type { Ledger, LedgerEntry, Order, Purchase, Payment, PaymentStatus, Company } from "@/lib/types";
 import { VoucherReceipt } from "@/components/voucher-receipt";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { ref, onValue, update, push } from "firebase/database";
 
 
 export default function PaymentsPage() {
@@ -81,12 +78,10 @@ export default function PaymentsPage() {
     }
     const companyId = localStorage.getItem('activeCompanyId');
     if (companyId) {
-        const companyRef = ref(db, `companies/${companyId}`);
-        onValue(companyRef, (snapshot) => {
-            if (snapshot.exists()) {
-                setActiveCompany({ id: snapshot.key, ...snapshot.val()});
-            }
-        });
+        const companiesJson = localStorage.getItem('companies');
+        const companies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
+        const company = companies.find(c => c.id === companyId);
+        setActiveCompany(company || null);
     }
     setIsLoading(false);
   }, []);
@@ -101,50 +96,22 @@ export default function PaymentsPage() {
     
     const companyId = activeCompany.id;
 
-    const ledgersRef = ref(db, `ledgers/${companyId}`);
-    const ordersRef = ref(db, `orders/${companyId}`);
-    const purchasesRef = ref(db, `purchases/${companyId}`);
-
-    const unsubLedgers = onValue(ledgersRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setLedgers(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setLedgers([]);
-        }
-    });
-
-    const unsubOrders = onValue(ordersRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            setOrders(Object.keys(data).map(key => ({ id: key, ...data[key] })));
-        } else {
-            setOrders([]);
-        }
-    });
-
-    const unsubPurchases = onValue(purchasesRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            const list = Object.keys(data).map(key => ({
-                id: key,
-                ...data[key],
-                paidAmount: data[key].paidAmount || 0,
-                balanceDue: data[key].balanceDue ?? data[key].totalAmount,
-                paymentStatus: data[key].paymentStatus || (data[key].totalAmount > 0 ? 'Unpaid' : 'Paid'),
-                payments: data[key].payments || [],
-            }));
-            setPurchases(list);
-        } else {
-            setPurchases([]);
-        }
-    });
-
-    return () => {
-        unsubLedgers();
-        unsubOrders();
-        unsubPurchases();
-    };
+    const ledgersJson = localStorage.getItem(`ledgers_${companyId}`);
+    setLedgers(ledgersJson ? JSON.parse(ledgersJson) : []);
+    
+    const ordersJson = localStorage.getItem(`orders_${companyId}`);
+    setOrders(ordersJson ? JSON.parse(ordersJson) : []);
+    
+    const purchasesJson = localStorage.getItem(`purchases_${companyId}`);
+    const purchaseList: Purchase[] = purchasesJson ? JSON.parse(purchasesJson) : [];
+    const hydratedPurchases = purchaseList.map(p => ({
+        ...p,
+        paidAmount: p.paidAmount || 0,
+        balanceDue: p.balanceDue ?? p.totalAmount,
+        paymentStatus: p.paymentStatus || (p.totalAmount > 0 ? 'Unpaid' : 'Paid'),
+        payments: p.payments || [],
+    }));
+    setPurchases(hydratedPurchases);
 
   }, [activeCompany]);
 
@@ -212,34 +179,40 @@ export default function PaymentsPage() {
     const originalOrder = selectedInvoiceId ? orders.find(o => o.id === selectedInvoiceId) : null;
     const details = `Received via ${receiptMethod}. Ref: ${receiptRef || 'N/A'} ${originalOrder ? `against INV #${originalOrder.invoiceNumber}` : ''}`.trim();
     
-    const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
-    const customerDebitEntry: Omit<LedgerEntry, 'id'> = {
-        date: paymentDateISO, accountId: customer.id, accountName: customer.name, type: 'Receipt', details, debit: 0, credit: Number(receiptAmount), refId: paymentId
+    const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompany.id}`);
+    const ledgerEntries: LedgerEntry[] = ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : [];
+    
+    const customerDebitEntry: LedgerEntry = {
+        id: `le-${Date.now()}-1`, date: paymentDateISO, accountId: customer.id, accountName: customer.name, type: 'Receipt', details, debit: 0, credit: Number(receiptAmount), refId: paymentId
     };
-    const cashCreditEntry: Omit<LedgerEntry, 'id'> = {
-        date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Receipt', details: `From ${customer.name}`, debit: Number(receiptAmount), credit: 0, refId: paymentId
+    const cashCreditEntry: LedgerEntry = {
+        id: `le-${Date.now()}-2`, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Receipt', details: `From ${customer.name}`, debit: Number(receiptAmount), credit: 0, refId: paymentId
     };
     
-    try {
-      await push(ledgerEntriesRef, customerDebitEntry);
-      await push(ledgerEntriesRef, cashCreditEntry);
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Ledger Entry Failed", description: error.message });
-        return;
-    }
+    ledgerEntries.push(customerDebitEntry, cashCreditEntry);
+    localStorage.setItem(`ledger_entries_${activeCompany.id}`, JSON.stringify(ledgerEntries));
 
     if (originalOrder) {
         const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: Number(receiptAmount), method: receiptMethod };
-        const payments = [...(originalOrder.payments || []), newPayment];
-        const paidAmount = payments.reduce((acc, p) => acc + p.amount, 0);
-        const balanceDue = (originalOrder.totalAmount || 0) - paidAmount;
-        const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
-        
-        const orderUpdates = { payments, paidAmount, balanceDue, paymentStatus };
-        try {
-            await update(ref(db, `orders/${activeCompany.id}/${originalOrder.id}`), orderUpdates);
-        } catch(error: any) {
-             toast({ variant: "destructive", title: "Order Update Failed", description: error.message });
+        const allOrdersJson = localStorage.getItem(`orders_${activeCompany.id}`);
+        let allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
+
+        let orderUpdated = false;
+        allOrders = allOrders.map(o => {
+            if (o.id === originalOrder.id) {
+                const payments = [...(o.payments || []), newPayment];
+                const paidAmount = payments.reduce((acc, p) => acc + p.amount, 0);
+                const balanceDue = (o.totalAmount || 0) - paidAmount;
+                const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
+                orderUpdated = true;
+                return { ...o, payments, paidAmount, balanceDue, paymentStatus };
+            }
+            return o;
+        });
+
+        if (orderUpdated) {
+            localStorage.setItem(`orders_${activeCompany.id}`, JSON.stringify(allOrders));
+            setOrders(allOrders); // update state
         }
     }
     
@@ -272,35 +245,41 @@ export default function PaymentsPage() {
     const originalPurchase = selectedPurchaseId ? purchases.find(p => p.id === selectedPurchaseId) : null;
     const details = `Paid via ${paymentMethod}. Ref: ${paymentRef || 'N/A'} ${originalPurchase ? `against Bill #${originalPurchase.billNumber}` : ''}`.trim();
 
-    const ledgerEntriesRef = ref(db, `ledger_entries/${activeCompany.id}`);
-    const supplierCreditEntry: Omit<LedgerEntry, 'id'> = {
-        date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: Number(paymentAmount), credit: 0, refId: paymentId
+    const ledgerEntriesJson = localStorage.getItem(`ledger_entries_${activeCompany.id}`);
+    const ledgerEntries: LedgerEntry[] = ledgerEntriesJson ? JSON.parse(ledgerEntriesJson) : [];
+
+    const supplierCreditEntry: LedgerEntry = {
+        id: `le-${Date.now()}-1`, date: paymentDateISO, accountId: supplier.id, accountName: supplier.name, type: 'Payment', details, debit: Number(paymentAmount), credit: 0, refId: paymentId
     };
-    const cashDebitEntry: Omit<LedgerEntry, 'id'> = {
-        date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: Number(paymentAmount), refId: paymentId
+    const cashDebitEntry: LedgerEntry = {
+        id: `le-${Date.now()}-2`, date: paymentDateISO, accountId: 'CASH_ACCOUNT', accountName: 'Cash', type: 'Payment', details: `To ${supplier.name}`, debit: 0, credit: Number(paymentAmount), refId: paymentId
     };
 
-    try {
-        await push(ledgerEntriesRef, supplierCreditEntry);
-        await push(ledgerEntriesRef, cashDebitEntry);
-    } catch(error: any) {
-        toast({ variant: "destructive", title: "Ledger Entry Failed", description: error.message });
-        return;
-    }
+    ledgerEntries.push(supplierCreditEntry, cashDebitEntry);
+    localStorage.setItem(`ledger_entries_${activeCompany.id}`, JSON.stringify(ledgerEntries));
 
      if (originalPurchase) {
-      const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: Number(paymentAmount), method: paymentMethod };
-      const payments = [...(originalPurchase.payments || []), newPayment];
-      const paidAmount = payments.reduce((acc, pay) => acc + pay.amount, 0);
-      const balanceDue = originalPurchase.totalAmount - paidAmount;
-      const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
+        const newPayment: Payment = { id: paymentId, date: paymentDateISO, amount: Number(paymentAmount), method: paymentMethod };
+        const allPurchasesJson = localStorage.getItem(`purchases_${activeCompany.id}`);
+        let allPurchases: Purchase[] = allPurchasesJson ? JSON.parse(allPurchasesJson) : [];
+
+        let purchaseUpdated = false;
+        allPurchases = allPurchases.map(p => {
+            if(p.id === originalPurchase.id) {
+                const payments = [...(p.payments || []), newPayment];
+                const paidAmount = payments.reduce((acc, pay) => acc + pay.amount, 0);
+                const balanceDue = p.totalAmount - paidAmount;
+                const paymentStatus: PaymentStatus = balanceDue <= 0.01 ? 'Paid' : 'Partially Paid';
+                purchaseUpdated = true;
+                return {...p, payments, paidAmount, balanceDue, paymentStatus };
+            }
+            return p;
+        });
       
-      const purchaseUpdates = { payments, paidAmount, balanceDue, paymentStatus };
-      try {
-        await update(ref(db, `purchases/${activeCompany.id}/${originalPurchase.id}`), purchaseUpdates);
-      } catch(error: any) {
-         toast({ variant: "destructive", title: "Purchase Update Failed", description: error.message });
-      }
+        if(purchaseUpdated) {
+            localStorage.setItem(`purchases_${activeCompany.id}`, JSON.stringify(allPurchases));
+            setPurchases(allPurchases);
+        }
     }
 
     toast({ title: "Payment Recorded", description: `Payment to ${supplier.name} has been recorded.` });
