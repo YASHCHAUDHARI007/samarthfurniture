@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { Company, UserRole } from '@/lib/types';
+import type { Company } from '@/lib/types';
 
 interface CompanyContextType {
   companies: Company[];
@@ -17,28 +17,15 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
   const [activeCompanyId, _setActiveCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // This effect runs only once on mount to initialize everything.
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole") as UserRole | null;
     const companiesJson = localStorage.getItem('companies');
     const allCompanies: Company[] = companiesJson ? JSON.parse(companiesJson) : [];
     setCompanies(allCompanies);
 
-    let initialActiveId = localStorage.getItem('activeCompanyId');
-
-    // If a coordinator/factory worker logs in without an active company,
-    // find the most recent one, set it, and force a reload to ensure context is correct everywhere.
-    if (!initialActiveId && (userRole === 'coordinator' || userRole === 'factory') && allCompanies.length > 0) {
-      const sortedCompanies = [...allCompanies].sort((a, b) => new Date(b.financialYearStart).getTime() - new Date(a.financialYearStart).getTime());
-      initialActiveId = sortedCompanies[0].id;
-      localStorage.setItem('activeCompanyId', initialActiveId);
-      window.location.reload(); // Force reload to ensure all components get the new context
-      return; // Stop execution to allow reload to happen
-    }
-    
+    const initialActiveId = localStorage.getItem('activeCompanyId');
     _setActiveCompanyId(initialActiveId);
     setIsLoading(false);
-  }, []); // Empty dependency array ensures it runs once on mount.
+  }, []);
 
   const setActiveCompanyId = (id: string | null) => {
     if (id) {
@@ -46,7 +33,6 @@ export const CompanyProvider = ({ children }: { children: ReactNode }) => {
     } else {
         localStorage.removeItem('activeCompanyId');
     }
-    // Instead of setting state here, we reload. The useEffect on mount will pick up the new value.
     window.location.reload(); 
   };
 

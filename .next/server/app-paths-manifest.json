@@ -1,7 +1,7 @@
 {
-  "/stock-turnover/page": "app/stock-turnover/page.js",
   "/page": "app/page.js",
   "/login/page": "app/login/page.js",
   "/dealer-orders/page": "app/dealer-orders/page.js",
-  "/transport/page": "app/transport/page.js"
+  "/transport/page": "app/transport/page.js",
+  "/customer-orders/page": "app/customer-orders/page.js"
 }

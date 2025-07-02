@@ -79,7 +79,7 @@ const navItems: {
   { path: "/raw-materials", icon: Wrench, text: "Raw Materials", fkey: "F12", roles: ["owner", "factory", "administrator"] },
   { path: "/daily-report", icon: ClipboardList, text: "Daily Report", roles: ["owner", "administrator"] },
   { path: "/gst-reports", icon: FileSpreadsheet, text: "GST Reports", roles: ["owner", "administrator"] },
-  { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator"], separator: true },
+  { path: "/manage-companies", icon: Building2, text: "Companies", roles: ["owner", "administrator", "coordinator"], separator: true },
   { path: "/locations", icon: Warehouse, text: "Locations", roles: ["owner", "administrator"] },
   { path: "/manage-users", icon: Users, text: "Manage Users", roles: ["owner", "administrator"] },
   { path: "/chart-of-accounts", icon: BookUser, text: "Chart of Accounts", roles: ["owner", "administrator"] },

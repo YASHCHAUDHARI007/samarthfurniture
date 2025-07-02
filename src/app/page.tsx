@@ -149,19 +149,24 @@ export default function Dashboard() {
     );
   }
 
-  if (!activeCompany && (userRole === 'owner' || userRole === 'administrator')) {
+  if (!activeCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Welcome to Samarth Furniture</CardTitle>
-            <CardDescription>To get started, you need to create or select a company.</CardDescription>
+            <CardDescription>To get started, you need to select a company.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>All your data, including orders, customers, and inventory, will be organized by company.</p>
+            <p>
+              {userRole === 'owner' || userRole === 'administrator' 
+                ? "All your data will be organized by company. Please create or select one."
+                : "Please select an active company to work with."
+              }
+            </p>
           </CardContent>
           <CardFooter>
-            <Button onClick={() => router.push('/manage-companies')}>Manage Companies</Button>
+            <Button onClick={() => router.push('/manage-companies')}>Go to Companies</Button>
           </CardFooter>
         </Card>
       </div>
